@@ -66,11 +66,11 @@ Claude Code는 `/start-task <이슈 번호>`, `/finish-task`로 실행한다. �
 - 커밋: AI가 로컬에서 만들 수 있다. Conventional Commits를 권장하지만 main에는 남지 않는다.
 - 커밋 메시지와 PR 본문에 `Co-Authored-By: Claude ...`, `Generated with Claude Code` 같은 AI 귀속 표시를 넣지 않는다. 작성자는 항상 사람 계정(uptime-zero 등)만 남긴다. GitHub Contributors 목록에 AI가 나타나면 안 된다.
 - **PR 제목**: squash merge로 PR 제목이 main의 커밋 제목이 된다. 반드시 아래 형식을 지킨다.
-  - 형식: `type(scope): 설명`. scope는 생략 가능하다.
+  - 형식: `type(scope): description`. scope는 생략 가능하다.
   - type: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
   - scope: 기능·도메인 이름(`auth`, `workflow`, `revision`, `analysis`, `build` 등). `frontend`, `backend` 같은 영역명은 금지하며 라벨로 표현한다.
-  - 설명: 한국어, 무엇이 바뀌는지 한 문장. 마침표 없이 50자 안팎. 이슈 번호는 넣지 않는다(본문 `Closes #N`, 머지 시 GitHub가 `(#PR)`을 붙인다).
-  - 호환성을 깨는 API·DB 변경은 `!`를 붙인다. 예: `feat(workflow)!: 업로드 응답 형식 변경`
+  - 설명: 영어, 무엇이 바뀌는지 한 문장. 소문자 동사로 시작하고(`add`, `fix`, `move` 등) 마침표 없이 50자 안팎. 이슈 번호는 넣지 않는다(본문 `Closes #N`, 머지 시 GitHub가 `(#PR)`을 붙인다).
+  - 호환성을 깨는 API·DB 변경은 `!`를 붙인다. 예: `feat(workflow)!: change upload response format`
   - 범위가 바뀌면 머지 전에 제목도 고친다. 로컬 검증: `npm run check:pr-title -- "<제목>"`.
 
 ## 병렬 작업과 검증

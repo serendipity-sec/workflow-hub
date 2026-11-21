@@ -26,20 +26,20 @@ Claude Code 외의 에이전트는 `.claude/skills/*/SKILL.md`를 읽고 같은 
 squash merge만 허용하며 **PR 제목이 그대로 main의 커밋 제목이 됩니다.** CI가 PR 제목을 검사합니다.
 
 ```text
-feat(workflow): 워크플로 업로드 추가
-fix(auth): 만료 토큰 처리 수정
-feat(revision)!: 리비전 응답 형식 변경
-ci: 빌드 검사 추가
+feat(workflow): add workflow upload
+fix(auth): handle expired tokens
+feat(revision)!: change revision response format
+ci: add build checks
 ```
 
-- 형식: `type(scope): 설명`. scope는 선택입니다.
+- 형식: `type(scope): description`. scope는 선택입니다.
 - 타입: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
 - scope: `auth`, `workflow`, `revision`, `analysis`, `build`처럼 기능이나 도메인을 나타냅니다. `front`, `back`, `frontend`, `backend`는 scope로 쓸 수 없습니다.
-- 설명: 한국어로 무엇이 바뀌는지 한 문장. 마침표 없이 50자 안팎으로 씁니다.
+- 설명: 영어로 무엇이 바뀌는지 한 문장. 소문자 동사(`add`, `fix`, `move` 등)로 시작하고 마침표 없이 50자 안팎으로 씁니다.
 - 이슈 번호는 제목에 넣지 않습니다. 머지할 때 GitHub가 `(#PR 번호)`를 붙입니다.
 - 호환성을 깨는 API·DB 변경은 type 뒤에 `!`를 붙입니다.
 - 작업 범위가 바뀌면 머지 전에 제목도 고칩니다. 제목을 수정하면 CI가 다시 검사합니다.
-- 로컬 확인: `npm run check:pr-title -- "feat(workflow): 워크플로 업로드 추가"`
+- 로컬 확인: `npm run check:pr-title -- "feat(workflow): add workflow upload"`
 
 담당 영역은 `frontend`, `backend`, `infra`, `docs` 라벨로 표현합니다. 변경 경로를 기준으로 자동으로 붙으며 여러 개일 수 있습니다.
 

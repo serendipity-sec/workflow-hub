@@ -53,7 +53,7 @@ git diff --stat origin/main...HEAD
 AGENTS.md의 PR 제목 규칙에 맞는 제목을 만든다. squash merge로 이 제목이 main의 커밋 제목이 된다.
 
 ```bash
-npm run check:pr-title -- "type(scope): 설명"
+npm run check:pr-title -- "type(scope): description"
 ```
 
 ## 6. 사람에게 넘기기
@@ -65,7 +65,7 @@ npm run check:pr-title -- "type(scope): 설명"
 git push -u origin <브랜치명>
 
 ## PR 제목
-type(scope): 설명
+type(scope): description (영어)
 
 ## 라벨
 frontend / backend / infra / docs 중 해당 항목 (자동 라벨을 확인하고 필요하면 수정)

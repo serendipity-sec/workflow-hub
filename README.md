@@ -109,7 +109,7 @@ CI에서도 동일한 명령을 실행합니다.
 
 1. 이슈를 먼저 등록해 변경 내용을 공유합니다.
 2. 브랜치를 만들어 작업하고, 위의 테스트와 빌드 명령이 모두 통과하는지 확인합니다.
-3. PR 제목은 `feat(workflow): 업로드 기능 추가`처럼 `type(scope): 설명` 형식으로 작성하고, frontend/backend 영역 라벨을 붙입니다.
+3. PR 제목은 `feat(workflow): add workflow upload`처럼 `type(scope): description` 형식(설명은 영어)으로 작성하고, frontend/backend 영역 라벨을 붙입니다.
 
 자세한 절차는 [CONTRIBUTING.md](CONTRIBUTING.md)를 참고하세요.
 
