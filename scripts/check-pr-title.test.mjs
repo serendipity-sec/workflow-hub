@@ -6,7 +6,7 @@ test('accepts domain scopes, optional scope, breaking marker and Korean descript
   for (const title of [
     'feat(workflow): 업로드 추가',
     'ci: 검사 추가',
-    'feat(auth)!: 신원 확인 방식 변경',
+    'feat(auth)!: change identity',
   ]) {
     assert.equal(isValidTitle(title), true, title);
   }
