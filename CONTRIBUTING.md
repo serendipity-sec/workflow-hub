@@ -19,7 +19,7 @@ Claude Code 외의 에이전트는 `.claude/skills/*/SKILL.md`를 읽고 같은 
 
 브랜치는 `<type>/<이슈 번호>-<짧은-설명>`입니다. 예: `feat/42-workflow-upload`.
 한 PR은 하나의 목적을 가지며, 관련 이슈는 PR 본문에 `Closes #42`로 연결합니다.
-작업 중 커밋은 자유롭게 쌓아도 됩니다. Conventional Commits를 권장하지만 squash merge로 main에는 남지 않습니다.
+작업 중 커밋은 자유롭게 쌓아도 됩니다. Conventional Commits를 권장하지만 squash merge로 main에는 남지 않습니다. 커밋 제목과 본문은 영어로 작성합니다.
 
 ## PR 제목
 

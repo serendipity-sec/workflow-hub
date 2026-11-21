@@ -63,7 +63,7 @@ Claude Code는 `/start-task <이슈 번호>`, `/finish-task`로 실행한다. �
 ## 브랜치·커밋·PR 제목
 
 - 브랜치: `<type>/<이슈 번호>-<짧은-설명>`. 예: `feat/42-workflow-upload`.
-- 커밋: AI가 로컬에서 만들 수 있다. Conventional Commits를 권장하지만 main에는 남지 않는다.
+- 커밋: AI가 로컬에서 만들 수 있다. Conventional Commits를 권장하지만 main에는 남지 않는다. 커밋 제목과 본문은 영어로 작성한다(제목은 PR 제목과 같은 `type(scope): description` 형식).
 - 커밋 메시지와 PR 본문에 `Co-Authored-By: Claude ...`, `Generated with Claude Code` 같은 AI 귀속 표시를 넣지 않는다. 작성자는 항상 사람 계정(uptime-zero 등)만 남긴다. GitHub Contributors 목록에 AI가 나타나면 안 된다.
 - **PR 제목**: squash merge로 PR 제목이 main의 커밋 제목이 된다. 반드시 아래 형식을 지킨다.
   - 형식: `type(scope): description`. scope는 생략 가능하다.
