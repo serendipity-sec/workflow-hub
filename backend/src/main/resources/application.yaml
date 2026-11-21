@@ -1,0 +1,12 @@
+server:
+  port: ${PORT:8080}
+spring:
+  application:
+    name: workflow-hub-backend
+app:
+  auth:
+    issuer: ${SUPABASE_JWT_ISSUER:http://localhost:54321/auth/v1}
+    jwk-set-uri: ${SUPABASE_JWKS_URI:http://localhost:54321/auth/v1/.well-known/jwks.json}
+    audience: authenticated
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}

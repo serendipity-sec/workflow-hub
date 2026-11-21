@@ -1,0 +1,84 @@
+:root {
+  font-family: Inter, 'Segoe UI', system-ui, sans-serif;
+  color: #19342e;
+  background: #f4f6f1;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  line-height: 1.7;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 72px 24px;
+}
+header {
+  padding-bottom: 36px;
+}
+h1 {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  line-height: 1.2;
+  letter-spacing: -0.04em;
+}
+h2 {
+  line-height: 1.4;
+}
+.eyebrow {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+}
+.panel {
+  background: white;
+  padding: 28px;
+  border: 1px solid #d7e0d8;
+  border-radius: 16px;
+}
+.tag {
+  background: #e9f3eb;
+  padding: 6px 12px;
+  border-radius: 24px;
+  font-size: 0.8rem;
+}
+.muted {
+  color: #5a6963;
+  font-size: 0.95rem;
+}
+button {
+  border: 0;
+  border-radius: 8px;
+  padding: 12px 20px;
+  background: #255b49;
+  color: white;
+  font: inherit;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+button:focus-visible {
+  outline: 3px solid #c8832a;
+  outline-offset: 3px;
+}
+[role='alert'] {
+  color: #a32b2b;
+}
+@media (max-width: 700px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  main {
+    padding-top: 36px;
+  }
+}
