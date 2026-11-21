@@ -13,7 +13,7 @@
 7. **머지 (사람)**: CI와 리뷰를 확인하고 squash merge합니다.
 
 AI는 커밋까지만 합니다. 이슈·댓글 생성, push, PR 생성·머지는 사람이 합니다.
-Claude Code 외의 에이전트는 `.claude/skills/*/SKILL.md`를 읽고 같은 절차를 따릅니다.
+Claude Code 외의 에이전트는 `.agents/skills/*/SKILL.md`를 읽고 같은 절차를 따릅니다. `.claude/skills/`는 `npm run setup:skills`가 만든 링크입니다.
 
 ## 브랜치와 커밋
 

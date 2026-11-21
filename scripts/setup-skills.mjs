@@ -21,7 +21,7 @@ export function setupSkills(rootDir) {
   const sourceDir = path.join(rootDir, '.agents', 'skills');
   const targetDir = path.join(rootDir, '.claude', 'skills');
 
-  // 1) 원본을 모두 확인한 뒤에만 링크를 만든다. 실패 시 중간 상태를 남기지 않는다.
+  // 1) 원본을 모두 확인한 뒤에만 링크를 만든다. 검증 단계에서 실패하면 링크를 하나도 만들지 않는다.
   for (const name of SKILL_NAMES) {
     const skillFile = path.join(sourceDir, name, 'SKILL.md');
     if (!existsSync(skillFile)) {
