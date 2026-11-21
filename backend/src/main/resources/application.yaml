@@ -3,6 +3,12 @@ server:
 spring:
   application:
     name: workflow-hub-backend
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+  flyway:
+    default-schema: workflow_hub
 app:
   auth:
     issuer: ${SUPABASE_JWT_ISSUER:http://localhost:54321/auth/v1}
