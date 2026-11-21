@@ -69,28 +69,33 @@ npm run check:pr-title -- "type(scope): description"
 ## 6. 사람에게 넘기기
 
 아래 형식으로 보고하고 멈춘다. push·PR 생성·머지는 사람이 직접 한다.
+PR 제목과 PR 본문은 각각 별도 코드블록으로 감싸 채팅에 직접 제공한다. 제목은 `text`, 본문은 `markdown` 코드블록을 사용하며, 파일 링크만으로 대신하지 않는다. 항목 제목은 코드블록 밖에 두어 내용만 복사할 수 있게 한다.
 
-```text
+````text
 ## push (사람이 실행)
 git push -u origin <브랜치명>
 
 ## PR 제목
+```text
 type(scope): description (영어)
+```
 
 ## 라벨
 frontend / backend / infra / docs 중 해당 항목 (자동 라벨을 확인하고 필요하면 수정)
 
 ## PR 본문
 (.github/pull_request_template.md 형식으로 작성. `Closes #<번호>` 포함)
+```markdown
 - 목적
 - 변경 내용
 - 검증 결과: 실행한 명령과 결과, 실행하지 못한 검사와 이유
 - 리뷰 결과: 사용한 리뷰 스킬, 지적 사항과 처리 결과
 - 결정 사항: 이슈와 작업 중 사람이 내린 결정
 - 계약·데이터 변경 여부
+```
 
 ## 남은 문제·미검증 항목
 
 ## PR 생성 후 (사람이 실행)
 PR에 `@coderabbitai review` 댓글로 봇 리뷰를 실행한다. 지적 사항은 다시 AI에게 넘긴다.
-```
+````
