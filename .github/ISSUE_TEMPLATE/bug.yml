@@ -16,6 +16,11 @@ body:
     validations:
       required: true
   - type: textarea
+    id: decisions
+    attributes:
+      label: 수정 방향과 결정 사항
+      description: 정해진 수정 방향이 있으면 적어 주세요. 없으면 비워 두고, 정해지면 댓글로 남깁니다.
+  - type: textarea
     id: evidence
     attributes:
       label: 검증 자료

@@ -2,49 +2,65 @@
 
 먼저 루트 `AGENTS.md`, 담당 영역의 `AGENTS.md`, 관련 API 계약을 읽습니다.
 
-## 작업과 커밋
+## 작업 흐름
 
-작업별 브랜치를 사용합니다. 예: `feat/42-workflow-upload`.
+1. **이슈 생성 (사람)**: `개발 작업` 템플릿으로 이슈를 직접 만듭니다. 목적, 범위, 완료 조건, 결정 사항을 적습니다.
+2. **작업 시작 (AI)**: 이슈 번호를 넘기고 `/start-task <번호>`를 실행합니다. AI가 이슈를 읽고 브랜치와 계획을 보고합니다. 계획을 확인하고 진행을 승인합니다.
+3. **구현 (AI)**: 이슈에 없는 결정이 필요하면 AI가 멈추고 묻습니다. 정한 내용은 이슈에 댓글로 남깁니다.
+4. **작업 마무리 (AI)**: `/finish-task`를 실행합니다. 검사, 리뷰 스킬 1차 리뷰, 로컬 커밋을 마치고 push 명령과 PR 제목·본문 초안을 넘깁니다.
+5. **push와 PR (사람)**: 결과를 확인하고 직접 push한 뒤 PR을 만듭니다.
+6. **머지 (사람)**: CI와 리뷰를 확인하고 squash merge합니다.
+
+AI는 커밋까지만 합니다. 이슈·댓글 생성, push, PR 생성·머지는 사람이 합니다.
+Claude Code 외의 에이전트는 `.claude/skills/*/SKILL.md`를 읽고 같은 절차를 따릅니다.
+
+## 브랜치와 커밋
+
+브랜치는 `<type>/<이슈 번호>-<짧은-설명>`입니다. 예: `feat/42-workflow-upload`.
 한 PR은 하나의 목적을 가지며, 관련 이슈는 PR 본문에 `Closes #42`로 연결합니다.
+작업 중 커밋은 자유롭게 쌓아도 됩니다. Conventional Commits를 권장하지만 squash merge로 main에는 남지 않습니다.
 
-커밋에는 Conventional Commits를 권장합니다. PR 제목은 필수입니다.
+## PR 제목
+
+squash merge만 허용하며 **PR 제목이 그대로 main의 커밋 제목이 됩니다.** CI가 PR 제목을 검사합니다.
 
 ```text
 feat(workflow): 워크플로 업로드 추가
 fix(auth): 만료 토큰 처리 수정
+feat(revision)!: 리비전 응답 형식 변경
 ci: 빌드 검사 추가
 ```
 
-타입은 `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`를 사용합니다.
-scope는 선택 사항이며 `auth`, `workflow`, `revision`, `analysis`, `build`처럼 도메인이나 기능을 나타냅니다.
-`front`, `back`, `frontend`, `backend`는 scope로 사용하지 않습니다.
-담당 영역은 `frontend`, `backend`, `infra`, `docs` 라벨로 표현하고 여러 라벨을 붙일 수 있습니다.
+- 형식: `type(scope): 설명`. scope는 선택입니다.
+- 타입: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
+- scope: `auth`, `workflow`, `revision`, `analysis`, `build`처럼 기능이나 도메인을 나타냅니다. `front`, `back`, `frontend`, `backend`는 scope로 쓸 수 없습니다.
+- 설명: 한국어로 무엇이 바뀌는지 한 문장. 마침표 없이 50자 안팎으로 씁니다.
+- 이슈 번호는 제목에 넣지 않습니다. 머지할 때 GitHub가 `(#PR 번호)`를 붙입니다.
+- 호환성을 깨는 API·DB 변경은 type 뒤에 `!`를 붙입니다.
+- 작업 범위가 바뀌면 머지 전에 제목도 고칩니다. 제목을 수정하면 CI가 다시 검사합니다.
+- 로컬 확인: `npm run check:pr-title -- "feat(workflow): 워크플로 업로드 추가"`
+
+담당 영역은 `frontend`, `backend`, `infra`, `docs` 라벨로 표현합니다. 변경 경로를 기준으로 자동으로 붙으며 여러 개일 수 있습니다.
 
 ## 검사
 
 루트는 `npm ci` 후 `npm run check`와 `npm run test:tooling`을 실행합니다.
 포맷 수정은 `npm run format`입니다. 프론트와 백엔드는 각각의 포매터를 사용합니다.
 프론트 검사 명령은 `frontend/AGENTS.md`, 백엔드는 `backend/AGENTS.md`를 따릅니다.
-CI는 모든 PR에서 각 영역의 검사와 빌드를 실행합니다. 영역별 경로 필터로 필수 검사가 누락되지 않게 합니다.
+CI는 모든 PR에서 `repository`, `frontend`, `backend`, `secrets` 검사를 실행하며, 모두 통과해야 머지할 수 있습니다.
 
 UTF-8, LF, 마지막 개행을 사용합니다. `.bat`와 `.cmd`만 CRLF를 사용합니다.
 포매터 설정이 들여쓰기와 코드 스타일의 기준입니다. 포매터 결과를 취향으로 되돌리지 않습니다.
 
-## GitHub 초기 설정
+## GitHub 저장소 설정
 
-다음은 저장소 파일만으로 활성화되지 않으므로 원격 repo 생성 후 관리자가 적용합니다.
+저장소: `serendipity-sec/workflow-hub` (공개). 아래 설정이 적용되어 있습니다.
 
-1. 최초 README 초안을 사용자에게 검토받고 명시적 승인을 받은 뒤 첫 push를 합니다.
-2. 기본 브랜치는 `main`, 머지는 squash만 허용합니다.
-3. squash commit의 기본 제목을 PR 제목으로 설정합니다.
-4. merge 후 작업 브랜치 자동 삭제를 켭니다.
-5. `frontend`, `backend`, `infra`, `docs` 라벨을 생성합니다. 자동 라벨 워크플로가 변경 경로를 기준으로 부착합니다.
-6. main 직접 push를 제한하고 PR을 요구합니다. 팀 규모에 맞게 작성자 외 1인 검토를 권장합니다.
-7. CI 최초 실행 후 `repository`, `frontend`, `backend`, `secrets`를 필수 상태 검사로 지정합니다.
-8. 사용 가능한 secret scanning과 push protection을 활성화합니다.
-
-PR 제목을 squash 커밋 제목으로 사용하므로 작업 중 모든 커밋을 재작성할 필요는 없습니다.
-README 최초 사용자 승인은 첫 업로드의 별도 조건입니다. 이후 모든 README 변경에 사용자 개인 승인을 요구하지 않습니다.
+- 머지는 squash만 허용하고, squash 커밋 제목은 PR 제목, 본문은 PR 본문을 사용합니다.
+- merge 후 작업 브랜치를 자동으로 삭제합니다.
+- `main`은 PR로만 변경할 수 있고, 필수 상태 검사를 통과해야 합니다. force push와 삭제를 막습니다.
+- `frontend`, `backend`, `infra`, `docs` 라벨을 사용합니다.
+- secret scanning과 push protection을 켭니다.
 
 ## 설정과 데이터
 

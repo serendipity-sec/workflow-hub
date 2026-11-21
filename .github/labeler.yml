@@ -6,7 +6,7 @@ backend:
       - any-glob-to-any-file: backend/**
 infra:
   - changed-files:
-      - any-glob-to-any-file: ['.github/**', 'scripts/**', '*.json', '.*']
+      - any-glob-to-any-file: ['.github/**', '.claude/**', 'scripts/**', '*.json', '.*']
 docs:
   - changed-files:
       - any-glob-to-any-file: ['**/*.md', 'contracts/**']
