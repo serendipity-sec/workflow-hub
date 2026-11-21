@@ -51,7 +51,7 @@ git fetch origin main
 ```text
 이슈: #<번호> <제목>
 브랜치: <브랜치명>
-예정 PR 제목: type(scope): 설명
+예정 PR 제목: type(scope): description (영어)
 목적:
 변경할 영역과 파일:
 제외 범위:

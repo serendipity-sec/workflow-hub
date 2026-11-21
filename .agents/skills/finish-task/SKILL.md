@@ -44,7 +44,7 @@ git diff --stat origin/main...HEAD
 
 ## 4. 커밋
 
-- 남은 변경을 커밋한다. 메시지는 Conventional Commits 형식을 권장한다.
+- 남은 변경을 커밋한다. 메시지는 Conventional Commits 형식을 권장하며, 제목과 본문은 영어로 쓴다.
 - `.env`, 빌드 산출물, 실제 workflow JSON, 토큰이 포함되지 않았는지 `git diff --cached --name-only`로 확인한다.
 - 커밋 후 `git status`가 깨끗한지 확인한다.
 
@@ -53,7 +53,7 @@ git diff --stat origin/main...HEAD
 AGENTS.md의 PR 제목 규칙에 맞는 제목을 만든다. squash merge로 이 제목이 main의 커밋 제목이 된다.
 
 ```bash
-npm run check:pr-title -- "type(scope): 설명"
+npm run check:pr-title -- "type(scope): description"
 ```
 
 ## 6. 사람에게 넘기기
@@ -65,7 +65,7 @@ npm run check:pr-title -- "type(scope): 설명"
 git push -u origin <브랜치명>
 
 ## PR 제목
-type(scope): 설명
+type(scope): description (영어)
 
 ## 라벨
 frontend / backend / infra / docs 중 해당 항목 (자동 라벨을 확인하고 필요하면 수정)

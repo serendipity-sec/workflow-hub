@@ -19,3 +19,7 @@ uploads/
 Thumbs.db
 .omc/
 .gstack/
+
+# 스킬 링크: `npm run setup:skills`가 .agents/skills에서 만든다 (원본은 .agents/skills)
+/.claude/skills/start-task
+/.claude/skills/finish-task

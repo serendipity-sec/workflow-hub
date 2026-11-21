@@ -28,12 +28,35 @@ n8n 워크플로 JSON을 업로드하고, 수정 이력을 리비전 트리로 �
 
 Gradle은 `backend`의 Wrapper(`gradlew`)를 사용하므로 별도 설치가 필요하지 않습니다.
 
-### 프론트엔드
+### 저장소 도구와 에이전트 스킬
 
 ```sh
 # 저장소 루트: 문서/계약 검사 도구
 npm ci
 
+# Claude Code가 .agents/skills의 스킬을 읽도록 링크 생성 (클론 후 한 번)
+npm run setup:skills
+```
+
+스킬 원본은 `.agents/skills/`에 있습니다. `setup:skills`는 `.claude/skills/`에 링크를 만들며, 이 링크는 git에 올리지 않습니다. Windows는 디렉터리 정션을 쓰므로 관리자 권한이 필요 없습니다.
+
+Codex를 쓴다면 `~/.codex/skills/` 아래에도 같은 원본을 연결합니다. 이 연결은 저장소 밖 사용자 설정이라 커밋되지 않습니다. PowerShell 예시(저장소 경로는 본인 환경에 맞게 바꿉니다):
+
+```powershell
+$repo = "C:\path\to\workflow-hub"
+$codexSkills = "$env:USERPROFILE\.codex\skills"
+New-Item -ItemType Directory -Force -Path $codexSkills | Out-Null
+foreach ($s in "start-task","finish-task") {
+  $link = Join-Path $codexSkills $s
+  if (-not (Test-Path $link)) {
+    New-Item -ItemType Junction -Path $link -Target "$repo\.agents\skills\$s" | Out-Null
+  }
+}
+```
+
+### 프론트엔드
+
+```sh
 cd frontend
 npm ci
 cp .env.example .env.local
@@ -86,7 +109,7 @@ CI에서도 동일한 명령을 실행합니다.
 
 1. 이슈를 먼저 등록해 변경 내용을 공유합니다.
 2. 브랜치를 만들어 작업하고, 위의 테스트와 빌드 명령이 모두 통과하는지 확인합니다.
-3. PR 제목은 `feat(workflow): 업로드 기능 추가`처럼 `type(scope): 설명` 형식으로 작성하고, frontend/backend 영역 라벨을 붙입니다.
+3. PR 제목은 `feat(workflow): add workflow upload`처럼 `type(scope): description` 형식(설명은 영어)으로 작성하고, frontend/backend 영역 라벨을 붙입니다.
 
 자세한 절차는 [CONTRIBUTING.md](CONTRIBUTING.md)를 참고하세요.
 
