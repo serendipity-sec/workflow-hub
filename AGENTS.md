@@ -15,7 +15,9 @@
 | 7    | 사람 | PR을 직접 생성하고 `@coderabbitai review`로 봇 리뷰를 실행한다                     |
 | 8    | 사람 | CI와 리뷰를 확인한 뒤 직접 squash merge한다                                        |
 
-스킬 정의는 `.claude/skills/start-task/SKILL.md`, `.claude/skills/finish-task/SKILL.md`에 있다.
+스킬 정의는 `.agents/skills/start-task/SKILL.md`, `.agents/skills/finish-task/SKILL.md`에 있다. 원본은 이 두 파일뿐이며 고칠 때도 여기만 수정한다.
+`.claude/skills/`의 같은 이름 항목은 `npm run setup:skills`가 만든 링크다(Windows는 디렉터리 정션). 링크는 git에 올리지 않으므로 클론 후 한 번 실행한다.
+Codex는 `~/.codex/skills/start-task`, `~/.codex/skills/finish-task`를 같은 원본으로 연결해 사용한다. 이 연결은 저장소 밖 사용자 설정이며 README에 설명한다.
 Claude Code는 `/start-task <이슈 번호>`, `/finish-task`로 실행한다. 다른 에이전트는 해당 `SKILL.md`를 읽고 같은 절차를 따른다.
 
 ## AI가 하지 않는 일
