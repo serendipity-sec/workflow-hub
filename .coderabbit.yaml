@@ -1,0 +1,48 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# 별 10개 미만 공개 저장소는 자동 리뷰가 돌지 않는다. PR에 `@coderabbitai review` 댓글로 실행한다.
+language: ko-KR
+tone_instructions: '한국어로 간결하게 리뷰한다. 버그, 보안, 인가 누락, 계약 불일치를 우선하고 취향 차이는 지적하지 않는다.'
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: true
+  auto_review:
+    enabled: true
+    drafts: false
+  path_filters:
+    - '!**/package-lock.json'
+    - '!backend/gradle/wrapper/**'
+    - '!**/dist/**'
+    - '!**/build/**'
+  path_instructions:
+    - path: 'backend/**'
+      instructions: |
+        Spring Boot API다. 사용자 ID는 검증된 Supabase JWT의 sub에서만 얻고 요청 본문의 owner ID를 신뢰하지 않는다.
+        워크플로·리비전 접근마다 소유권 검사가 있는지, 인가 변경에 부정 사례 테스트가 있는지 확인한다.
+        자체 JWT 발급, 서버 세션, 업로드한 workflow·Code 노드·표현식 실행을 추가하면 지적한다.
+        토큰, 비밀키, workflow 원문을 로그에 남기는지 확인한다.
+    - path: 'frontend/**'
+      instructions: |
+        React + TypeScript다. Supabase client는 하나만 사용하고 토큰 갱신은 SDK가 담당한다.
+        VITE_ 값에 secret/service-role 키나 서버 자격 증명이 들어가면 지적한다.
+        any 사용, dangerouslySetInnerHTML, 토큰·워크플로 원문 로그 출력을 지적한다.
+        UI의 권한 판단이 서버 인가를 대체하는 구조인지 확인한다.
+    - path: 'contracts/**'
+      instructions: |
+        OpenAPI 계약이다. 구현되지 않은 엔드포인트를 구현된 것처럼 기술하지 않았는지, 오류 응답이 ApiError 형식인지 확인한다.
+    - path: '.github/workflows/**'
+      instructions: |
+        Actions는 커밋 SHA로 고정한다. 권한은 최소로 두고, pull_request_target에서 PR 코드를 checkout·실행하지 않는다.
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - 'AGENTS.md'
+      - 'frontend/AGENTS.md'
+      - 'backend/AGENTS.md'
+      - 'CONTRIBUTING.md'
+chat:
+  auto_reply: true

@@ -80,4 +80,7 @@ frontend / backend / infra / docs 중 해당 항목 (자동 라벨을 확인하�
 - 계약·데이터 변경 여부
 
 ## 남은 문제·미검증 항목
+
+## PR 생성 후 (사람이 실행)
+PR에 `@coderabbitai review` 댓글로 봇 리뷰를 실행한다. 지적 사항은 다시 AI에게 넘긴다.
 ```

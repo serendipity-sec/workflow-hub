@@ -10,6 +10,30 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  # 변경 경로를 판단한다. frontend/backend job은 skipped여도 필수 검사를 통과한 것으로 처리된다.
+  # 워크플로 전체에 paths 필터를 걸면 필수 검사가 대기 상태로 남아 머지가 막히므로 job 단위로 거른다.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+              - '.node-version'
+              - '.github/workflows/ci.yml'
+            backend:
+              - 'backend/**'
+              - '.github/workflows/ci.yml'
   repository:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -27,6 +51,9 @@ jobs:
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
   frontend:
+    needs: changes
+    # main push는 항상 전체 검사를 실행한다. changes가 실패하면 skipped로 통과되지 않도록 검사를 실행한다.
+    if: ${{ !cancelled() && (github.event_name == 'push' || needs.changes.result != 'success' || needs.changes.outputs.frontend == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -46,6 +73,8 @@ jobs:
       - run: npm test
       - run: npm run build
   backend:
+    needs: changes
+    if: ${{ !cancelled() && (github.event_name == 'push' || needs.changes.result != 'success' || needs.changes.outputs.backend == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:

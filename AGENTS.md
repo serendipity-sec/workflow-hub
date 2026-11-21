@@ -12,7 +12,8 @@
 | 4    | AI   | 구현하고 로컬 커밋한다                                                             |
 | 5    | AI   | `finish-task` 스킬로 검사·리뷰·커밋을 마치고 push 명령, PR 제목·본문 초안을 넘긴다 |
 | 6    | 사람 | 결과를 확인하고 직접 push한다                                                      |
-| 7    | 사람 | PR을 직접 생성하고, CI와 리뷰를 확인한 뒤 직접 squash merge한다                    |
+| 7    | 사람 | PR을 직접 생성하고 `@coderabbitai review`로 봇 리뷰를 실행한다                     |
+| 8    | 사람 | CI와 리뷰를 확인한 뒤 직접 squash merge한다                                        |
 
 스킬 정의는 `.claude/skills/start-task/SKILL.md`, `.claude/skills/finish-task/SKILL.md`에 있다.
 Claude Code는 `/start-task <이슈 번호>`, `/finish-task`로 실행한다. 다른 에이전트는 해당 `SKILL.md`를 읽고 같은 절차를 따른다.
