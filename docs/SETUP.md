@@ -11,9 +11,15 @@
 
 외부 프로젝트 설정은 코드 테스트로 증명되지 않는다. 실제 검증 결과를 PR이나 배포 기록에 남긴다. 운영 키는 GitHub/배포 플랫폼의 비밀 저장소로 관리한다.
 
-## PostgreSQL과 S3: 기능 구현 시 연결
+## PostgreSQL
 
-백엔드가 Supabase PostgreSQL에 연결하며 마이그레이션을 버전 관리한다. 전용 최소 권한 계정과 TLS 연결을 사용한다. 프론트 Data API 접근은 기본 경로가 아니다.
+백엔드는 `DATABASE_URL`(JDBC URL), `DATABASE_USERNAME`, `DATABASE_PASSWORD` 환경변수로 PostgreSQL에 연결한다. Supabase 연결 시 제공되는 TLS 연결 설정을 사용하고, 비밀번호를 URL이나 저장소에 넣지 않는다. `.env` 파일은 자동으로 읽지 않는다.
+
+시작 시 Flyway가 `backend/src/main/resources/db/migration/`의 SQL을 적용한다. 초기 연결 계정은 `workflow_hub` 스키마를 생성하고 테이블과 마이그레이션 이력을 관리할 권한이 필요하다. DB 연결이나 마이그레이션이 실패하면 시작도 실패한다. 배포 시 마이그레이션과 런타임 계정을 분리한다면 각 계정의 권한을 별도로 확인한다.
+
+`workflow_hub`는 백엔드 전용 스키마로 두고, Supabase Data API의 exposed schemas에 추가하지 않는다. 실제 Supabase 프로젝트의 연결·권한·노출 설정은 별도 검증한다. 백엔드 테스트는 Docker에서 일회용 PostgreSQL을 실행하며 운영 자격 증명을 사용하지 않는다.
+
+## S3: 업로드 기능 구현 시 연결
 
 S3는 Block Public Access를 활성화하고 개발/운영 리소스를 구분한다. 런타임 IAM 역할을 우선 사용하며 장기 AWS 키를 저장소에 넣지 않는다. 업로드 기능에서 객체 크기 제한, 비밀정보 로그 제외, DB 실패 시 객체 정리, 삭제 정책을 함께 구현한다.
 

@@ -1,13 +1,15 @@
 # Workflow Hub
 
-n8n 워크플로 JSON을 업로드하고, 수정 이력을 리비전 트리로 관리하며, 원하는 시점의 버전을 다운로드할 수 있는 웹 서비스입니다. 프론트엔드와 백엔드를 한 저장소에서 관리합니다.
+n8n 워크플로 JSON을 업로드하고, 버전별 이력을 관리하며, 원하는 버전을 다운로드하는 웹 서비스를 개발합니다. 프론트엔드와 백엔드를 한 저장소에서 관리합니다.
 
-## 주요 기능
+## 개발 목표
 
 - Google 계정 로그인 (Supabase Auth)
 - n8n 워크플로 JSON 업로드 및 다운로드
-- 워크플로 수정 계보(리비전 트리) 관리
+- 워크플로별 버전 이력 관리 (`v1`, `v1.1`, `v2`)
 - 개인 비공개 워크플로 저장
+
+현재 인증 기반 API와 워크플로·버전 메타데이터 DB 마이그레이션이 구현되어 있습니다. 업로드·조회·다운로드 API와 실제 S3 연동은 후속 작업입니다.
 
 ## 기술 스택
 
@@ -25,6 +27,8 @@ n8n 워크플로 JSON을 업로드하고, 수정 이력을 리비전 트리로 �
 
 - Node.js 24
 - JDK 25
+- 백엔드 실행용 PostgreSQL
+- 백엔드 테스트용 Docker 호환 컨테이너 런타임 (실행 상태 필요)
 
 Gradle은 `backend`의 Wrapper(`gradlew`)를 사용하므로 별도 설치가 필요하지 않습니다.
 
@@ -77,7 +81,9 @@ cd backend
 .\gradlew.bat bootRun
 ```
 
-Supabase JWT issuer, JWKS 등 인증 관련 설정은 환경변수로 전달합니다. 설정 항목은 `backend/src/main/resources`의 설정 파일을 참고하세요. 루트의 `.env` 파일은 Spring Boot가 자동으로 읽지 않으므로, 터미널이나 IDE 실행 설정에서 환경변수를 지정해야 합니다.
+실행 전에 `backend/.env.example`을 참고해 `DATABASE_URL`(JDBC URL), `DATABASE_USERNAME`, `DATABASE_PASSWORD`를 터미널이나 IDE의 프로세스 환경변수로 지정합니다. Supabase JWT issuer, JWKS 등 인증 설정도 환경변수로 전달합니다. Spring Boot는 `.env` 파일을 자동으로 읽지 않습니다.
+
+백엔드는 시작 시 Flyway로 `backend/src/main/resources/db/migration/`의 마이그레이션을 적용합니다. 연결 계정은 `workflow_hub` 스키마와 테이블을 생성할 수 있어야 합니다. Supabase에서는 이 스키마를 Data API의 exposed schemas에 추가하지 않습니다. 실제 Google·Supabase·S3 연동은 별도 환경에서 확인해야 합니다.
 
 ## 테스트와 빌드
 
@@ -96,7 +102,7 @@ npm run build
 ./gradlew spotlessCheck test bootJar
 ```
 
-CI에서도 동일한 명령을 실행합니다.
+CI에서도 동일한 명령을 실행합니다. 백엔드 테스트는 Testcontainers로 일회용 PostgreSQL을 실행하며, 운영 DB나 실제 Supabase 자격 증명이 필요하지 않습니다. 컨테이너 이미지를 처음 내려받을 때 네트워크 연결이 필요합니다.
 
 ## 문서
 
@@ -115,7 +121,7 @@ CI에서도 동일한 명령을 실행합니다.
 
 ## 데이터 처리
 
-- 원본 워크플로 파일은 S3에, 메타데이터는 PostgreSQL에 저장합니다.
+- 워크플로·버전 메타데이터는 PostgreSQL에 저장합니다. 원본 파일의 S3 저장은 후속 업로드 구현에서 연결합니다.
 - 업로드한 워크플로는 서버에서 실행하지 않습니다.
 - 로그인 토큰 갱신은 Supabase SDK가 처리하며, 브라우저에 저장된 토큰은 JavaScript에서 접근할 수 있습니다.
 - 로그아웃 후에도 이미 발급된 Access Token은 만료 시점까지 유효할 수 있습니다.
