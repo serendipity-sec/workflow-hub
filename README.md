@@ -15,6 +15,8 @@ n8n 워크플로 JSON의 수정 계보를 관리하고, 각 버전의 보안 검
 
 공개·자동 수정·고급 분석의 세부 정책은 설계 제안입니다. 검사 결과는 확인한 범위의 근거를 제공하며, 모든 실행 환경에서의 안전성을 보증하는 표시로 사용하지 않습니다.
 
+n8n의 보안 감사·템플릿 검토·버전 리뷰와 공개 검사기의 그래프 분석을 비교 기준으로 삼습니다. 사용자가 파일의 위험을 이해하고 실제로 조치하기 쉬워지는지는 후속 평가에서 확인할 제품 가설입니다. [차별화 근거와 검증 계획](docs/DIFFERENTIATION.md)
+
 ## 현재 구현 상태
 
 저장소의 코드와 [OpenAPI 계약](contracts/openapi.yaml) 기준입니다. 외부 서비스는 배포 환경에서 연결을 검증해야 합니다.
@@ -128,7 +130,7 @@ npm run build
 - [개발 목표·범위·완료 조건](docs/PLAN.md)
 - [구조와 인증·데이터 정책](docs/ARCHITECTURE.md)
 - [보안 검사 설계안](docs/SECURITY_DESIGN.md)
-- [기존 기능 비교와 차별화 검증 계획](docs/DIFFERENTIATION.md)
+- [차별화 근거와 검증 계획](docs/DIFFERENTIATION.md)
 - [외부 연동과 배포 준비](docs/SETUP.md)
 - [구현된 API 명세](contracts/openapi.yaml)
 - [합성 워크플로 샘플](contracts/examples/minimal-workflow.json)
