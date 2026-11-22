@@ -100,4 +100,5 @@ jobs:
           go-version: '1.26.x'
           cache: false
       - run: go install github.com/zricethezav/gitleaks/v8@v8.30.1
-      - run: gitleaks git --redact --exit-code 1 .
+      # Scan the checked-out commit and its full history, excluding unrelated fetched branches.
+      - run: gitleaks git --redact --exit-code 1 --log-opts="--full-history HEAD --diff-filter=tuxdb" .
