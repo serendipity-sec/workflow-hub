@@ -81,11 +81,13 @@ Supabase의 RTR과 재사용 탐지 기능을 사용한다. 병렬 갱신을 위
 
 [#8](https://github.com/serendipity-sec/workflow-hub/issues/8)과 [#10](https://github.com/serendipity-sec/workflow-hub/pull/10)의 기준은 [V1 마이그레이션](../backend/src/main/resources/db/migration/V1__create_workflow_version_storage.sql)이다.
 
-- `workflow_hub.workflows`: UUID 식별자, `owner_id`, 제목. 소유자는 검증된 Supabase JWT의 `sub`에 대응하는 문자열이며, 별도 사용자 테이블이나 `auth.users` 외래 키는 없다.
+- `workflow_hub.workflows`: UUID 식별자, `owner_id`, 제목, 최초 등록 시각(`created_at`). 소유자는 검증된 Supabase JWT의 `sub`에 대응하는 문자열이며, 별도 사용자 테이블이나 `auth.users` 외래 키는 없다.
 - `workflow_hub.workflow_versions`: UUID 식별자, 워크플로 외래 키, 버전 문자열, S3 객체 키, 생성 시각. `(workflow_id, version)`의 중복을 DB가 거부한다.
 - #8에서 확정한 번호 정책은 새 워크플로의 첫 버전 `v1`, 작은 업데이트의 `v1.1`, `v1.2` 순 증가, 주요 업데이트의 `v2`와 같은 다음 정수 버전 증가다. 워크플로별로 관리하며, 변경 종류 선택·동시 발급·형식 검증 서비스는 후속 구현이다. 번호를 부모 관계나 보안 승인 순서로 해석하지 않는다.
 - 파일 불변성은 제품 정책이다. 현재 스키마에 파일 해시·크기·부모·검사·정책·공개 필드나 변경 방지 트리거는 없으며, 덮어쓰기 방지는 업로드 API(#20)가 서버 생성 키와 S3 조건부 PUT(`If-None-Match: *`)으로 구현했으나 실제 S3에서는 검증하지 않았다.
-- 최초 업로드 API(`POST /api/workflows`, #20)만 있고 조회·다운로드·버전 업데이트 API는 아직 없다. DB 마이그레이션 존재와 사용자 저장 기능의 완료를 구분한다.
+- 최초 업로드 API(`POST /api/workflows`, #20)와 소유자별 목록·상세·버전 조회 API(#23)가 있다. 다운로드·버전 업데이트 API는 후속 구현이다.
+- [V3 마이그레이션](../backend/src/main/resources/db/migration/V3__add_workflow_created_at.sql)은 워크플로 최초 등록 시각을 기존 `v1.created_at`으로 채우며, `v1`이 없는 기존 행은 임의의 시각으로 채우지 않고 이관에 실패한다. 새 행에는 현재 시각을 기본값으로 쓴다. `updated_at`은 추가하지 않는다.
+- 워크플로 목록은 최초 등록 시각·ID 내림차순, 버전 목록과 최신 버전 선택은 버전 등록 시각·ID 내림차순이다. 두 목록 모두 커서 페이지네이션(기본 20개, 1~100개)을 사용한다. 다른 소유자·없는 ID·잘못된 UUID의 상세와 버전 목록은 같은 404다. 정확한 응답·오류 계약은 컨트롤러 OpenAPI를 따른다.
 
 ### 보안 확장을 위한 논리 모델
 
