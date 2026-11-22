@@ -1,5 +1,6 @@
 package dev.workflowhub.workflow.service;
 
+import dev.workflowhub.workflow.storage.WorkflowObjectStore;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -7,6 +8,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -54,11 +56,20 @@ public class WorkflowQueryService {
       WHERE w.id = :workflowId AND w.owner_id = :owner
       ORDER BY page.version_created_at DESC, page.version_id DESC
       """;
+  private static final String FIND_DOWNLOAD =
+      """
+      SELECT w.title, v.version, v.s3_object_key
+      FROM workflow_hub.workflows w
+      JOIN workflow_hub.workflow_versions v ON v.workflow_id = w.id
+      WHERE w.id = :workflowId AND w.owner_id = :owner AND v.id = :versionId
+      """;
 
   private final JdbcClient jdbc;
+  private final WorkflowObjectStore store;
 
-  public WorkflowQueryService(JdbcClient jdbc) {
+  public WorkflowQueryService(JdbcClient jdbc, WorkflowObjectStore store) {
     this.jdbc = jdbc;
+    this.store = store;
   }
 
   public WorkflowPage listWorkflows(String ownerId, Integer limit, String cursor) {
@@ -83,7 +94,7 @@ public class WorkflowQueryService {
   }
 
   public WorkflowDetail getWorkflow(String ownerId, String workflowId) {
-    UUID id = parseWorkflowId(workflowId);
+    UUID id = parseId(workflowId, WorkflowQueryException::workflowNotFound);
     WorkflowDetail workflow =
         jdbc.sql(WORKFLOW_WITH_LATEST_VERSION + "AND w.id = :workflowId")
             .param("owner", ownerId)
@@ -96,7 +107,7 @@ public class WorkflowQueryService {
   }
 
   public VersionPage listVersions(String ownerId, String workflowId, Integer limit, String cursor) {
-    UUID id = parseWorkflowId(workflowId);
+    UUID id = parseId(workflowId, WorkflowQueryException::workflowNotFound);
     int pageLimit = validateLimit(limit);
     List<VersionItem> rows =
         pageQuery(LIST_VERSIONS, pageLimit, WorkflowCursor.decode(cursor))
@@ -123,6 +134,43 @@ public class WorkflowQueryService {
         items.size(),
         nextCursor != null);
     return new VersionPage(items, nextCursor);
+  }
+
+  public DownloadedVersion downloadVersion(String ownerId, String workflowId, String versionId) {
+    UUID workflow = parseId(workflowId, WorkflowQueryException::versionNotFound);
+    UUID version = parseId(versionId, WorkflowQueryException::versionNotFound);
+    DownloadMetadata metadata =
+        jdbc.sql(FIND_DOWNLOAD)
+            .param("workflowId", workflow)
+            .param("owner", ownerId)
+            .param("versionId", version)
+            .query(
+                (rs, row) ->
+                    new DownloadMetadata(
+                        rs.getString("title"),
+                        rs.getString("version"),
+                        rs.getString("s3_object_key")))
+            .optional()
+            .orElseThrow(WorkflowQueryException::versionNotFound);
+
+    byte[] content;
+    try {
+      content = store.get(metadata.objectKey());
+    } catch (RuntimeException e) {
+      log.error(
+          "event=workflow.download.storage_failed workflowId={} versionId={} objectKey={}",
+          workflow,
+          version,
+          metadata.objectKey(),
+          e);
+      throw WorkflowQueryException.storageUnavailable();
+    }
+    log.debug(
+        "event=workflow.download.read workflowId={} versionId={} size={}",
+        workflow,
+        version,
+        content.length);
+    return new DownloadedVersion(metadata.title(), metadata.versionLabel(), content);
   }
 
   private JdbcClient.StatementSpec pageQuery(String sql, int limit, WorkflowCursor cursor) {
@@ -155,18 +203,18 @@ public class WorkflowQueryService {
             rs.getObject("version_created_at", OffsetDateTime.class).toInstant());
   }
 
-  private static UUID parseWorkflowId(String workflowId) {
-    if (workflowId != null && workflowId.length() == 36) {
+  private static UUID parseId(String value, Supplier<WorkflowQueryException> notFound) {
+    if (value != null && value.length() == 36) {
       try {
-        UUID id = UUID.fromString(workflowId);
-        if (id.toString().equalsIgnoreCase(workflowId)) {
+        UUID id = UUID.fromString(value);
+        if (id.toString().equalsIgnoreCase(value)) {
           return id;
         }
       } catch (IllegalArgumentException e) {
-        throw WorkflowQueryException.workflowNotFound();
+        throw notFound.get();
       }
     }
-    throw WorkflowQueryException.workflowNotFound();
+    throw notFound.get();
   }
 
   private static int validateLimit(Integer limit) {
@@ -189,4 +237,8 @@ public class WorkflowQueryService {
       UUID workflowId, String title, VersionItem latestVersion, Instant createdAt) {}
 
   public record VersionItem(UUID versionId, String versionLabel, Instant createdAt) {}
+
+  public record DownloadedVersion(String title, String versionLabel, byte[] content) {}
+
+  private record DownloadMetadata(String title, String versionLabel, String objectKey) {}
 }

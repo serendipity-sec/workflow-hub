@@ -8,16 +8,22 @@ import dev.workflowhub.workflow.service.WorkflowQueryService.VersionItem;
 import dev.workflowhub.workflow.service.WorkflowQueryService.WorkflowItem;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.headers.Header;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Pattern;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,6 +48,8 @@ public class WorkflowQueryController {
   private static final String UNAUTHORIZED = "토큰이 없거나 유효하지 않다";
   private static final String NOT_FOUND = "요청한 ID의 소유 워크플로를 찾을 수 없다(WORKFLOW_NOT_FOUND)";
   private static final String SERVER_ERROR = "예상하지 못한 서버 오류. 응답의 requestId로 서버 로그를 찾는다";
+  private static final Pattern UNSAFE_FILENAME_CHARACTERS =
+      Pattern.compile("[\\p{Cc}\\p{Cf}\\\\/:*?\"<>|]");
   private final WorkflowQueryService queries;
 
   public WorkflowQueryController(WorkflowQueryService queries) {
@@ -211,6 +219,80 @@ public class WorkflowQueryController {
     var page = queries.listVersions(jwt.getSubject(), workflowId, parseLimit(limit), cursor);
     var items = page.items().stream().map(VersionMetadata::from).toList();
     return new VersionListResponse(new VersionListData(items, page.nextCursor()));
+  }
+
+  @GetMapping("/api/workflows/{workflowId}/versions/{versionId}/download")
+  @Operation(
+      summary = "내 워크플로 버전 원본 다운로드",
+      description = "로그인 사용자가 소유한 워크플로에서 선택한 버전의 원본 JSON 바이트를 첨부 파일로 받는다.")
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "선택한 버전의 원본 JSON 파일",
+        headers =
+            @Header(
+                name = HttpHeaders.CONTENT_DISPOSITION,
+                description = "UTF-8 첨부 파일명. 워크플로 제목과 선택한 버전 라벨을 붙인 {title}-{versionLabel}.json",
+                schema = @Schema(type = "string")),
+        content =
+            @Content(
+                mediaType = MediaType.APPLICATION_JSON_VALUE,
+                schema = @Schema(type = "string", format = "binary"))),
+    @ApiResponse(
+        responseCode = "401",
+        description = UNAUTHORIZED,
+        content =
+            @Content(
+                mediaType = MediaType.APPLICATION_JSON_VALUE,
+                schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "404",
+        description = "요청한 소유 워크플로 버전을 찾을 수 없다(WORKFLOW_VERSION_NOT_FOUND)",
+        content =
+            @Content(
+                mediaType = MediaType.APPLICATION_JSON_VALUE,
+                schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "500",
+        description = SERVER_ERROR,
+        content =
+            @Content(
+                mediaType = MediaType.APPLICATION_JSON_VALUE,
+                schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "503",
+        description = "원본 파일을 저장소에서 읽을 수 없다(STORAGE_UNAVAILABLE)",
+        content =
+            @Content(
+                mediaType = MediaType.APPLICATION_JSON_VALUE,
+                schema = @Schema(implementation = ApiError.class)))
+  })
+  public ResponseEntity<byte[]> downloadVersion(
+      @AuthenticationPrincipal @Parameter(hidden = true) Jwt jwt,
+      @PathVariable("workflowId")
+          @Parameter(
+              description = "워크플로 ID",
+              schema = @Schema(format = "uuid"),
+              example = WORKFLOW_ID)
+          String workflowId,
+      @PathVariable("versionId")
+          @Parameter(
+              description = "다운로드할 버전 ID",
+              schema = @Schema(format = "uuid"),
+              example = VERSION_ID)
+          String versionId) {
+    var download = queries.downloadVersion(jwt.getSubject(), workflowId, versionId);
+    String filename = download.title() + "-" + download.versionLabel() + ".json";
+    var disposition =
+        ContentDisposition.attachment()
+            .filename(
+                UNSAFE_FILENAME_CHARACTERS.matcher(filename).replaceAll("_"),
+                StandardCharsets.UTF_8)
+            .build();
+    return ResponseEntity.ok()
+        .contentType(MediaType.APPLICATION_JSON)
+        .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+        .body(download.content());
   }
 
   private static Integer parseLimit(String limit) {

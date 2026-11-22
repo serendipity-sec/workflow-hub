@@ -20,6 +20,15 @@ public class InMemoryWorkflowObjectStore implements WorkflowObjectStore {
   }
 
   @Override
+  public byte[] get(String key) {
+    byte[] content = objects.get(key);
+    if (content == null) {
+      throw new IllegalStateException("object does not exist");
+    }
+    return content.clone();
+  }
+
+  @Override
   public void delete(String key) {
     if (failDeletes) {
       throw new IllegalStateException("simulated delete failure");
