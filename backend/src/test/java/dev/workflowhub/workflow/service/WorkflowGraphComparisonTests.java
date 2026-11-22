@@ -255,11 +255,11 @@ class WorkflowGraphComparisonTests {
     var result =
         compare(
             """
-            {"nodes":[{"name":"Legacy","type":"t","position":[1,"invalid"],"notes":"a"}],
+            {"nodes":[{"name":"Legacy","type":"t","position":[1,"invalid"]}],
              "connections":{"Legacy":{"main":[[{"node":"Legacy"}, {"node":"Legacy"}]]}}}
             """,
             """
-            {"nodes":[{"name":"Legacy","type":"t","position":[1,2],"notes":"b"}],
+            {"nodes":[{"name":"Legacy","type":"t","position":[1,2]}],
              "connections":{"Legacy":{"main":[[{"node":"Legacy","type":false,"index":-1}]]}}}
             """);
 
@@ -289,6 +289,25 @@ class WorkflowGraphComparisonTests {
 
     assertThatThrownBy(() -> compare(valid, invalid)).isInstanceOf(WorkflowUploadException.class);
     assertThatThrownBy(() -> compare(invalid, valid)).isInstanceOf(WorkflowUploadException.class);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"notes", "notesInFlow"})
+  void reportsOnlyThePathWhenNodeNoteSettingsChange(String field) {
+    String base = "{\"name\":\"A\",\"type\":\"t\",\"%s\":%s}";
+    String before = field.equals("notes") ? "\"synthetic-private-note-one\"" : "false";
+    String after = field.equals("notes") ? "\"synthetic-private-note-two\"" : "true";
+
+    var result =
+        compare(
+            "{\"nodes\":[" + base.formatted(field, before) + "],\"connections\":{}}",
+            "{\"nodes\":[" + base.formatted(field, after) + "],\"connections\":{}}");
+
+    assertThat(result.summary()).isEqualTo(new Summary(0, 0, 1, 0, 0));
+    assertThat(result.changes().getFirst().fields())
+        .containsExactly(new FieldChange("/" + field, null, null));
+    assertThat(JsonMapper.builder().build().writeValueAsString(result))
+        .doesNotContain("synthetic-private");
   }
 
   private WorkflowGraphComparison.Result compare(String base, String candidate) {

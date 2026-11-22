@@ -32,7 +32,9 @@ public class WorkflowGraphComparison {
           "waitBetweenTries",
           "onError",
           "continueOnFail",
-          "webhookId");
+          "webhookId",
+          "notes",
+          "notesInFlow");
   private static final String HTTP_REQUEST = "n8n-nodes-base.httpRequest";
   private static final Map<String, List<String>> PARAMETER_FIELDS =
       Map.of(
