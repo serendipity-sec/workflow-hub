@@ -4,6 +4,8 @@ Workflow Hub의 `worker/`에서 n8n JSON을 정적으로 분석합니다. 결과
 
 현재 기본 진입점은 **`assess`**입니다. 10개 범주에 필드 흐름·메신저/이메일·실제 NLP/Python AST·SQL AST·정책·환경/패키지 근거·자식 정의·수정안을 연결합니다. Docker에서 네트워크·파일 쓰기·자원을 제한합니다. [통합 검사 실행법과 지원 범위](docs/assessment.md), [SEC 사례 25개 대응표](docs/assessment-evidence.md), [실측 검증](validation/assessment-runtime-results.json)을 먼저 확인하세요. 실제 팀 API는 연결하지 않았습니다.
 
+[실제 공개 템플릿 15개로 서비스 적합성을 검증한 결과](docs/public-service-validation.md)는 14개 부분 분석·1개 입력 거부였습니다. ID 없는 템플릿, 개인정보 오탐, 실제 SQL/전송 노드의 지원 범위와 전체 검사 결과 비교 등 보완점이 확인됐습니다. 두 서비스 흐름의 완성 여부는 이 결과까지 함께 판단해야 합니다.
+
 ## 로컬 검사
 
 저장소 루트에서 Node.js 24.14.0으로 워커 의존성을 설치하고 포맷, 린트, 타입, 빌드, 테스트를 실행합니다.

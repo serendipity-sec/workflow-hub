@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-11-22T11:38:57.101Z",
+  "image": "sha256:76a440f2875efc886561396555a44f19ed06fa549ee152d13ab6aefeb6368c3e",
+  "purpose": "public_original_manual_revision_recheck_and_compare",
+  "verificationScriptSha256": "7f0e901a2d75864d416969166c71169c5b017dd1ab08a4175d46990b319cef53",
+  "automaticRepairOfPublicOriginals": "none_eligible_in_sample",
+  "results": [
+    {
+      "id": 10111,
+      "label": "authentication_config",
+      "variantKind": "controlled_edit_of_public_original",
+      "originalSha256": "244b7f1c399d278c8c7484aa0c98b3ec48e1c610099d4e1cde9bd38c601abc84",
+      "revisedSha256": "44f19efb36aff27fb7964ca0f52a1db0238956e5091884f30ce335d3c4b6d83e",
+      "originalPreserved": true,
+      "workflowExecution": "not_run",
+      "behaviorPreserved": "not_verified",
+      "revisedStatus": "partial",
+      "declarationChanges": [
+        "authentication_changed",
+        "node_configuration_changed"
+      ],
+      "baseFindingComparison": {
+        "basis": "same_report_contract",
+        "rechecks": {
+          "inconclusive": 1,
+          "persisting": 14
+        },
+        "newFindings": {
+          "inconclusive": 1
+        }
+      },
+      "extensionFindingComparison": "not_implemented",
+      "observed": "authentication_declaration_changed_and_rechecked",
+      "runtimeAuthentication": "not_verified",
+      "credentialsProvided": false
+    },
+    {
+      "id": 7643,
+      "label": "recipient_change",
+      "variantKind": "controlled_edit_of_public_original",
+      "originalSha256": "0d3fc12253934d795ec19610851727fa668af7a0b47232b51fef586135aecc0d",
+      "revisedSha256": "fa9e19d26e15b461f6f02b3a441362856c77346d928c009b4617579824caaa27",
+      "originalPreserved": true,
+      "workflowExecution": "not_run",
+      "behaviorPreserved": "not_verified",
+      "revisedStatus": "partial",
+      "declarationChanges": ["recipient_changed", "node_configuration_changed"],
+      "baseFindingComparison": {
+        "basis": "same_report_contract",
+        "rechecks": {
+          "persisting": 3
+        },
+        "newFindings": {}
+      },
+      "extensionFindingComparison": "not_implemented",
+      "observed": "recipient_semantic_change_detected",
+      "recipientValueInPublicResult": false
+    },
+    {
+      "id": 7643,
+      "label": "disable_delivery",
+      "variantKind": "controlled_edit_of_public_original",
+      "originalSha256": "0d3fc12253934d795ec19610851727fa668af7a0b47232b51fef586135aecc0d",
+      "revisedSha256": "44d71acf452ecce889a6dfaa7ebb9b89e88f669eb5729d71161d9f7fd2d7a4e1",
+      "originalPreserved": true,
+      "workflowExecution": "not_run",
+      "behaviorPreserved": "not_verified",
+      "revisedStatus": "partial",
+      "declarationChanges": ["node_disabled"],
+      "baseFindingComparison": {
+        "basis": "same_report_contract",
+        "rechecks": {
+          "persisting": 3
+        },
+        "newFindings": {}
+      },
+      "extensionFindingComparison": "not_implemented",
+      "observed": "functional_removal_requires_recheck",
+      "securityFixClaim": "not_made"
+    }
+  ],
+  "limitations": [
+    "controlled_edits_are_not_naturally_observed_user_uploads",
+    "no_original_or_modified_workflow_execution",
+    "no_general_functional_equivalence",
+    "no_integrated_extension_finding_comparison"
+  ]
+}
