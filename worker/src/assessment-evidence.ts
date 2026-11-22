@@ -32,11 +32,15 @@ const sinkSchema = z.enum([
   "telegram",
   "notion",
   "google_docs",
+  "google_sheets",
+  "airtable",
   "whatsapp",
   "gemini",
+  "openai",
   "response",
   "log",
   "ai_tool",
+  "ai_model",
 ]);
 const publicUrl = z
   .url()

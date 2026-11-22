@@ -1,0 +1,130 @@
+{
+  "outcome": "passed",
+  "scope": "previously_documented_public_regressions",
+  "workflowExecution": "not_run",
+  "generalAccuracy": "not_measured",
+  "knownLimitations": [
+    "remaining_unmodeled_code_data_and_runtime_context",
+    "english_ner_context_sensitive"
+  ],
+  "image": "sha256:a5b45932907a95a2a814aab0a16c31af361a5ccab84128a734a2e9eb3ed51ac0",
+  "assertions": [
+    "idless_official_template_accepted",
+    "postgres_2_4_input_path_detected",
+    "postgres_string_parameter_channel_observed",
+    "postgres_string_mapping_stays_unverified",
+    "complex_sql_casts_parse",
+    "complex_sql_binding_observed",
+    "constant_command_control_exists",
+    "constant_command_has_no_dynamic_candidate",
+    "external_command_input_candidate_retained",
+    "summary_14_title_is_public",
+    "summary_27_title_is_public",
+    "whole_subject_is_public",
+    "constant_subject_has_no_personal_transfer_candidate",
+    "actual_message_personal_candidate_retained",
+    "populated_summary_mapping_supported",
+    "if_2_3_pass_through_supported",
+    "reviewed_sticky_notes_not_unreviewed_capabilities",
+    "6216_connector_control_exists",
+    "6216_known_send_profile_supported",
+    "11007_connector_control_exists",
+    "11007_known_send_profile_supported",
+    "binary_attachment_content_stays_unavailable",
+    "optional_telegram_keyboard_not_required_input",
+    "long_program_scanned_in_bounded_chunks",
+    "long_program_not_skipped_at_old_field_limit",
+    "20541_spurious_budget_exhaustion_removed",
+    "14034_spurious_budget_exhaustion_removed",
+    "3314_spurious_budget_exhaustion_removed",
+    "11007_spurious_budget_exhaustion_removed",
+    "runtime_context_still_explicit",
+    "notion_transfer_fields_inspected",
+    "gemini_transfer_fields_inspected",
+    "docs_update_transfer_fields_inspected",
+    "whatsapp_transfer_fields_inspected",
+    "docs_create_title_is_public_after_mapping_fix",
+    "docs_create_profile_keeps_access_and_policy_gaps",
+    "ner_structural_metadata_false_positives_removed",
+    "informational_observations_have_no_correction_plans",
+    "2490_table_operation_capability_observed",
+    "2490_table_runtime_and_policy_gaps_retained",
+    "18521_table_operation_capability_observed",
+    "18521_table_runtime_and_policy_gaps_retained",
+    "sheets_runtime_headers_not_assumed",
+    "7622_reversed_ai_connection_not_auto_repaired",
+    "7643_reversed_ai_connection_not_auto_repaired",
+    "reviewed_ai_prompt_model_transfer_has_explicit_execution_gap",
+    "structured_postgres_default_insert_is_observed",
+    "known_builtin_capability_inventory_covers_fixed_samples",
+    "dynamic_sql_structure_stays_explicit",
+    "read_response_fields_not_promoted_to_known_personal_data",
+    "local_or_remote_file_content_stays_unavailable",
+    "openai_responses_fixed_public_control_exists",
+    "openai_responses_default_profile_is_supported",
+    "openai_endpoint_still_requires_credential_context"
+  ],
+  "inputs": [
+    {
+      "id": 16081,
+      "sha256": "240fa1306060e29f9b4dd325155d4c2228e2971293da79f6cc50976ab1f84595"
+    },
+    {
+      "id": 20541,
+      "sha256": "d3d5f495130b43df93a319764459f352e104607f5eb28e5d061c77c3a7da20aa"
+    },
+    {
+      "id": 20459,
+      "sha256": "5d6db1a142789d17f06ecd8419d9c721593eca82fa142f537936ff4a0dbcf18d"
+    },
+    {
+      "id": 14034,
+      "sha256": "f7bf2111da711feaf7762c96132155804aefd683ba902bba50e1706851470dde"
+    },
+    {
+      "id": 2490,
+      "sha256": "1053cb887fe65b990c0f085cdd58ea6fbb208c0495e37c713db6c00c3272a3e9"
+    },
+    {
+      "id": 7643,
+      "sha256": "0d3fc12253934d795ec19610851727fa668af7a0b47232b51fef586135aecc0d"
+    },
+    {
+      "id": 18521,
+      "sha256": "f5586df6760b5fb2c5accdb22c402316eeedfe3a0caf92b6139da78a2c63b157"
+    },
+    {
+      "id": 15403,
+      "sha256": "8438bdef61645e45e9efcb104c8313d910826e4376f36571089bcd2a39022068"
+    },
+    {
+      "id": 10111,
+      "sha256": "244b7f1c399d278c8c7484aa0c98b3ec48e1c610099d4e1cde9bd38c601abc84"
+    },
+    {
+      "id": 10476,
+      "sha256": "68d2081d7de9527a35eabe01aacf10b73a6f989235739a53ca7f2a127ed2888e"
+    },
+    {
+      "id": 6216,
+      "sha256": "91fafa6e1b171d8de3ebc61dc4ca36e8a6ffedc47b6e12752c744b5a882ff8d5"
+    },
+    {
+      "id": 3314,
+      "sha256": "fe41176ad71bfc5961baad02cdf22b94dea533cab3716ce591c4133fd43b0d0f"
+    },
+    {
+      "id": 11007,
+      "sha256": "a5b90072022086d7a8529309a0da2968481e902fc6260e4be6646489c0676580"
+    },
+    {
+      "id": 9638,
+      "sha256": "1148aa3119d3133bed0cab0012aa704e955b43244748b6d97fa6289d34a2513a"
+    },
+    {
+      "id": 7622,
+      "sha256": "feace2e3f32e895d5727651bee81c0b39952f5331b6e37a44e807387b2083dcb"
+    }
+  ],
+  "verificationScriptSha256": "9da92991d1f53a12aeefa7b6cecec5a513a4fb2e46f79fe0ca2ff1f9e45da3f2"
+}

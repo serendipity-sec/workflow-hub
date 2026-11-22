@@ -1,6 +1,8 @@
 # 설정·코드·의존성 정적 프로필
 
-이 문서는 `static-settings.ts`의 네 범주를 설명한다. 요청자·통신·실행 코드 규칙은 `profileVersion: 1.0.0`, 의존성 기능 목록은 `1.1.0`이다. 결과는 업로드한 JSON에서 확인한 설정·후보·제한된 경로이며, 실제 실행이나 안전 인증이 아니다. 별도 `scan` 보고서 계약 2.0.0을 사용하며 기존 SQL 계약·검증 기록은 변경하지 않는다.
+이 문서는 `static-settings.ts`의 네 범주를 설명한다. 요청자·통신·실행 코드 규칙은 `profileVersion: 1.0.0`, 의존성 기능 목록은 `1.2.0`이다. 결과는 업로드한 JSON에서 확인한 설정·후보·제한된 경로이며, 실제 실행이나 안전 인증이 아니다. 별도 `scan` 보고서 계약 2.0.0을 사용하며 기존 SQL 계약·검증 기록은 변경하지 않는다.
+
+0.6.0의 기능 목록은 Set·Switch·Merge·Wait·Aggregate·ExtractFromFile, Gmail/Telegram/IMAP/Form 입력, Gmail·EmailSend·Telegram·Slack·Sheets·Airtable·Notion·Docs·WhatsApp의 공식 등록 버전까지 추가했다. 정확한 버전 집합은 `builtinProfiles`와 [고정 소스의 blob 식별 기록](../validation/node-profile-sources-0.6.0.json)에 연결한다. 이는 각 노드의 모든 작업·입출력·권한을 분석했다는 뜻이 아니다. 내용·흐름·전송·AI 프로파일은 각각 실제 해석 범위와 미확인을 남긴다. 아래 표와 178→71 실측은 이전 0.5.0 확장의 이력으로 보존한다.
 
 모든 소스 의미는 n8n 커밋 `86dff76e10efba250a4d3e57760e4eb5d2bbea25`를 기준으로 확인했다. 아래의 `typeVersion`은 노드 형식 버전이며 설치된 n8n·npm 패키지 버전의 증거가 아니다.
 

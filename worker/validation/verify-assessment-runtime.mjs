@@ -180,6 +180,14 @@ const nativeInput = bytes({
       pythonCode:
         "import os\ncommand = _json['command']\nos.system(command)\nraise RuntimeError('must never execute')",
     }),
+    {
+      ...node("PythonTool", "toolCode", 1.3, {
+        language: "python",
+        pythonCode:
+          "import os\nos.system(_query)\nraise RuntimeError('must never execute')",
+      }),
+      type: "@n8n/n8n-nodes-langchain.toolCode",
+    },
   ),
   notes: `John Smith lives in London. Credential: ${token}`,
 });
@@ -197,6 +205,15 @@ assert.ok(
 );
 assert.ok(!JSON.stringify(native).includes(token));
 assert.ok(!JSON.stringify(native).includes("John Smith"));
+assert.ok(
+  native.files[0].extensionRules
+    .find((r) => r.ruleId === "PYTHON_STATIC_CAPABILITIES")
+    .findings.some(
+      (f) =>
+        f.location.pointer === "/nodes/1/parameters/pythonCode" &&
+        f.evidence.some((e) => e.code === "python_external_input_shell_call"),
+    ),
+);
 
 const flowInput = bytes(
   chain(
@@ -312,6 +329,121 @@ assert.ok(
   flow.files[0].dependencies.some((item) => item.status === "affected"),
 );
 assert.equal(flow.files[0].evidence.independentlyVerified, false);
+
+const mappedSheet = await assess(
+  "bounded_code_to_sheet",
+  bytes(
+    chain(
+      node("Input", "webhook", 2),
+      node("Map", "code", 2, {
+        jsCode:
+          "let data={}; data.email=$json.body.email; return [{json:data}];",
+      }),
+      node("Sheet", "googleSheets", 4.6, {
+        operation: "append",
+        documentId: { __rl: true, mode: "id", value: "synthetic-sheet" },
+        sheetName: { __rl: true, mode: "id", value: "0" },
+        columns: {
+          mappingMode: "defineBelow",
+          value: { email: "={{ $json.email }}" },
+        },
+        options: {},
+      }),
+    ),
+  ),
+);
+assert.ok(
+  mappedSheet.files[0].extensionRules
+    .find((r) => r.ruleId === "N8N_EXTENDED_OUTBOUND_DATA")
+    .findings.some((f) =>
+      f.evidence.some((e) => e.code === "personal_data_candidate_transferred"),
+    ),
+);
+
+const aiSource = node("Prompt", "webhook", 2);
+const agentNode = {
+  ...node("Agent", "agent", 2.2, {
+    promptType: "define",
+    text: "={{ $json.body.email }}",
+    options: { passthroughBinaryImages: false },
+  }),
+  type: "@n8n/n8n-nodes-langchain.agent",
+};
+const modelNode = {
+  ...node("Model", "lmChatOpenAi", 1.2, {
+    model: { value: "synthetic-model" },
+    options: {},
+  }),
+  type: "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+};
+const toolNode = node("Tool", "httpRequestTool", 4.2, {
+  url: "={{ $fromAI('url') }}",
+});
+const ai = await assess(
+  "prompt_model_and_tool_contracts",
+  bytes({
+    nodes: [aiSource, agentNode, modelNode, toolNode],
+    connections: {
+      Prompt: { main: [[{ node: "Agent", type: "main", index: 0 }]] },
+      Model: {
+        ai_languageModel: [
+          [{ node: "Agent", type: "ai_languageModel", index: 0 }],
+        ],
+      },
+      Tool: { ai_tool: [[{ node: "Agent", type: "ai_tool", index: 0 }]] },
+    },
+  }),
+);
+const aiPrompt = ai.files[0].extensionRules.find(
+  (r) => r.ruleId === "N8N_AI_PROMPT_DATA",
+);
+assert.ok(
+  aiPrompt.findings.some((f) =>
+    f.evidence.some((e) => e.code === "ai_prompt_to_model_pii_candidate"),
+  ),
+);
+assert.ok(
+  aiPrompt.findings.some((f) =>
+    f.evidence.some(
+      (e) => e.code === "ai_external_prompt_may_influence_tool_selection",
+    ),
+  ),
+);
+assert.ok(
+  aiPrompt.diagnostics.some(
+    (d) => d.code === "ai_model_invocation_and_output_unverified",
+  ),
+);
+
+const definedSql = await assess(
+  "code_literal_sql_definition",
+  bytes(
+    chain(
+      node("Query", "code", 2, {
+        jsCode:
+          'return [{json:{statement:"SELECT id FROM records WHERE id=$1"}}];',
+      }),
+      node("Database", "postgres", 2.8, {
+        operation: "executeQuery",
+        query: "={{ $json.statement }}",
+        options: { queryReplacement: ["synthetic"] },
+      }),
+    ),
+  ),
+);
+const definedQueryRule = definedSql.files[0].extensionRules.find(
+  (r) => r.ruleId === "N8N_ADVANCED_SQL",
+);
+for (const code of [
+  "sql_query_definition_resolved",
+  "sql_operation_capability",
+  "sql_value_binding_configured",
+])
+  assert.ok(
+    definedQueryRule.findings.some((f) =>
+      f.evidence.some((e) => e.code === code),
+    ),
+  );
 
 const sqlInput = await readFile("fixtures/workflows/interpolated.json");
 const original = await assess("sql_original", sqlInput);

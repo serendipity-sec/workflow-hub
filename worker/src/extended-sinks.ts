@@ -19,7 +19,13 @@ const base = "n8n-nodes-base.";
 const root: StaticLocation = { nodeKey: null, pointer: "/nodes" };
 const httpVersions = [3, 4, 4.1, 4.2, 4.3, 4.4, 4.5];
 const responseVersions = [1, 1.1, 1.2, 1.3, 1.4, 1.5];
-type Field = { pointer: string; value: unknown; name?: string };
+type Field = {
+  pointer: string;
+  value: unknown;
+  name?: string;
+  conditional?: boolean;
+  literalData?: boolean;
+};
 type Profile = {
   sink: SinkKind;
   recipients: Field[];
@@ -27,13 +33,15 @@ type Profile = {
   diagnostics: string[];
   opaqueDestination?: boolean;
   readOnly?: boolean;
+  opaqueContent?: boolean;
+  responseCode?: string;
 };
 
 function makeRule(ruleId: string, category: "egress" | "output"): RuleResult {
   return {
     ruleId,
     category,
-    profileVersion: "1.2.0",
+    profileVersion: "1.3.0",
     coverage: [],
     findings: [],
     diagnostics: [],
@@ -183,6 +191,296 @@ function options(value: unknown, profile: Profile): Record<string, unknown> {
 function unsupported(profile: Profile, code: string): Profile {
   profile.diagnostics.push(code);
   profile.opaqueDestination = true;
+  return profile;
+}
+
+/** n8n resolves structured parameter VALUES recursively, unlike JS literals.
+ * Keep arbitrary property names internal and never interpret JSON inside a
+ * plain string as another expression language. */
+function parameterLeaves(fields: Field[]): {
+  fields: Field[];
+  limited: boolean;
+} {
+  const pending = fields
+    .slice()
+    .reverse()
+    .map((field) => ({ field, depth: 0, declaredName: field.name }));
+  const result: Field[] = [];
+  let visits = 0;
+  let limited = false;
+  while (pending.length && visits++ < 2048 && result.length < 512) {
+    const { field, depth, declaredName } = pending.pop()!;
+    const value = field.value;
+    if (field.literalData) {
+      result.push(field);
+      continue;
+    }
+    if (value !== null && typeof value === "object") {
+      if (depth >= 16) return { fields: result, limited: true };
+      const entries = Object.entries(value);
+      if (!entries.length) result.push(field);
+      else
+        for (const [key, child] of entries.slice(0, 512).reverse())
+          pending.push({
+            field: {
+              ...field,
+              value: child,
+              // User-controlled column/property names never become output paths.
+              pointer: field.pointer + (Array.isArray(value) ? "/" + key : ""),
+              name: declaredName ?? (Array.isArray(value) ? field.name : key),
+            },
+            depth: depth + 1,
+            declaredName,
+          });
+      if (entries.length > 512) limited = true;
+    } else result.push(field);
+  }
+  return { fields: result, limited: limited || pending.length > 0 };
+}
+
+function compositeLocator(
+  profile: Profile,
+  first: string,
+  second: string,
+  p: Record<string, unknown>,
+): void {
+  const fixed: string[] = [];
+  for (const key of [first, second]) {
+    const value = p[key];
+    const selected = isObject(value) ? value.value : value;
+    if (
+      isObject(value) &&
+      ["id", "list"].includes(String(value.mode)) &&
+      ["string", "number"].includes(typeof selected) &&
+      String(selected).trim() &&
+      !String(selected).trim().startsWith("=") &&
+      !String(selected).includes("/")
+    )
+      fixed.push(String(selected).trim());
+    else {
+      add(
+        profile,
+        "recipients",
+        key + (isObject(value) ? "/value" : ""),
+        selected,
+        true,
+      );
+      profile.opaqueDestination = true;
+      profile.diagnostics.push("destination_locator_unresolved");
+    }
+  }
+  if (fixed.length === 2) add(profile, "recipients", first, fixed.join("/"));
+}
+
+function mappedColumns(
+  profile: Profile,
+  p: Record<string, unknown>,
+  sheetAppend: boolean,
+): void {
+  if (!isObject(p.columns)) {
+    profile.diagnostics.push("resource_mapping_shape_unresolved");
+    profile.opaqueContent = true;
+    if (typeof p.columns === "string")
+      add(profile, "content", "columns", p.columns);
+    return;
+  }
+  const mode = p.columns.mappingMode ?? "defineBelow";
+  if (mode === "defineBelow") {
+    if (isObject(p.columns.value))
+      add(profile, "content", "columns/value", p.columns.value);
+    else {
+      profile.diagnostics.push("resource_mapping_values_unresolved");
+      profile.opaqueContent = true;
+      if (typeof p.columns.value === "string")
+        add(profile, "content", "columns/value", p.columns.value);
+    }
+    if (sheetAppend) {
+      // Official append switches to autoMapInputData if the remote sheet is
+      // empty. A declared schema is not evidence that remote headers exist.
+      profile.content.push({
+        pointer: "/parameters/columns",
+        value: "={{ $json }}",
+        conditional: true,
+      });
+      profile.diagnostics.push("sheet_empty_header_fallback_possible");
+      profile.opaqueContent = true;
+    }
+  } else if (mode === "autoMapInputData") {
+    profile.content.push({
+      pointer: "/parameters/columns",
+      value: "={{ $json }}",
+      conditional: true,
+    });
+    profile.diagnostics.push("automatic_mapping_selection_unverified");
+    profile.opaqueContent = true;
+  } else {
+    profile.diagnostics.push("resource_mapping_mode_unresolved");
+    profile.opaqueContent = true;
+  }
+}
+
+function tableProfile(node: NormalizedNode): Profile | undefined {
+  const kind =
+    node.type === base + "airtable"
+      ? "airtable"
+      : node.type === base + "googleSheets"
+        ? "google_sheets"
+        : undefined;
+  if (!kind) return;
+  const p = node.parameters;
+  const profile: Profile = {
+    sink: kind,
+    recipients: [],
+    content: [],
+    diagnostics: ["destination_access_unverified"],
+  };
+  const versions =
+    kind === "airtable"
+      ? [2, 2.1, 2.2]
+      : [4, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7];
+  if (!versions.includes(node.typeVersion))
+    return unsupported(profile, "unsupported_node_version");
+  const operation = p.operation ?? (kind === "airtable" ? "get" : "read");
+  if (kind === "airtable") {
+    if (
+      (p.resource ?? "record") !== "record" ||
+      !["create", "update", "upsert", "get", "search", "deleteRecord"].includes(
+        String(operation),
+      )
+    )
+      return unsupported(profile, "unsupported_send_operation");
+    compositeLocator(profile, "base", "table", p);
+    profile.readOnly = operation === "get" || operation === "search";
+    profile.responseCode =
+      profile.readOnly && node.typeVersion < 2.2
+        ? "airtable_flattened_response_profile"
+        : "airtable_record_response_profile";
+    profile.diagnostics.push(
+      profile.readOnly
+        ? "read_response_classification_unverified"
+        : "response_data_sensitivity_unverified",
+    );
+    const opts = options(p.options, profile);
+    if (["create", "update", "upsert"].includes(String(operation))) {
+      const match = isObject(p.columns) ? p.columns.matchingColumns : undefined;
+      if (
+        operation === "update" &&
+        isObject(p.columns) &&
+        (p.columns.mappingMode ?? "defineBelow") === "defineBelow" &&
+        isObject(p.columns.value) &&
+        Array.isArray(match) &&
+        match.every((key) => typeof key === "string" && !key.startsWith("=")) &&
+        !match.includes("id")
+      ) {
+        // Non-id matching is done against fetched records locally; n8n removes
+        // those match fields from the outgoing PATCH, unlike upsert.
+        mappedColumns(
+          profile,
+          {
+            ...p,
+            columns: {
+              ...p.columns,
+              value: Object.fromEntries(
+                Object.entries(p.columns.value).filter(
+                  ([key]) => !match.includes(key),
+                ),
+              ),
+            },
+          },
+          false,
+        );
+      } else mappedColumns(profile, p, false);
+      if (operation !== "create")
+        profile.diagnostics.push("record_match_selection_unverified");
+      if (opts.typecast === true)
+        profile.diagnostics.push("resource_value_coercion_unverified");
+      if (
+        Object.keys(opts).some(
+          (key) =>
+            !["typecast", "ignoreFields", "updateAllMatches"].includes(key),
+        )
+      ) {
+        profile.diagnostics.push("connector_options_unresolved");
+        profile.opaqueContent = true;
+      }
+    } else if (operation === "search") {
+      add(profile, "content", "filterByFormula", p.filterByFormula);
+      add(profile, "content", "options/fields", opts.fields);
+      add(
+        profile,
+        "content",
+        "sort/property",
+        isObject(p.sort) ? p.sort.property : undefined,
+      );
+      add(
+        profile,
+        "content",
+        "options/view/value",
+        isObject(opts.view) ? opts.view.value : undefined,
+      );
+      if (p.returnAll === false)
+        add(profile, "content", "limit", p.limit ?? 100);
+      if (
+        Object.keys(opts).some(
+          (key) => !["fields", "view", "downloadFields"].includes(key),
+        )
+      )
+        profile.diagnostics.push("connector_options_unresolved");
+    } else add(profile, "content", "id", p.id, true);
+    if (profile.readOnly && opts.downloadFields)
+      profile.diagnostics.push("binary_response_content_unavailable");
+    return profile;
+  }
+  if (
+    (p.resource ?? "sheet") !== "sheet" ||
+    !["append", "update", "appendOrUpdate", "read"].includes(String(operation))
+  )
+    return unsupported(profile, "unsupported_send_operation");
+  compositeLocator(profile, "documentId", "sheetName", p);
+  const opts = options(p.options, profile);
+  if (operation === "read") {
+    profile.readOnly = true;
+    profile.responseCode = "sheet_rows_response_profile";
+    profile.diagnostics.push("read_response_classification_unverified");
+    // Sheets filters are applied to fetched rows locally. Do not manufacture
+    // an outbound transmission of lookupValue from that local filter.
+    if (p.filtersUI !== undefined)
+      profile.diagnostics.push("response_selection_unverified");
+    add(
+      profile,
+      "content",
+      "options/dataLocationOnSheet",
+      opts.dataLocationOnSheet,
+    );
+  } else {
+    mappedColumns(profile, p, operation === "append");
+    profile.responseCode = "sheet_mapped_or_input_response_profile";
+    profile.diagnostics.push("sheet_headers_runtime_unverified");
+    if (operation !== "append")
+      profile.diagnostics.push("record_match_selection_unverified");
+    if (
+      node.typeVersion >= 4.4 &&
+      (!isObject(p.columns) ||
+        !Array.isArray(p.columns.schema) ||
+        !p.columns.schema.length)
+    )
+      profile.diagnostics.push("resource_mapping_schema_unresolved");
+  }
+  const known = [
+    "cellFormat",
+    "handlingExtraData",
+    "useAppend",
+    "locationDefine",
+    "valueRenderMode",
+    "dataLocationOnSheet",
+    "outputFormatting",
+    "returnFirstMatch",
+    "returnAllMatches",
+  ];
+  if (Object.keys(opts).some((key) => !known.includes(key))) {
+    profile.diagnostics.push("connector_options_unresolved");
+    profile.opaqueContent = true;
+  }
   return profile;
 }
 
@@ -349,7 +647,442 @@ function notionProperties(profile: Profile, value: unknown): void {
   }
 }
 
+function notionFilters(profile: Profile, value: unknown): void {
+  if (!isObject(value) || !Array.isArray(value.conditions)) {
+    if (value === undefined || (isObject(value) && !Object.keys(value).length))
+      return;
+    profile.diagnostics.push("notion_filter_selection_partially_analyzed");
+    profile.opaqueContent = true;
+    return;
+  }
+  const keys: Record<string, string> = {
+    title: "titleValue",
+    rich_text: "richTextValue",
+    text: "textValue",
+    email: "emailValue",
+    url: "urlValue",
+    phone_number: "phoneNumberValue",
+    number: "numberValue",
+    checkbox: "checkboxValue",
+    boolean: "booleanValue",
+    select: "selectValue",
+    multi_select: "multiSelectValue",
+    status: "statusValue",
+    people: "peopleValue",
+    relation: "relationValue",
+    date: "date",
+    created_time: "createdTimeValue",
+    last_edited_time: "lastEditedTime",
+    created_by: "createdByValue",
+    last_edited_by: "lastEditedByValue",
+  };
+  for (const item of value.conditions.slice(0, 128)) {
+    const pointer = "filters/conditions";
+    if (!isObject(item)) {
+      profile.diagnostics.push("notion_filter_selection_partially_analyzed");
+      profile.opaqueContent = true;
+      continue;
+    }
+    add(profile, "content", pointer, item.key);
+    add(profile, "content", pointer, item.condition);
+    const type =
+      typeof item.key === "string" && !item.key.startsWith("=")
+        ? item.key.split("|").at(-1)
+        : undefined;
+    if (["is_empty", "is_not_empty"].includes(String(item.condition))) continue;
+    if (
+      type !== "date" &&
+      item.type !== "formula" &&
+      [
+        "past_week",
+        "past_month",
+        "past_year",
+        "next_week",
+        "next_month",
+        "next_year",
+      ].includes(String(item.condition))
+    )
+      continue;
+    const selected = item.type === "formula" ? item.returnType : type;
+    const formulaKeys: Record<string, string> = {
+      string: "stringValue",
+      number: "numberValue",
+      checkbox: "checkboxValue",
+      date: "dateValue",
+    };
+    const selection = item.type === "formula" ? formulaKeys : keys;
+    const key =
+      typeof selected === "string" && Object.hasOwn(selection, selected)
+        ? selection[selected]
+        : undefined;
+    if (
+      !key ||
+      typeof item.condition !== "string" ||
+      item.condition.startsWith("=")
+    ) {
+      add(profile, "content", pointer, item);
+      const field = profile.content.at(-1);
+      if (field) field.conditional = true;
+      profile.diagnostics.push("notion_filter_selection_partially_analyzed");
+      profile.opaqueContent = true;
+    } else {
+      add(profile, "content", pointer, item[key]);
+      if (
+        selected === "date" ||
+        selected === "created_time" ||
+        selected === "last_edited_time"
+      )
+        profile.diagnostics.push("notion_date_conversion_unverified");
+    }
+  }
+  if (value.conditions.length > 128) {
+    profile.diagnostics.push("parameter_value_analysis_limit");
+    profile.opaqueContent = true;
+  }
+}
+
+/** Data JSON only; callers must select official JSON-parsing fields and must
+ * preserve each diagnostic as an unknown remainder alongside any bounded value. */
+export function parseLiteralJsonData(value: string): {
+  parsed: boolean;
+  value?: unknown;
+  diagnostics: string[];
+} {
+  if (value.startsWith("=")) {
+    return {
+      parsed: false,
+      value,
+      diagnostics: ["model_json_data_structure_unverified"],
+    };
+  }
+  if (value.length > 65536) {
+    return { parsed: false, diagnostics: ["model_json_data_limit"] };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return {
+      parsed: false,
+      value,
+      diagnostics: ["model_json_data_parse_unverified"],
+    };
+  }
+  let visits = 0;
+  let limited = false;
+  const bounded = (item: unknown, depth: number): unknown => {
+    if (++visits > 2048 || depth > 16) {
+      limited = true;
+      return null;
+    }
+    if (!isObject(item) && !Array.isArray(item)) return item;
+    const entries = Object.entries(item);
+    if (entries.length > 512) limited = true;
+    const selected: [string, unknown][] = [];
+    for (const [key, child] of entries.slice(0, 512)) {
+      if (visits >= 2048) {
+        limited = true;
+        break;
+      }
+      selected.push([key, bounded(child, depth + 1)]);
+    }
+    return Array.isArray(item)
+      ? selected.map(([, child]) => child)
+      : Object.fromEntries(selected);
+  };
+  const literal = bounded(parsed, 0);
+  return {
+    parsed: true,
+    value: literal,
+    diagnostics: limited ? ["model_json_data_limit"] : [],
+  };
+}
+
+export function resolveLiteralData(
+  flow: ValueFlow,
+  nodeKey: string,
+  value: unknown,
+): AbstractValue {
+  return typeof value === "string"
+    ? flow.resolveExpression(nodeKey, JSON.stringify(value))
+    : flow.resolve(nodeKey, value);
+}
+
+function jsonDataField(
+  profile: Profile,
+  pointer: string,
+  value: unknown,
+): void {
+  if (value === undefined) {
+    profile.diagnostics.push("model_json_data_parse_unverified");
+    profile.opaqueContent = true;
+    return;
+  }
+  if (typeof value !== "string") {
+    add(profile, "content", pointer, value);
+    return;
+  }
+  const parsed = parseLiteralJsonData(value);
+  if (parsed.diagnostics.length) {
+    profile.diagnostics.push(...parsed.diagnostics);
+    profile.opaqueContent = true;
+  }
+  if (!parsed.parsed) {
+    if (parsed.value !== undefined)
+      add(profile, "content", pointer, parsed.value);
+    return;
+  }
+  profile.content.push({
+    pointer: "/parameters/" + pointer,
+    value: parsed.value,
+    literalData: true,
+  });
+}
+
+function fieldValue(
+  flow: ValueFlow,
+  nodeKey: string,
+  field: Field,
+): AbstractValue {
+  return field.literalData
+    ? resolveLiteralData(flow, nodeKey, field.value)
+    : flow.resolve(nodeKey, field.value, { fieldName: field.name });
+}
+
+function openAiResponseProfile(node: NormalizedNode): Profile {
+  const p = node.parameters;
+  const profile: Profile = {
+    sink: "openai",
+    recipients: [],
+    content: [],
+    diagnostics: [],
+    opaqueDestination: true,
+  };
+  const gap = (code: string) => {
+    profile.diagnostics.push(code);
+    profile.opaqueContent = true;
+  };
+  if (![2, 2.1, 2.2, 2.3].includes(node.typeVersion))
+    return unsupported(profile, "unsupported_node_version");
+  if (
+    (p.resource ?? "text") !== "text" ||
+    (p.operation ?? "response") !== "response"
+  )
+    return unsupported(profile, "unsupported_send_operation");
+  profile.responseCode = "openai_responses_output_profile";
+  profile.diagnostics.push(
+    "provider_endpoint_from_credentials_unverified",
+    "model_processing_and_retention_unverified",
+    "model_invocation_and_output_unverified",
+  );
+  add(
+    profile,
+    "content",
+    "modelId",
+    isObject(p.modelId) ? p.modelId.value : p.modelId,
+    true,
+  );
+  const messages = isObject(p.responses) ? p.responses.values : undefined;
+  if (!Array.isArray(messages)) gap("model_messages_unresolved");
+  else {
+    if (
+      !messages.some(
+        (item) =>
+          isObject(item) &&
+          (item.type ?? "text") === "text" &&
+          typeof item.content === "string" &&
+          item.content.trim(),
+      )
+    )
+      gap("model_required_text_prompt_unresolved");
+    if (messages.length > 128) gap("parameter_value_analysis_limit");
+    for (const [index, item] of messages.slice(0, 128).entries()) {
+      if (!isObject(item)) {
+        gap("model_messages_unresolved");
+        continue;
+      }
+      const path = `responses/values/${index}/`;
+      add(profile, "content", path + "role", item.role);
+      const type = item.type ?? "text";
+      if (type === "text")
+        add(profile, "content", path + "content", item.content, true);
+      else if (type === "image" || type === "file") {
+        const selected =
+          item[type === "image" ? "imageType" : "fileType"] ?? "url";
+        if (type === "image")
+          add(profile, "content", path + "imageDetail", item.imageDetail);
+        if (selected === "url")
+          add(
+            profile,
+            "content",
+            path + (type === "image" ? "imageUrl" : "fileUrl"),
+            item[type === "image" ? "imageUrl" : "fileUrl"],
+            true,
+          );
+        else if (selected === "fileId")
+          add(profile, "content", path + "fileId", item.fileId, true);
+        else if (selected === "base64") {
+          if (type === "file")
+            add(profile, "content", path + "fileName", item.fileName);
+          gap("binary_payload_unavailable");
+        } else gap("model_message_media_selection_unresolved");
+        if (selected === "url" || selected === "fileId")
+          gap("remote_attachment_content_unavailable");
+      } else gap("model_message_format_unresolved");
+    }
+  }
+  const opts = options(p.options, profile);
+  const scalar = [
+    "instructions",
+    "maxTokens",
+    "previousResponseId",
+    "promptCacheKey",
+    "safetyIdentifier",
+    "serviceTier",
+    "temperature",
+    "topP",
+    "topLogprobs",
+    "maxToolCalls",
+    "parallelToolCalls",
+    "store",
+    "conversationId",
+  ];
+  for (const key of scalar)
+    add(profile, "content", "options/" + key, opts[key]);
+  if (opts.metadata) jsonDataField(profile, "options/metadata", opts.metadata);
+  if (Array.isArray(opts.include))
+    add(profile, "content", "options/include", opts.include);
+  else if (opts.include !== undefined)
+    gap("model_options_selection_unresolved");
+  for (const key of ["previousResponseId", "conversationId"])
+    if (opts[key]) gap("model_remote_history_content_unverified");
+  const group = (
+    name: string,
+    nested: string,
+  ): Record<string, unknown> | undefined => {
+    if (opts[name] === undefined) return;
+    const value = isObject(opts[name]) ? opts[name][nested] : undefined;
+    if (!isObject(value)) {
+      gap("model_options_selection_unresolved");
+      return;
+    }
+    return value;
+  };
+  const prompt = group("promptConfig", "promptOptions");
+  if (prompt) {
+    for (const key of ["promptId", "version"])
+      add(
+        profile,
+        "content",
+        "options/promptConfig/promptOptions/" + key,
+        prompt[key],
+      );
+    if (prompt.variables)
+      jsonDataField(
+        profile,
+        "options/promptConfig/promptOptions/variables",
+        prompt.variables,
+      );
+    gap("model_remote_prompt_content_unverified");
+  }
+  const reasoning = group("reasoning", "reasoningOptions");
+  if (reasoning) {
+    add(
+      profile,
+      "content",
+      "options/reasoning/reasoningOptions/effort",
+      reasoning.effort,
+    );
+    if (reasoning.summary !== "none")
+      add(
+        profile,
+        "content",
+        "options/reasoning/reasoningOptions/summary",
+        reasoning.summary,
+      );
+  }
+  const format = group("textFormat", "textOptions");
+  if (format) {
+    add(
+      profile,
+      "content",
+      "options/textFormat/textOptions/verbosity",
+      format.verbosity,
+    );
+    if (format.type === "json_schema") {
+      for (const key of ["name"])
+        add(
+          profile,
+          "content",
+          "options/textFormat/textOptions/" + key,
+          format[key],
+        );
+      jsonDataField(
+        profile,
+        "options/textFormat/textOptions/schema",
+        format.schema,
+      );
+    } else if (
+      format.type !== undefined &&
+      !["text", "json_object"].includes(String(format.type))
+    )
+      gap("model_output_format_unresolved");
+  }
+  const background = group("backgroundMode", "values");
+  if (background)
+    add(
+      profile,
+      "content",
+      "options/backgroundMode/values/enabled",
+      background.enabled,
+    );
+  if (opts.truncation !== undefined && typeof opts.truncation !== "boolean")
+    profile.diagnostics.push("model_request_control_unresolved");
+  const known = new Set([
+    ...scalar,
+    "metadata",
+    "include",
+    "promptConfig",
+    "reasoning",
+    "textFormat",
+    "backgroundMode",
+    "truncation",
+    "maxToolsIterations",
+  ]);
+  if (Object.keys(opts).some((key) => !known.has(key)))
+    gap("connector_options_unresolved");
+  const builtins = options(p.builtInTools, profile);
+  for (const name of ["webSearch", "fileSearch"]) {
+    if (!builtins[name]) continue;
+    const value = builtins[name];
+    if (!isObject(value)) gap("model_provider_tools_selection_unresolved");
+    else
+      for (const key of name === "webSearch"
+        ? ["searchContextSize", "allowedDomains", "country", "city", "region"]
+        : ["vectorStoreIds", "filters", "maxResults"])
+        if (
+          name === "fileSearch" &&
+          ["vectorStoreIds", "filters"].includes(key)
+        ) {
+          if (value[key] !== undefined && (key !== "filters" || value[key]))
+            jsonDataField(profile, `builtInTools/${name}/${key}`, value[key]);
+        } else
+          add(profile, "content", `builtInTools/${name}/${key}`, value[key]);
+    gap("model_provider_tools_unverified");
+  }
+  if (builtins.codeInterpreter) gap("model_provider_tools_unverified");
+  if (
+    Object.keys(builtins).some(
+      (key) => !["webSearch", "fileSearch", "codeInterpreter"].includes(key),
+    )
+  )
+    gap("model_provider_tools_selection_unresolved");
+  return profile;
+}
+
 function additionalProfile(node: NormalizedNode): Profile | undefined {
+  if (node.type === "@n8n/n8n-nodes-langchain.openAi")
+    return openAiResponseProfile(node);
   const p = node.parameters;
   const kinds: Record<string, SinkKind> = {
     "n8n-nodes-base.notion": "notion",
@@ -370,6 +1103,45 @@ function additionalProfile(node: NormalizedNode): Profile | undefined {
       return unsupported(profile, "unsupported_node_version");
     const resource = p.resource ?? "page";
     const operation = p.operation ?? "create";
+    if (
+      (resource === "databasePage" &&
+        ["get", "getAll"].includes(String(operation))) ||
+      (resource === "database" && operation === "get")
+    ) {
+      const identifier =
+        resource === "database" || operation === "getAll"
+          ? "databaseId"
+          : "pageId";
+      locator(profile, identifier, p[identifier]);
+      profile.readOnly = true;
+      profile.responseCode = "notion_remote_properties_response_profile";
+      profile.diagnostics.push(
+        "read_response_classification_unverified",
+        "destination_access_unverified",
+      );
+      const opts = options(p.options, profile);
+      if (operation === "getAll") {
+        if (p.filterType === "json")
+          add(profile, "content", "filterJson", p.filterJson);
+        else if (p.filterType === "manual") {
+          notionFilters(profile, p.filters);
+        } else if (p.filterType !== undefined && p.filterType !== "none") {
+          profile.diagnostics.push(
+            "notion_filter_selection_partially_analyzed",
+          );
+          profile.opaqueContent = true;
+        }
+        add(
+          profile,
+          "content",
+          "options/sort/sortValue",
+          isObject(opts.sort) ? opts.sort.sortValue : undefined,
+        );
+      }
+      if (opts.downloadFiles === true)
+        profile.diagnostics.push("binary_response_content_unavailable");
+      return profile;
+    }
     if (!(
       (resource === "databasePage" &&
         ["create", "update"].includes(String(operation))) ||
@@ -406,10 +1178,15 @@ function additionalProfile(node: NormalizedNode): Profile | undefined {
     const operation = p.operation ?? "create";
     if (
       (p.resource ?? "document") !== "document" ||
-      !["create", "update"].includes(String(operation))
+      !["create", "update", "get"].includes(String(operation))
     )
       return unsupported(profile, "unsupported_send_operation");
-    if (operation === "create") {
+    if (operation === "get") {
+      add(profile, "recipients", "documentURL", p.documentURL, true);
+      profile.readOnly = true;
+      profile.responseCode = "google_document_response_profile";
+      profile.diagnostics.push("read_response_classification_unverified");
+    } else if (operation === "create") {
       add(profile, "recipients", "folderId", p.folderId || null);
       add(profile, "content", "title", p.title, true);
     } else {
@@ -530,6 +1307,8 @@ function additionalProfile(node: NormalizedNode): Profile | undefined {
 
 /** Exact field semantics are pinned to n8n 86dff76e10efba250a4d3e57760e4eb5d2bbea25. */
 function sendProfile(node: NormalizedNode): Profile | undefined {
+  const table = tableProfile(node);
+  if (table) return table;
   const additional = additionalProfile(node);
   if (additional) return additional;
   const p = node.parameters;
@@ -648,7 +1427,29 @@ function sendProfile(node: NormalizedNode): Profile | undefined {
       ["get", "getAll"].includes(String(p.operation))
     ) {
       profile.readOnly = true;
+      profile.opaqueDestination = true;
       profile.diagnostics.push("read_response_classification_unverified");
+      const simple = p.simple ?? true;
+      profile.responseCode =
+        simple === true
+          ? "gmail_metadata_response_profile"
+          : simple === false
+            ? "gmail_parsed_message_response_profile"
+            : "gmail_response_selection_unresolved";
+      const opts = options(p.options, profile);
+      if (p.operation === "get")
+        add(profile, "content", "messageId", p.messageId, true);
+      else {
+        // prepareQuery transforms but retains these filter values in the
+        // provider request. It does not forward the fetched mail as a request.
+        add(profile, "content", "filters", p.filters);
+        if (p.returnAll !== true)
+          add(profile, "content", "limit", p.limit ?? 50);
+      }
+      if (simple === false && opts.downloadAttachments === true)
+        profile.diagnostics.push("binary_response_content_unavailable");
+      if (simple !== true && simple !== false)
+        profile.diagnostics.push("response_selection_unverified");
       return profile;
     }
     if (
@@ -662,6 +1463,8 @@ function sendProfile(node: NormalizedNode): Profile | undefined {
       add(profile, "recipients", "options/" + key, opts[key]);
     add(profile, "content", "subject", p.subject);
     add(profile, "content", "message", p.message, true);
+    add(profile, "content", "options/senderName", opts.senderName);
+    add(profile, "content", "options/replyTo", opts.replyTo);
     if (opts.attachmentsUi)
       profile.diagnostics.push("binary_payload_unavailable");
     return profile;
@@ -698,6 +1501,7 @@ function sendProfile(node: NormalizedNode): Profile | undefined {
           "recipients",
           destinationField,
           isObject(locator) ? locator.value : locator,
+          true,
         );
         profile.opaqueDestination = true;
         profile.diagnostics.push("recipient_identity_unresolved");
@@ -724,7 +1528,81 @@ function sendProfile(node: NormalizedNode): Profile | undefined {
       "mrkdwn",
       "link_names",
       "sendAsUser",
+      "ephemeral",
+      "botProfile",
     ]);
+    // These values are merged into the actual request, including expression
+    // values inside thread and bot profile options.
+    if (isObject(opts.thread_ts) && isObject(opts.thread_ts.replyValues)) {
+      add(
+        profile,
+        "content",
+        "otherOptions/thread_ts/replyValues/thread_ts",
+        opts.thread_ts.replyValues.thread_ts,
+      );
+      add(
+        profile,
+        "content",
+        "otherOptions/thread_ts/replyValues/reply_broadcast",
+        opts.thread_ts.replyValues.reply_broadcast,
+      );
+    } else if (opts.thread_ts !== undefined) {
+      profile.diagnostics.push("message_options_overrides_unverified");
+      profile.opaqueContent = true;
+    }
+    if (isObject(opts.botProfile) && isObject(opts.botProfile.imageValues)) {
+      const selected =
+        opts.botProfile.imageValues.profilePhotoType === "image"
+          ? "icon_url"
+          : "icon_emoji";
+      add(
+        profile,
+        "content",
+        "otherOptions/botProfile/imageValues/" + selected,
+        opts.botProfile.imageValues[selected],
+      );
+    } else if (opts.botProfile !== undefined) {
+      profile.diagnostics.push("message_options_overrides_unverified");
+      profile.opaqueContent = true;
+    }
+    if (opts.ephemeral !== undefined && (p.operation ?? "post") === "post") {
+      if (
+        p.select === "channel" &&
+        isObject(opts.ephemeral) &&
+        isObject(opts.ephemeral.ephemeralValues)
+      ) {
+        const recipient = opts.ephemeral.ephemeralValues.user;
+        if (isObject(recipient)) {
+          add(
+            profile,
+            "recipients",
+            "otherOptions/ephemeral/ephemeralValues/user/value",
+            recipient.value,
+            true,
+          );
+          if (!["id", "list"].includes(String(recipient.mode)))
+            profile.opaqueDestination = true;
+        } else profile.opaqueDestination = true;
+      } else if (p.select !== "user") profile.opaqueDestination = true;
+      profile.diagnostics.push("ephemeral_recipient_authorization_unverified");
+    }
+    for (const [key, value] of Object.entries(opts)) {
+      if (
+        [
+          "thread_ts",
+          "ephemeral",
+          "botProfile",
+          "includeLinkToWorkflow",
+        ].includes(key)
+      )
+        continue;
+      add(
+        profile,
+        "content",
+        "otherOptions" + (known.has(key) ? "/" + key : ""),
+        value,
+      );
+    }
     if (Object.keys(opts).some((key) => !known.has(key))) {
       profile.diagnostics.push("message_options_overrides_unverified");
       profile.opaqueDestination = true;
@@ -811,7 +1689,7 @@ function pairsContent(profile: Profile, key: string, value: unknown): void {
   }
 }
 
-function classes(
+export function transferDataClasses(
   value: AbstractValue,
   evidence?: AssessmentEvidence,
 ): DataClass[] {
@@ -860,7 +1738,7 @@ function data(
   evidence?: AssessmentEvidence,
   forceCandidate = false,
 ): DataClass[] {
-  const classified = classes(value, evidence);
+  const classified = transferDataClasses(value, evidence);
   if (value.status !== "resolved")
     scope.diagnostic("payload_provenance_unresolved");
   const path =
@@ -987,6 +1865,18 @@ function outgoing(
   for (const node of context.nodes) {
     const profile = sendProfile(node);
     if (!profile) continue;
+    if (
+      profile.sink === "openai" &&
+      node.parameters.hideTools !== "hide" &&
+      context.unsupportedEdges.some(
+        (edge) => edge.to === node.key && edge.channel === "ai_tool",
+      )
+    ) {
+      profile.diagnostics.push(
+        "model_custom_tool_schema_and_result_unverified",
+      );
+      profile.opaqueContent = true;
+    }
     const scope = new Scope(result, node);
     scope.context = context;
     if (node.disabled) {
@@ -1007,12 +1897,11 @@ function outgoing(
       "/type",
     );
     profile.diagnostics.forEach((code) => scope.diagnostic(code));
-    if (profile.readOnly) {
-      scope.finish();
-      continue;
-    }
+    if (profile.responseCode)
+      scope.finding(profile.responseCode, "/parameters");
     const allClasses = new Set<DataClass>();
     if (
+      profile.opaqueContent ||
       profile.diagnostics.some((code) =>
         [
           "binary_payload_unavailable",
@@ -1024,11 +1913,14 @@ function outgoing(
       )
     )
       allClasses.add("unknown");
-    for (const field of profile.content) {
-      const value = flow.resolve(node.key, field.value, {
-        fieldName: field.name,
-      });
-      data(scope, field, value, evidence).forEach((kind) =>
+    const leafValues = parameterLeaves(profile.content);
+    if (leafValues.limited) {
+      scope.diagnostic("parameter_value_analysis_limit");
+      allClasses.add("unknown");
+    }
+    for (const field of leafValues.fields) {
+      const value = fieldValue(flow, node.key, field);
+      data(scope, field, value, evidence, field.conditional).forEach((kind) =>
         allClasses.add(kind),
       );
     }
@@ -1047,7 +1939,13 @@ function outgoing(
           value,
           "medium",
         );
-      for (const destination of destinations(profile.sink, field.value))
+      // Only flow-proven literal constants may resolve expression destinations.
+      // Public classifications or runtime values do not establish an address.
+      const selectedDestination =
+        value.status === "resolved" && value.constant !== undefined
+          ? value.constant
+          : field.value;
+      for (const destination of destinations(profile.sink, selectedDestination))
         policy(
           scope,
           profile.sink,
@@ -1105,28 +2003,85 @@ function response(
       ? (p.respondWith ?? "firstIncomingItem")
       : (p.responseData ?? "firstEntryJson");
     const opts = isObject(p.options) ? p.options : {};
-    if (
-      mode === "noData" ||
-      (last && p.responseData === undefined && opts.noResponseBody === true)
-    ) {
-      scope.finish();
-      continue;
-    }
     const values: { field: Field; value: AbstractValue }[] = [];
+    const fields: Field[] = [];
+    let unknownContent = false;
+    const noBody =
+      mode === "noData" ||
+      (last && p.responseData === undefined && opts.noResponseBody === true);
+    // Response headers are transmitted even when no response body is selected.
+    // Parameter objects are already n8n structures; plain JSON strings stay literal.
+    if (respond && opts.responseHeaders !== undefined) {
+      const entries = isObject(opts.responseHeaders)
+        ? opts.responseHeaders.entries
+        : undefined;
+      if (Array.isArray(entries)) {
+        for (const entry of entries.slice(0, 128)) {
+          if (!isObject(entry)) {
+            unknownContent = true;
+            scope.diagnostic("response_headers_shape_unresolved");
+            continue;
+          }
+          for (const key of ["name", "value"])
+            if (entry[key] !== undefined)
+              fields.push({
+                pointer: "/parameters/options/responseHeaders",
+                value: entry[key],
+              });
+        }
+        if (entries.length > 128) {
+          unknownContent = true;
+          scope.diagnostic("response_headers_limit");
+        }
+      } else {
+        unknownContent = true;
+        scope.diagnostic("response_headers_shape_unresolved");
+      }
+    }
     if (
+      !noBody &&
       respond &&
       (mode === "firstIncomingItem" || mode === "allIncomingItems")
-    )
+    ) {
       values.push({
         field: { pointer: "/parameters/respondWith", value: "" },
-        value: flow.resolve(node.key, "={{ $json }}"),
+        value: flow.resolve(
+          node.key,
+          mode === "allIncomingItems" ? "={{ $input.all() }}" : "={{ $json }}",
+        ),
       });
-    else if (respond && (mode === "json" || mode === "text"))
-      values.push({
-        field: { pointer: "/parameters/responseBody", value: p.responseBody },
-        value: flow.resolve(node.key, p.responseBody ?? ""),
+      if (opts.responseKey !== undefined)
+        fields.push({
+          pointer: "/parameters/options/responseKey",
+          value: opts.responseKey,
+        });
+    } else if (!noBody && respond && (mode === "json" || mode === "text"))
+      fields.push({
+        pointer: "/parameters/responseBody",
+        value: p.responseBody ?? "",
       });
-    else if (last && (mode === "allEntries" || mode === "firstEntryJson")) {
+    else if (!noBody && respond && mode === "jwt") {
+      fields.push({ pointer: "/parameters/payload", value: p.payload ?? {} });
+      scope.finding(
+        "signed_response_payload_not_encrypted",
+        "/parameters/respondWith",
+      );
+      scope.diagnostic("jwt_signing_credentials_unverified");
+    } else if (!noBody && respond && mode === "redirect") {
+      fields.push({
+        pointer: "/parameters/redirectURL",
+        value: p.redirectURL ?? "",
+      });
+      scope.finding("redirect_location_response", "/parameters/respondWith");
+      scope.diagnostic("redirect_target_authorization_unverified");
+    } else if (!noBody && respond && mode === "binary") {
+      unknownContent = true;
+      scope.diagnostic("binary_response_content_unavailable");
+    } else if (
+      !noBody &&
+      last &&
+      (mode === "allEntries" || mode === "firstEntryJson")
+    ) {
       const terminal = terminalNodes(context, node.key);
       if (!terminal.length) scope.diagnostic("last_response_source_unresolved");
       const field =
@@ -1143,12 +2098,26 @@ function response(
         });
       if (terminal.length > 1)
         scope.diagnostic("last_response_order_unverified");
-    } else {
+    } else if (!noBody) {
+      unknownContent = true;
       scope.diagnostic("response_mode_unresolved");
+    }
+    const leafValues = parameterLeaves(fields);
+    if (leafValues.limited) {
+      unknownContent = true;
+      scope.diagnostic("parameter_value_analysis_limit");
+    }
+    for (const field of leafValues.fields)
+      values.push({
+        field,
+        value: flow.resolve(node.key, field.value, { fieldName: field.name }),
+      });
+    if (noBody && !values.length && !unknownContent) {
       scope.finish();
       continue;
     }
     const allClasses = new Set<DataClass>();
+    if (unknownContent) allClasses.add("unknown");
     for (const { field, value } of values)
       data(scope, field, value, evidence).forEach((kind) =>
         allClasses.add(kind),

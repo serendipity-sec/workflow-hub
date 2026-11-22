@@ -153,7 +153,7 @@ def run(mode, fields):
                     diagnostic("python_ast_limit", index)
                     continue
                 aliases = {name: "builtins." + name for name in ("eval", "exec", "compile", "print", "open", "__import__")}
-                tainted = {"_json", "_input", "_items", "_item", "items"}
+                tainted = {"_query"} if field.get("inputProfile") == "model_tool" else {"_json", "_input", "_items", "_item", "items"}
                 for item in nodes:
                     if isinstance(item, ast.Import):
                         for entry in item.names:
@@ -247,6 +247,10 @@ def main():
         seen = set()
         for field in fields:
             expected_keys = {"index", "value", "namedEntities"} if mode == "nlp" else {"index", "value"}
+            if mode == "python" and isinstance(field, dict) and "inputProfile" in field:
+                expected_keys.add("inputProfile")
+                if field["inputProfile"] not in ("code", "model_tool"):
+                    raise ValueError("scope")
             if not isinstance(field, dict) or set(field) != expected_keys or type(field["index"]) is not int or field["index"] < 0 or field["index"] in seen or not isinstance(field["value"], str):
                 raise ValueError("field")
             if mode == "nlp" and field["namedEntities"] not in ("metadata", "program", "prose", "data", "template", "json"):

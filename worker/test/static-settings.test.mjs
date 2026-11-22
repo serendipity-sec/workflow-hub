@@ -387,7 +387,7 @@ test("reviewed capability inventory recognizes exact basic-node and aligned buil
       const rule = analyze([node(kind, {}, { typeVersion })]).category(
         "dependencies",
       );
-      assert.equal(rule.profileVersion, "1.1.0");
+      assert.equal(rule.profileVersion, "1.2.0");
       assert.deepEqual(diagnosticCodes(rule), [], `${kind}@${typeVersion}`);
       assert.deepEqual(codes(rule), [code]);
       assert.equal(rule.coverage[0].status, "checked");
@@ -408,6 +408,51 @@ test("reviewed capability inventory recognizes exact basic-node and aligned buil
     assert.deepEqual(diagnosticCodes(future), ["unsupported_node_version"]);
     assert.equal(future.coverage[0].status, "unsupported");
     assert.equal(future.findings.length, 0);
+  }
+});
+
+test("connector and transform inventory covers exact registered versions without claiming operation effects", () => {
+  const profiles = [
+    ["set", 3.4],
+    ["switch", 3.4],
+    ["merge", 3.2],
+    ["wait", 1.1],
+    ["aggregate", 1],
+    ["extractFromFile", 1],
+    ["gmailTrigger", 1.3],
+    ["telegramTrigger", 1.2],
+    ["emailReadImap", 2],
+    ["formTrigger", 2.3],
+    ["gmail", 2.2],
+    ["emailSend", 2.1],
+    ["telegram", 1.2],
+    ["slack", 2.3],
+    ["googleSheets", 4.6],
+    ["airtable", 2.1],
+    ["notion", 2.2],
+    ["googleDocs", 2],
+    ["whatsApp", 1.1],
+  ];
+  for (const [kind, typeVersion] of profiles) {
+    const rule = analyze([
+      node(
+        kind,
+        { operation: "unmodeled", text: "={{ (()=>{throw Error()})() }}" },
+        { typeVersion },
+      ),
+    ]).category("dependencies");
+    assert.deepEqual(diagnosticCodes(rule), []);
+    assert.equal(rule.findings.length, 1);
+    assert.equal(rule.findings[0].severity, "info");
+    assert.ok(
+      rule.findings[0].assumptions.includes(
+        "operation_and_dataflow_not_established_by_inventory",
+      ),
+    );
+    const future = analyze([node(kind, {}, { typeVersion: 99 })]).category(
+      "dependencies",
+    );
+    assert.deepEqual(diagnosticCodes(future), ["unsupported_node_version"]);
   }
 });
 

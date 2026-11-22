@@ -2,7 +2,7 @@
 
 Workflow Hub의 `worker/`에서 n8n JSON을 정적으로 분석합니다. 결과에 적용된 규칙과 분석 범위를 기록합니다. 설계 기준은 [보안 설계](../docs/SECURITY_DESIGN.md)와 [Workflow Hub PR #7](https://github.com/serendipity-sec/workflow-hub/pull/7)입니다.
 
-현재 기본 진입점은 **`assess`**입니다. 10개 범주에 필드 흐름·메신저/이메일·실제 NLP/Python AST·SQL AST·정책·환경/패키지 근거·자식 정의·수정안을 연결합니다. Docker에서 네트워크·파일 쓰기·자원을 제한합니다. [통합 검사 실행법과 지원 범위](docs/assessment.md), [SEC 사례 25개 대응표](docs/assessment-evidence.md), [현재 0.5.0의 partial 원인·보완 결과](docs/public-partial-followup.md)를 먼저 확인하세요. 실제 팀 API는 연결하지 않았습니다.
+현재 기본 진입점은 **`assess`**입니다. 10개 범주에 필드 흐름·커넥터 전송·실제 NLP/Python AST·SQL AST·정적 AI 연결·정책·환경/패키지 근거·자식 정의·수정안을 연결합니다. Docker에서 네트워크·파일 쓰기·자원을 제한합니다. [통합 검사 실행법과 지원 범위](docs/assessment.md), [현재 0.6.0의 Code·커넥터·AI 확장](docs/static-expansion.md), [SEC 사례 25개 대응표](docs/assessment-evidence.md)를 먼저 확인하세요. 실제 팀 API는 연결하지 않았습니다.
 
 [엔진 0.3.0의 공개 템플릿 15개 검증](docs/public-service-validation.md), [0.4.0의 구현·검증 범위](docs/worker-completion.md)를 보존합니다. 0.5.0은 같은 15개 원본에서 알려진 노드 버전·표현식·제목 오탐·장문 검사와 분기 보호 조건을 보완했습니다. 15개 모두 남은 범위가 있어 `partial`이며, 실패나 전체 안전을 뜻하지 않습니다. [보완 결과와 원본별 남은 조건](docs/public-partial-followup.md), [전체 결과 비교 계약](docs/assessment-comparison.md)을 확인하세요.
 

@@ -61,7 +61,7 @@ export const assessmentBoundarySchema = z.discriminatedUnion("kind", [
   }),
 ]);
 export type AssessmentBoundary = z.infer<typeof assessmentBoundarySchema>;
-export const assessmentExtensionRules = [
+export const legacyAssessmentExtensionRules = [
   "N8N_EXTENDED_OUTBOUND_DATA",
   "N8N_EXTENDED_OUTPUT_DATA",
   "N8N_ADVANCED_SQL",
@@ -75,6 +75,14 @@ export const assessmentExtensionRules = [
   "CONTEXT_SYNTHETIC_RECEIPTS",
   "N8N_SUBWORKFLOW_DEFINITIONS",
   "N8N_VALUE_FLOW_COVERAGE",
+] as const;
+export const assessmentExtensionRules = [
+  ...legacyAssessmentExtensionRules,
+  "N8N_DATABASE_OPERATIONS",
+  "N8N_FILE_OPERATION_PATHS",
+  "N8N_MAPPED_HTTP_DESTINATION",
+  "N8N_AI_CONNECTION_CONTRACTS",
+  "N8N_AI_PROMPT_DATA",
 ] as const;
 export const subworkflowLinkSchema = z.strictObject({
   parentAnalysisKey: hash,
@@ -100,7 +108,7 @@ export const fileAssessmentSchema = z
     parentAnalysisKey: hash.nullable(),
     caller: staticLocationSchema.nullable(),
     base: staticReportSchema,
-    extensionRules: z.array(ruleResultSchema).max(16),
+    extensionRules: z.array(ruleResultSchema).max(18),
     evidence: evidenceSummarySchema,
     dependencies: dependencyResultsSchema,
     policy: policyEvaluationSchema,
@@ -118,11 +126,14 @@ export const fileAssessmentSchema = z
       (file.depth === 0
         ? file.parentAnalysisKey === null && file.caller === null
         : file.parentAnalysisKey !== null && file.caller !== null) &&
-      new Set(file.extensionRules.map((rule) => rule.ruleId)).size ===
-        assessmentExtensionRules.length &&
-      file.extensionRules.length === assessmentExtensionRules.length &&
-      assessmentExtensionRules.every((id) =>
-        file.extensionRules.some((rule) => rule.ruleId === id),
+      [assessmentExtensionRules, legacyAssessmentExtensionRules].some(
+        (expected) =>
+          new Set(file.extensionRules.map((rule) => rule.ruleId)).size ===
+            expected.length &&
+          file.extensionRules.length === expected.length &&
+          expected.every((id) =>
+            file.extensionRules.some((rule) => rule.ruleId === id),
+          ),
       ) &&
       file.tools.native.modes.length === 2 &&
       file.remediation.every((plan) => plan.inputSha256 === file.inputSha256),
@@ -184,7 +195,7 @@ export const fileAssessmentSchema = z
   });
 const header = {
   assessmentVersion: z.literal("1.0.0"),
-  engineVersion: z.enum(["0.3.0", "0.4.0", "0.5.0"]),
+  engineVersion: z.enum(["0.3.0", "0.4.0", "0.5.0", "0.6.0"]),
   inputSha256: hash,
   execution: z.literal("not_run"),
   boundary: assessmentBoundarySchema,
@@ -226,6 +237,20 @@ export const assessmentReportSchema = z
       return false;
     if (report.status === "error")
       return !report.inputDiagnosis || report.code === "invalid_input";
+    const expectedRules =
+      report.engineVersion === "0.6.0"
+        ? assessmentExtensionRules
+        : legacyAssessmentExtensionRules;
+    if (
+      report.files.some(
+        (file) =>
+          file.extensionRules.length !== expectedRules.length ||
+          expectedRules.some(
+            (id) => !file.extensionRules.some((rule) => rule.ruleId === id),
+          ),
+      )
+    )
+      return false;
     if (
       report.engineVersion !== "0.3.0" &&
       report.files.some(
@@ -307,7 +332,7 @@ export function assessmentError(
 ): AssessmentReport {
   return {
     assessmentVersion: "1.0.0",
-    engineVersion: "0.5.0",
+    engineVersion: "0.6.0",
     inputSha256,
     execution: "not_run",
     boundary,

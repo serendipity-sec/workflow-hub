@@ -216,6 +216,56 @@ test("program format candidates remain candidates in source, not runtime output 
   assert.ok(finding.assumptions.includes("program_text_is_not_runtime_output"));
 });
 
+test("Python tool profiles require source text and keep native candidates masked", () => {
+  const ctx = createContext(
+    Buffer.from(
+      JSON.stringify({
+        nodes: [
+          {
+            id: "tool",
+            name: "PrivateTool",
+            type: "@n8n/n8n-nodes-langchain.toolCode",
+            typeVersion: 1.3,
+            parameters: {
+              language: "python",
+              pythonCode: "import os\nos.system(_query)",
+            },
+          },
+        ],
+        connections: {},
+      }),
+    ),
+  );
+  const field = ctx.fields.find(
+    (f) => f.pointer === "/nodes/0/parameters/pythonCode" && f.kind === "value",
+  );
+  const rules = analyzeNativeInspection(
+    ctx,
+    result("python", [
+      {
+        fieldIndex: field.index,
+        code: "python_external_input_shell_call",
+        start: null,
+        end: null,
+        line: 2,
+      },
+    ]),
+  ).map((r) => ruleResultSchema.parse(r));
+  assert.equal(rules[0].profileVersion, "1.1.0");
+  assert.ok(
+    rules[0].findings.some((f) =>
+      f.evidence.some((e) => e.code === "python_external_input_shell_call"),
+    ),
+  );
+  assert.equal(JSON.stringify(rules).includes("PrivateTool"), false);
+  delete ctx.nodes[0].parameters.pythonCode;
+  assert.ok(
+    analyzeNativeInspection(ctx, result("python")).some((r) =>
+      r.diagnostics.some((d) => d.code === "native_python_source_missing"),
+    ),
+  );
+});
+
 test("native helper absence relative paths and cancellation never become clean", async () => {
   for (const options of [
     {},

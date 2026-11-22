@@ -4,6 +4,8 @@ import { buildValueFlow } from "./value-flow.js";
 import type { SourceAnnotation, ValueFlow } from "./value-flow.js";
 import { analyzeExtendedSinks } from "./extended-sinks.js";
 import { analyzeAdvancedRisks } from "./advanced-risks.js";
+import { analyzeDefinitionRisks } from "./definition-risks.js";
+import { analyzeAiFlow } from "./ai-flow.js";
 import {
   analyzeNativeInspection,
   nativeInspectionResultSchema,
@@ -67,7 +69,7 @@ function flowCoverage(context: Context, flow: ValueFlow): RuleResult {
   return {
     ruleId,
     category: "egress",
-    profileVersion: "1.2.0",
+    profileVersion: "1.3.0",
     findings: [],
     diagnostics,
     coverage: diagnostics.length
@@ -173,6 +175,8 @@ export async function assessBytes(
       const extensionRules = [
         ...analyzeExtendedSinks(input.context, flow, localEvidence),
         ...analyzeAdvancedRisks(input.context, flow),
+        ...analyzeDefinitionRisks(input.context, flow),
+        ...analyzeAiFlow(input.context, flow, localEvidence),
         ...analyzeNativeInspection(input.context, tools.native),
         ...assessEnvironment(input.context, localEvidence),
         subworkflowCoverage(
@@ -227,7 +231,7 @@ export async function assessBytes(
         );
     const report = {
       assessmentVersion: "1.0.0",
-      engineVersion: "0.5.0",
+      engineVersion: "0.6.0",
       inputSha256,
       execution: "not_run",
       boundary: { kind: "caller_managed", isolationVerified: false },

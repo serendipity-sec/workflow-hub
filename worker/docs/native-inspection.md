@@ -25,6 +25,8 @@ Presidio의 PERSON, LOCATION, EMAIL_ADDRESS, PHONE_NUMBER, CREDIT_CARD, IP_ADDRE
 
 ## Python 코드 범위
 
+Python 규칙 프로파일 1.1.0은 LangChain `toolCode` 1/1.1/1.2/1.3의 `language: python`과 `pythonCode`도 읽는다. 고정 컨트롤러가 Python Tool에는 `model_tool`, 일반 Code에는 `code` 입력 프로파일을 지정하며 업로드한 메타데이터에서 이 값을 읽지 않는다. Tool의 `_query`와 일반 Code의 `_json`/`_items` 등은 각각의 입력 후보로 분리한다. 실제 모델이 호출한 사실·실제 입력·권한·Python 런타임 가용성은 입증하지 않는다. 고정 Docker 합성 대조에서 `_query`의 셸 호출 후보를 확인하며 원본 Python을 실행하지 않는다.
+
 Code 버전 2의 `python`/`pythonNative`와 `pythonCode` 문자열을 읽는다. import문을 실행하지 않고 모듈 별칭, from-import, 단순 대입의 유한 합류 분석을 수행한다. `_json`, `_input`, `_items`, `_item`, `items`를 입력 후보로 추적한다. Python 입력 API의 실행 환경별 가용성은 이 정적 분석으로 보증하지 않는다.
 
 - `os.system/popen`, 주요 `subprocess` 호출에서 명령 실행 기능과 입력 영향을 구분한다. 리스트 인수·shell=False를 입력 기반 셸 주입으로 자동 분류하지 않는다.

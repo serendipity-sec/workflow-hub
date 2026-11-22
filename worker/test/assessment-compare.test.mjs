@@ -5,6 +5,8 @@ import { assessBytes } from "../dist/assessment-engine.js";
 import {
   assessmentReportSchema,
   assessmentError,
+  assessmentExtensionRules,
+  legacyAssessmentExtensionRules,
 } from "../dist/assessment-contract.js";
 import {
   compareAssessment,
@@ -130,7 +132,11 @@ test("every base and extension finding is accounted for, with info observations 
       }),
     ),
   );
-  assert.equal(result.files[0].extensionRules.length, 13);
+  assert.equal(result.files[0].extensionRules.length, 18);
+  assert.deepEqual(
+    new Set(result.files[0].extensionRules.map((rule) => rule.ruleId)),
+    new Set(assessmentExtensionRules),
+  );
   assert.ok(find(result, "nlp_person_candidate"));
   assert.ok(find(result, "sql_operation_capability"));
   const comparison = compared(result, result);
@@ -257,6 +263,17 @@ test("an earlier report without node inventory and engine changes remain readabl
   const historical = structuredClone(before);
   historical.engineVersion = "0.3.0";
   for (const file of historical.files) {
+    file.extensionRules = file.extensionRules.filter((rule) =>
+      legacyAssessmentExtensionRules.includes(rule.ruleId),
+    );
+    const remaining = new Set(
+      [...file.base.rules, ...file.extensionRules].flatMap((rule) =>
+        rule.findings.map((f) => f.id),
+      ),
+    );
+    file.policy.findingDecisions = file.policy.findingDecisions.filter(
+      (decision) => remaining.has(decision.findingId),
+    );
     delete file.functionSummary;
     delete file.findingPresentation;
   }
@@ -496,7 +513,7 @@ test("identical grandchildren do not bypass a changed ancestor definition", asyn
   );
 });
 
-test("all 13 extension rule findings are included even when the base report cannot classify the observation", async () => {
+test("all 18 extension rule findings are included even when the base report cannot classify the observation", async () => {
   const fixture = await report(document(http()));
   for (const rule of fixture.files[0].extensionRules) {
     const location = {

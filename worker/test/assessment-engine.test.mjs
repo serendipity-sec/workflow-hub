@@ -74,7 +74,7 @@ test("ID-less workflow summaries preserve bytes and expose only structural facts
   });
   const report = await assessBytes(input, { collectTools: tools, now });
   assert.notEqual(report.status, "error", JSON.stringify(report));
-  assert.equal(report.engineVersion, "0.5.0");
+  assert.equal(report.engineVersion, "0.6.0");
   assert.equal(report.inputSha256, hash(input));
   const summary = report.files[0].functionSummary;
   assert.deepEqual(
@@ -98,6 +98,34 @@ test("ID-less workflow summaries preserve bytes and expose only structural facts
   const tampered = structuredClone(report);
   tampered.files[0].findingPresentation.observations.push("0".repeat(64));
   assert.equal(assessmentReportSchema.safeParse(tampered).success, false);
+});
+
+test("assessment rule completeness is versioned while historical reports remain readable", async () => {
+  const current = await assessBytes(
+    bytes(document(node("Manual", "manualTrigger", 1))),
+    { collectTools: tools, now },
+  );
+  assert.notEqual(current.status, "error");
+  assert.equal(current.files[0].extensionRules.length, 18);
+  const added = new Set([
+    "N8N_DATABASE_OPERATIONS",
+    "N8N_FILE_OPERATION_PATHS",
+    "N8N_MAPPED_HTTP_DESTINATION",
+    "N8N_AI_CONNECTION_CONTRACTS",
+    "N8N_AI_PROMPT_DATA",
+  ]);
+  const historical = structuredClone(current);
+  historical.engineVersion = "0.5.0";
+  historical.files[0].extensionRules =
+    historical.files[0].extensionRules.filter((r) => !added.has(r.ruleId));
+  assert.equal(assessmentReportSchema.safeParse(historical).success, true);
+  historical.engineVersion = "0.6.0";
+  assert.equal(assessmentReportSchema.safeParse(historical).success, false);
+  const missing = structuredClone(current);
+  missing.files[0].extensionRules = missing.files[0].extensionRules.filter(
+    (r) => r.ruleId !== "N8N_AI_PROMPT_DATA",
+  );
+  assert.equal(assessmentReportSchema.safeParse(missing).success, false);
 });
 
 test("input failures provide safe parser codes and locations before collecting tools", async () => {

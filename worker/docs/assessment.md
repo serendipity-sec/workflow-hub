@@ -1,8 +1,8 @@
 # 통합 정적 보안 검사
 
-#14의 `assess`는 #7의 10개 검사 범주를 기존 정적 검사와 확장 검사로 함께 수행한다. 현재 워커 패키지·엔진은 `0.5.0`, 통합 결과 계약은 `assessmentVersion: 1.0.0`이다. 결과 안의 `base`는 검증 이력을 보존한 정적 계약 `2.0.0`이다. 실제 팀 API는 포함하지 않는다.
+#14의 `assess`는 #7의 10개 검사 범주를 기존 정적 검사와 확장 검사로 함께 수행한다. 현재 워커 패키지·엔진은 `0.6.0`, 통합 결과 계약은 `assessmentVersion: 1.0.0`이다. 결과 안의 `base`는 검증 이력을 보존한 정적 계약 `2.0.0`이다. 실제 팀 API는 포함하지 않는다.
 
-[현재 0.5.0의 partial 원인·보완 결과](public-partial-followup.md), [이전 0.4.0 검증](worker-completion.md#040-검증-결과--2026-11-22), [0.3.0 검증 기록](assessment-validation.md)을 구분해서 확인한다.
+[현재 0.6.0의 정적 흐름 확장](static-expansion.md), [0.5.0의 partial 원인·보완 결과](public-partial-followup.md), [이전 0.4.0 검증](worker-completion.md#040-검증-결과--2026-11-22), [0.3.0 검증 기록](assessment-validation.md)을 구분해서 확인한다. 0.6.0은 기본 10개 범주와 확장 규칙 18개를 모두 요구하며 이전 엔진의 규칙 13개 보고서는 별도로 읽는다. 새 엔진에서 규칙을 빠뜨리면 보고서 검증이 실패한다.
 
 ## 검사 순서와 지원 범위
 
@@ -14,20 +14,20 @@
 6. 제공된 정책을 별도로 평가하고 정확한 입력 해시에 연결된 수정 안내를 만든다. 정책·승인·환경 자료는 제공된 선언/관측이며 워커가 인증한 사실이 아니다.
 7. 마스킹한 위치·고정 근거 코드·검사 범위·오류를 strict 계약으로 검증한다. 실패·미지원·부분 분석을 경고 없음이나 안전으로 바꾸지 않는다.
 
-| 범주           | 현재 구현                                                                                                                                |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| 비밀정보       | 디코딩된 키·설정·메모·고정 데이터의 Gitleaks 후보, 참조값과 실제 문자열 구분, 원문 비출력                                                |
-| 개인정보       | validator 형식 검사와 실제 Presidio·spaCy의 영어 PERSON/LOCATION 및 지원 형식 후보                                                       |
-| 요청 인증      | Webhook 인증 설정, 제공된 상위 인증·권한 근거와 실제 집행의 미확인 상태                                                                  |
-| 외부 전송      | HTTP 본문·헤더·쿼리, Send Email/Gmail/Slack/Telegram/Notion/Google Docs/WhatsApp/Gemini의 지원 필드로 가는 값·민감도, 목적지/데이터 정책 |
-| SSRF           | 고정 origin의 경로 조작과 전체 URL 제어 구분, 내부 주소 후보·동적 목적지, 제공된 DNS/redirect 통제 근거                                  |
-| SQL            | Postgres/MySQL/Microsoft SQL의 지원 작업·바인딩, 문자열 삽입과 동적 식별자 구분, SQL AST 작업 분류                                       |
-| 명령·위험 코드 | Execute Command, JavaScript/Python의 제한된 별칭·대입·외부 입력→실행/평가/요청 후보                                                      |
-| 통신           | 평문 HTTP, URL 내 인증정보, 지원 HTTP 인증서 검증 옵션                                                                                   |
-| 응답·로그      | 전체 입력·DB 결과·민감도 후보의 응답/메시지/console/Python 출력 전달                                                                     |
-| 의존성과 권한  | 위험 노드 기능, 설치 패키지/실행 환경의 제공 근거, npm 버전과 제공 OSV snapshot 비교, AI 모델·도구·승인 경계                             |
+| 범주           | 현재 구현                                                                                                                                                                                                    |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 비밀정보       | 디코딩된 키·설정·메모·고정 데이터의 Gitleaks 후보, 참조값과 실제 문자열 구분, 원문 비출력                                                                                                                    |
+| 개인정보       | validator 형식 검사와 실제 Presidio·spaCy의 영어 PERSON/LOCATION 및 지원 형식 후보                                                                                                                           |
+| 요청 인증      | Webhook 인증 설정, 제공된 상위 인증·권한 근거와 실제 집행의 미확인 상태                                                                                                                                      |
+| 외부 전송      | HTTP 본문·헤더·쿼리, Send Email/Gmail/Slack/Telegram/Airtable/Google Sheets/Notion/Google Docs/WhatsApp/Gemini/OpenAI main의 지원 필드와 연결된 AI 모델로 가는 프롬프트·문맥의 값·민감도, 목적지/데이터 정책 |
+| SSRF           | 고정 origin의 경로 조작과 전체 URL 제어 구분, 내부 주소 후보·동적 목적지, 제공된 DNS/redirect 통제 근거                                                                                                      |
+| SQL            | Postgres/MySQL/Microsoft SQL의 지원 작업·바인딩, 문자열 삽입과 동적 식별자 구분, SQL AST 작업 분류                                                                                                           |
+| 명령·위험 코드 | Execute Command, JavaScript/Python의 제한된 별칭·대입·외부 입력→실행/평가/요청 후보                                                                                                                          |
+| 통신           | 평문 HTTP, URL 내 인증정보, 지원 HTTP 인증서 검증 옵션                                                                                                                                                       |
+| 응답·로그      | 전체 입력·DB 결과·민감도 후보의 응답/메시지/console/Python 출력 전달                                                                                                                                         |
+| 의존성과 권한  | 위험 노드 기능, 설치 패키지/실행 환경의 제공 근거, npm 버전과 제공 OSV snapshot 비교, AI 모델·도구·승인 경계                                                                                                 |
 
-정확한 노드·버전·옵션·구문은 [값 흐름](value-flow.md), [확장 전송](extended-sinks.md), [SQL·코드](advanced-risks.md), [네이티브 검사](native-inspection.md), [환경·정책](assessment-evidence.md)에 있다. 10개 범주를 호출한다는 사실은 임의의 모든 노드·코드를 해석한다는 뜻이 아니다.
+정확한 노드·버전·옵션·구문은 [값 흐름](value-flow.md), [확장 전송](extended-sinks.md), [SQL·코드](advanced-risks.md), [파일/DB/목적지](definition-risks.md), [AI 연결과 모델 전송](ai-flow.md), [네이티브 검사](native-inspection.md), [환경·정책](assessment-evidence.md)에 있다. 10개 범주를 호출한다는 사실은 임의의 모든 노드·코드를 해석한다는 뜻이 아니다.
 
 ## 서비스에 제공하는 설명 근거
 
@@ -51,15 +51,15 @@ Docker Linux 데몬과 Node.js 24가 필요하다. 의존성·모델 다운로�
 cd worker
 npm ci
 npm run build
-docker build -f Dockerfile.assessment-runtime -t workflow-worker-assessment-runtime:0.5.0 .
-docker build -f Dockerfile.assessment -t workflow-worker-assessment:0.5.0 .
+docker build -f Dockerfile.assessment-runtime -t workflow-worker-assessment-runtime:0.6.0 .
+docker build -f Dockerfile.assessment -t workflow-worker-assessment:0.6.0 .
 $env:WORKER_DOCKER_PATH = (Get-Command docker).Source
-$env:WORKER_ASSESSMENT_IMAGE = docker image inspect --format '{{.Id}}' workflow-worker-assessment:0.5.0
+$env:WORKER_ASSESSMENT_IMAGE = docker image inspect --format '{{.Id}}' workflow-worker-assessment:0.6.0
 node dist/cli.js assess .\workflow.json
 node dist/cli.js assess .\workflow.json .\evidence.json
 ```
 
-Linux에서는 `WORKER_DOCKER_PATH="$(command -v docker)"`와 `WORKER_ASSESSMENT_IMAGE="$(docker image inspect --format '{{.Id}}' workflow-worker-assessment:0.5.0)"`를 export한다. 운영자는 신뢰하는 실행 파일·이미지를 지정해야 한다. 업로드 JSON은 이 설정을 바꿀 수 없다.
+Linux에서는 `WORKER_DOCKER_PATH="$(command -v docker)"`와 `WORKER_ASSESSMENT_IMAGE="$(docker image inspect --format '{{.Id}}' workflow-worker-assessment:0.6.0)"`를 export한다. 운영자는 신뢰하는 실행 파일·이미지를 지정해야 한다. 업로드 JSON은 이 설정을 바꿀 수 없다.
 
 - 입력 workflow 256 KiB, 외부 근거 1 MiB, 깊이/노드/연결 한도는 기존 파서와 동일하다.
 - 네트워크 없음, 읽기 전용 root, UID 65532, capability 없음, 권한 상승 금지, 메모리 1 GiB, PID 96, CPU 1, 임시 tmpfs 64 MiB를 강제한다.
@@ -89,6 +89,8 @@ npm run verify
 node validation/verify-assessment-runtime.mjs
 ```
 
-Docker 검증은 실제 도구, 5개 합성 assessment와 자식 파일, 수정 전후 재검사, 잘못된 근거 해시, 취소/시간 제한·정리, 9개 격리 조건을 확인한다. [실행 결과](../validation/assessment-runtime-results.json), [실제 NLP/AST 검사](../validation/native-inspection-results.json), [생성 SQL 수정본의 합성 실행](../validation/remediation-behavior-results.json)을 구분해서 읽는다. 기존 12개 SQL·27개 범주 코퍼스·공개 파일 5개 검증 기록은 별도로 보존한다.
+0.6.0 Docker 검증은 실제 도구, 8개 합성 assessment·9개 파일, 수정 전후 재검사, 잘못된 근거 해시, 취소/시간 제한·정리, 9개 격리 조건을 확인한다. Code→Sheets, AI 모델·도구 연결, Code 상수→SQL도 포함한다. [현재 실행 요약](../validation/static-expansion-0.6.0-results.json)과 [현재 확장·검증 범위](static-expansion.md)를 함께 읽는다.
+
+과거의 [5개 Docker assessment](../validation/assessment-runtime-results.json), [NLP/AST 검사](../validation/native-inspection-results.json), [생성 SQL 수정본의 합성 실행](../validation/remediation-behavior-results.json)은 해당 버전의 근거로 보존한다. 기존 12개 SQL·27개 범주 코퍼스·공개 파일 5개·이후 15개 검증 기록과 현재 결과를 혼동하지 않는다.
 
 실제 팀 API의 작업 수신·파일 저장·결과 제출·권한·화면 연결, 실제 환경의 패키지/권한/네트워크 수집, 제공 정책의 인증·승인 집행, 공개/다운로드 대상 바이트 검증은 해당 서비스와 환경에서 확인해야 한다. 임의 코드·복잡한 Merge·동적 자식 호출·한국어 전체 NER·AI 동적 공격 저항성·실제 비밀키 유효성은 이 정적 지원 프로파일이 보증하지 않는다.

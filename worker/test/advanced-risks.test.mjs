@@ -85,9 +85,14 @@ test("Postgres, MySQL and MSSQL templates report input paths with node-specific 
     result = scan(chain(web(), database));
     assert.ok(
       result.diagnostics.some(
-        ({ code }) => code === "database_operation_profile_unsupported",
+        ({ code }) =>
+          code ===
+          (type === "postgres"
+            ? "database_runtime_schema_and_permissions_unverified"
+            : "database_operation_profile_unsupported"),
       ),
     );
+    assert.equal(codes(result).includes("sql_operation_select"), false);
   }
 });
 
@@ -685,6 +690,103 @@ test("block shadowing and destructured data aliases do not erase external possib
   assert.ok(
     !codes(scan(chain(web(), code(overwritten)), "code_execution")).includes(
       "javascript_shell_input_candidate",
+    ),
+  );
+});
+
+test("whole-query expressions retain dynamic SQL uncertainty rather than a false parser failure", () => {
+  const result = scan(chain(web(), sql("={{ $json.body.statement }}")));
+  assert.ok(codes(result).includes("sql_dynamic_query_text_candidate"));
+  assert.ok(
+    result.diagnostics.some((d) => d.code === "sql_query_structure_unresolved"),
+  );
+  assert.equal(
+    result.diagnostics.some((d) => d.code === "sql_parse_unsupported"),
+    false,
+  );
+  assert.equal(codes(result).includes("sql_value_binding_configured"), false);
+});
+
+test("literal SQL definitions behind a whole-query expression retain AST and value channels", () => {
+  const result = scan(
+    chain(
+      web(),
+      code('return [{json:{statement:"SELECT id FROM records WHERE id=$1"}}];'),
+      sql("={{ $json.statement }}", "postgres", 2.8, {
+        queryReplacement: ["synthetic"],
+      }),
+    ),
+  );
+  assert.ok(codes(result).includes("sql_query_definition_resolved"));
+  assert.ok(codes(result).includes("sql_operation_select"));
+  assert.ok(codes(result).includes("sql_value_binding_configured"));
+  assert.equal(
+    codes(result).includes("sql_dynamic_query_text_candidate"),
+    false,
+  );
+});
+
+test("generated Postgres tools keep SQL candidates and model invocation uncertainty", () => {
+  const target = sql("SELECT id FROM records WHERE id={{ $fromAI('id') }}");
+  target.type = "n8n-nodes-base.postgresTool";
+  const result = scan(chain(web(), target));
+  assert.ok(codes(result).includes("sql_text_input_candidate"));
+  assert.ok(
+    result.diagnostics.some(
+      (d) => d.code === "model_tool_invocation_unverified",
+    ),
+  );
+  assert.equal(codes(result).includes("sql_value_binding_configured"), false);
+});
+
+test("SSH never treats a command field on an unsupported operation as an active command", () => {
+  const result = scan(
+    chain(
+      web(),
+      node("SSH", "ssh", 1, {
+        resource: "command",
+        operation: "unknown",
+        command: "={{ $json.body.command }}",
+      }),
+    ),
+    "code_execution",
+  );
+  assert.equal(codes(result).includes("command_execution_capability"), false);
+  assert.ok(
+    result.diagnostics.some((d) => d.code === "command_profile_unsupported"),
+  );
+});
+
+test("JavaScript Code tools are AST inspected while their model query and execution stay unverified", () => {
+  delete globalThis.__toolWasExecuted;
+  const tool = code(
+    'globalThis.__toolWasExecuted=true; const cp=require("child_process"); cp.exec(query); eval(query); fetch(query); return "done";',
+  );
+  tool.type = "@n8n/n8n-nodes-langchain.toolCode";
+  tool.typeVersion = 1.3;
+  const result = scan(chain(web(), tool), "code_execution");
+  assert.ok(codes(result).includes("javascript_dynamic_evaluation_capability"));
+  assert.ok(codes(result).includes("javascript_network_call_capability"));
+  assert.ok(codes(result).includes("javascript_dynamic_network_input"));
+  assert.ok(codes(result).includes("javascript_external_evaluation_input"));
+  assert.ok(codes(result).includes("javascript_shell_input_candidate"));
+  assert.ok(
+    result.diagnostics.some(
+      (d) => d.code === "model_tool_query_and_execution_unverified",
+    ),
+  );
+  assert.equal(globalThis.__toolWasExecuted, undefined);
+  tool.parameters.jsCode =
+    'query="public"; fetch(query); function local(query) { fetch(query); } return "done";';
+  const fixed = scan(chain(web(), tool), "code_execution");
+  assert.equal(
+    codes(fixed).includes("javascript_dynamic_network_input"),
+    false,
+  );
+  tool.parameters.language = "python";
+  assert.ok(
+    scan(chain(web(), tool), "code_execution").diagnostics.some(
+      (d) => d.code === "javascript_profile_unsupported",
     ),
   );
 });

@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-11-22T22:26:36.471Z",
+  "image": "sha256:a5b45932907a95a2a814aab0a16c31af361a5ccab84128a734a2e9eb3ed51ac0",
+  "purpose": "public_original_manual_revision_recheck_and_compare",
+  "verificationScriptSha256": "26d58a295e15b3d9928e894d3057a9e887e0f49bf9f7fd1b6473d3e8f827464e",
+  "automaticRepairOfPublicOriginals": "none_eligible_in_sample",
+  "results": [
+    {
+      "id": 10111,
+      "label": "authentication_config",
+      "variantKind": "controlled_edit_of_public_original",
+      "originalSha256": "244b7f1c399d278c8c7484aa0c98b3ec48e1c610099d4e1cde9bd38c601abc84",
+      "revisedSha256": "44f19efb36aff27fb7964ca0f52a1db0238956e5091884f30ce335d3c4b6d83e",
+      "originalPreserved": true,
+      "workflowExecution": "not_run",
+      "behaviorPreserved": "not_verified",
+      "revisedStatus": "partial",
+      "declarationChanges": [
+        "authentication_changed",
+        "node_configuration_changed"
+      ],
+      "baseFindingComparison": {
+        "basis": "same_report_contract",
+        "rechecks": {
+          "inconclusive": 1,
+          "persisting": 46
+        },
+        "newFindings": {
+          "inconclusive": 1
+        }
+      },
+      "assessmentFindingComparison": {
+        "basis": "same_assessment_contract",
+        "rechecks": {
+          "inconclusive": 1,
+          "persisting": 82
+        },
+        "newFindings": {
+          "inconclusive": 1
+        }
+      },
+      "observed": "authentication_declaration_changed_and_rechecked",
+      "runtimeAuthentication": "not_verified",
+      "credentialsProvided": false
+    },
+    {
+      "id": 7643,
+      "label": "recipient_change",
+      "variantKind": "controlled_edit_of_public_original",
+      "originalSha256": "0d3fc12253934d795ec19610851727fa668af7a0b47232b51fef586135aecc0d",
+      "revisedSha256": "fa9e19d26e15b461f6f02b3a441362856c77346d928c009b4617579824caaa27",
+      "originalPreserved": true,
+      "workflowExecution": "not_run",
+      "behaviorPreserved": "not_verified",
+      "revisedStatus": "partial",
+      "declarationChanges": ["recipient_changed", "node_configuration_changed"],
+      "baseFindingComparison": {
+        "basis": "same_report_contract",
+        "rechecks": {
+          "persisting": 7
+        },
+        "newFindings": {}
+      },
+      "assessmentFindingComparison": {
+        "basis": "same_assessment_contract",
+        "rechecks": {
+          "inconclusive": 1,
+          "persisting": 19
+        },
+        "newFindings": {}
+      },
+      "observed": "recipient_semantic_change_detected",
+      "recipientValueInPublicResult": false
+    },
+    {
+      "id": 7643,
+      "label": "disable_delivery",
+      "variantKind": "controlled_edit_of_public_original",
+      "originalSha256": "0d3fc12253934d795ec19610851727fa668af7a0b47232b51fef586135aecc0d",
+      "revisedSha256": "44d71acf452ecce889a6dfaa7ebb9b89e88f669eb5729d71161d9f7fd2d7a4e1",
+      "originalPreserved": true,
+      "workflowExecution": "not_run",
+      "behaviorPreserved": "not_verified",
+      "revisedStatus": "partial",
+      "declarationChanges": ["node_disabled"],
+      "baseFindingComparison": {
+        "basis": "same_report_contract",
+        "rechecks": {
+          "persisting": 7
+        },
+        "newFindings": {}
+      },
+      "assessmentFindingComparison": {
+        "basis": "same_assessment_contract",
+        "rechecks": {
+          "inconclusive": 4,
+          "persisting": 16
+        },
+        "newFindings": {}
+      },
+      "observed": "functional_removal_requires_recheck",
+      "securityFixClaim": "not_made"
+    }
+  ],
+  "limitations": [
+    "controlled_edits_are_not_naturally_observed_user_uploads",
+    "no_original_or_modified_workflow_execution",
+    "no_general_functional_equivalence",
+    "comparison_is_observation_change_not_proof_of_security_fix"
+  ]
+}

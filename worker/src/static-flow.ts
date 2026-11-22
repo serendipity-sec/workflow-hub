@@ -9,6 +9,7 @@ import type {
 } from "./static-contract.js";
 import { locationFor, stableId } from "./static-contract.js";
 import { inspectJavaScript } from "./static-settings.js";
+import { isStructuredPostgres } from "./definition-risks.js";
 
 const prefix = "n8n-nodes-base.";
 const http = prefix + "httpRequest";
@@ -623,7 +624,13 @@ function sqlRule(context: Context, result: RuleResult): void {
           ? "insert"
           : node.parameters.operation) !== "executeQuery"
       ) {
-        diagnostic(result, location, "unsupported_database_operation");
+        diagnostic(
+          result,
+          location,
+          isStructuredPostgres(node)
+            ? "database_runtime_schema_and_permissions_unverified"
+            : "unsupported_database_operation",
+        );
         return;
       }
       const value = node.parameters.query;

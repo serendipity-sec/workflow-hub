@@ -152,17 +152,22 @@ function failure(
   };
 }
 
+function pythonNode(node: Context["nodes"][number]): boolean {
+  return (
+    !node.disabled &&
+    ((node.type === "n8n-nodes-base.code" &&
+      node.typeVersion === 2 &&
+      ["python", "pythonNative"].includes(String(node.parameters.language))) ||
+      (node.type === "@n8n/n8n-nodes-langchain.toolCode" &&
+        [1, 1.1, 1.2, 1.3].includes(node.typeVersion) &&
+        node.parameters.language === "python"))
+  );
+}
 function fieldsFor(context: Context, mode: "nlp" | "python"): ScalarField[] {
   if (mode === "nlp") return context.fields;
   const pointers = new Set(
     context.nodes
-      .filter(
-        (node) =>
-          node.type === "n8n-nodes-base.code" &&
-          node.typeVersion === 2 &&
-          !node.disabled &&
-          ["python", "pythonNative"].includes(String(node.parameters.language)),
-      )
+      .filter(pythonNode)
       .map((node) => node.pointer + "/parameters/pythonCode"),
   );
   return context.fields.filter(
@@ -242,7 +247,17 @@ async function runMode(
     fields: fields.map((field) => ({
       index: field.index,
       value: field.value,
-      ...(mode === "nlp" ? { namedEntities: nativeNlpScope(field) } : {}),
+      ...(mode === "nlp"
+        ? { namedEntities: nativeNlpScope(field) }
+        : {
+            inputProfile: context.nodes.some(
+              (node) =>
+                node.type === "@n8n/n8n-nodes-langchain.toolCode" &&
+                field.pointer === node.pointer + "/parameters/pythonCode",
+            )
+              ? "model_tool"
+              : "code",
+          }),
     })),
   });
   if (Buffer.byteLength(input) > 2 * 1024 * 1024)
@@ -355,7 +370,7 @@ function rule(ruleId: string, category: RuleResult["category"]): RuleResult {
   return {
     ruleId,
     category,
-    profileVersion: category === "pii" ? "1.2.0" : "1.0.0",
+    profileVersion: category === "pii" ? "1.2.0" : "1.1.0",
     coverage: [],
     findings: [],
     diagnostics: [],
@@ -407,13 +422,7 @@ export function analyzeNativeInspection(
       mode.mode === "python" &&
       context.nodes.some(
         (node) =>
-          node.type === "n8n-nodes-base.code" &&
-          node.typeVersion === 2 &&
-          !node.disabled &&
-          ["python", "pythonNative"].includes(
-            String(node.parameters.language),
-          ) &&
-          typeof node.parameters.pythonCode !== "string",
+          pythonNode(node) && typeof node.parameters.pythonCode !== "string",
       )
     )
       for (const target of rules)

@@ -1,0 +1,157 @@
+{
+  "repository": "n8n-io/n8n",
+  "ref": "86dff76e10efba250a4d3e57760e4eb5d2bbea25",
+  "purpose": "registered_node_capabilities_and_declared_operation_fields_not_runtime_effects",
+  "sources": [
+    {
+      "path": "packages/nodes-base/nodes/Postgres/v2/actions/database/insert.operation.ts",
+      "gitBlobSha": "643cde847555c7a7db48bb7c848faa29d6f97db7",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Postgres/v2/actions/database/insert.operation.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Postgres/v2/actions/database/select.operation.ts",
+      "gitBlobSha": "f1514d59d67547fdb9753fd8ca079e1cdfcd5111",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Postgres/v2/actions/database/select.operation.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Postgres/v2/actions/database/update.operation.ts",
+      "gitBlobSha": "4c9d4e9995ecc90c8dd7f234e6abf55eb4cdb648",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Postgres/v2/actions/database/update.operation.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Postgres/v2/actions/database/upsert.operation.ts",
+      "gitBlobSha": "ce99b8fb93affd76e5541dd41be97b8400f630ee",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Postgres/v2/actions/database/upsert.operation.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Postgres/v2/actions/database/deleteTable.operation.ts",
+      "gitBlobSha": "41fdfd59742de5e543c4b1d25967bc5f47ed33d6",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Postgres/v2/actions/database/deleteTable.operation.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Ssh/Ssh.node.ts",
+      "gitBlobSha": "71a9a44e00526f7690a7e4df704521f52fcecb40",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Ssh/Ssh.node.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Files/ReadWriteFile/ReadWriteFile.node.ts",
+      "gitBlobSha": "254eeb0763f96ecc68097ae1b96a3c3c3f63846f",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Files/ReadWriteFile/ReadWriteFile.node.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Files/ReadWriteFile/actions/read.operation.ts",
+      "gitBlobSha": "bcd9adced663c99783a52a095fefd50bfc092bd0",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Files/ReadWriteFile/actions/read.operation.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Files/ReadWriteFile/actions/write.operation.ts",
+      "gitBlobSha": "4f0e0b6d8924777780edb3f9aa830f06e564ee9c",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Files/ReadWriteFile/actions/write.operation.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/ReadBinaryFile/ReadBinaryFile.node.ts",
+      "gitBlobSha": "483a65365987804ff7fdfc7187d53fe8c8c71cba",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/ReadBinaryFile/ReadBinaryFile.node.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/WriteBinaryFile/WriteBinaryFile.node.ts",
+      "gitBlobSha": "ab978bb017f52c9ef6640718fac427011edf9cf0",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/WriteBinaryFile/WriteBinaryFile.node.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Set/Set.node.ts",
+      "gitBlobSha": "d43868f7a085c16af0d4047a158dc0f86892d3d1",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Set/Set.node.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Switch/Switch.node.ts",
+      "gitBlobSha": "c73e584cb81f030bc93a9b65df31adcdd3394462",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Switch/Switch.node.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Merge/Merge.node.ts",
+      "gitBlobSha": "4ee90dddf1f43e370647c9e1fe0e212cb231e335",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Merge/Merge.node.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Wait/Wait.node.ts",
+      "gitBlobSha": "5910e3f1cc90643ab5d31d0cc48b3b998dea1159",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Wait/Wait.node.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Transform/Aggregate/Aggregate.node.ts",
+      "gitBlobSha": "b55dece037a9948fcbe27b916f60044d1de544ee",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Transform/Aggregate/Aggregate.node.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Files/ExtractFromFile/ExtractFromFile.node.ts",
+      "gitBlobSha": "de822d6378ef6a2429706e6e609a6d0b7ca665f2",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Files/ExtractFromFile/ExtractFromFile.node.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Google/Gmail/GmailTrigger.node.ts",
+      "gitBlobSha": "9803dcb89f3a05ee8255a63b5731a407f6b8680b",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Google/Gmail/GmailTrigger.node.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Telegram/TelegramTrigger.node.ts",
+      "gitBlobSha": "bb54ba94fe59bf51ce23f617b6e955069966639e",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Telegram/TelegramTrigger.node.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/EmailReadImap/EmailReadImap.node.ts",
+      "gitBlobSha": "d07fcc17af69652aaaec5686ab6e5cfb44c14869",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/EmailReadImap/EmailReadImap.node.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Form/FormTrigger.node.ts",
+      "gitBlobSha": "73f0ec78238b57aa32b8bd0264418faf2e18da54",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Form/FormTrigger.node.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Google/Gmail/Gmail.node.ts",
+      "gitBlobSha": "96f55329abe3db916bab4395b94ebb3c42c713c6",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Google/Gmail/Gmail.node.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Slack/Slack.node.ts",
+      "gitBlobSha": "5b2924e81fd87ae8f8431204e2506d53a9085b29",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Slack/Slack.node.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Google/Sheet/GoogleSheets.node.ts",
+      "gitBlobSha": "a460fe70e192db7e35c19612de7551bf9595ca29",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Google/Sheet/GoogleSheets.node.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Airtable/Airtable.node.ts",
+      "gitBlobSha": "9a185ef28d8c9c1df33da2233d5c946d5ea8c6e7",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Airtable/Airtable.node.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Notion/Notion.node.ts",
+      "gitBlobSha": "00e082f9f0f4fdbd9dd85e0a302a6710b46969d2",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Notion/Notion.node.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Google/Docs/GoogleDocs.node.ts",
+      "gitBlobSha": "10848faf27b839b8f5d0b07a7a2ab8afd433d3b6",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Google/Docs/GoogleDocs.node.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/WhatsApp/WhatsApp.node.ts",
+      "gitBlobSha": "383183daddfc8b165125eb3782a7b69c07c7120c",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/WhatsApp/WhatsApp.node.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/EmailSend/EmailSend.node.ts",
+      "gitBlobSha": "df30a1465979cd4edb505212616615963c2ed45f",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/EmailSend/EmailSend.node.ts"
+    },
+    {
+      "path": "packages/nodes-base/nodes/Telegram/Telegram.node.ts",
+      "gitBlobSha": "c81274e376a0a073a272eafb8ba7975d2bb0c789",
+      "url": "https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Telegram/Telegram.node.ts"
+    }
+  ]
+}

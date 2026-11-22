@@ -58,6 +58,607 @@ const codes = (rules) =>
   );
 const diagnostics = (rules) =>
   rules.flatMap((rule) => rule.diagnostics.map((item) => item.code));
+const rlc = (value) => ({ mode: "id", value });
+const openai = (parameters = {}, version = 2) => ({
+  ...node("Model", "unused", version, {
+    modelId: rlc("synthetic-model"),
+    responses: { values: [{ content: "public" }] },
+    ...parameters,
+  }),
+  type: "@n8n/n8n-nodes-langchain.openAi",
+});
+
+test("OpenAI V2 defaults to Responses and inspects messages instructions and metadata with an unknown endpoint", () => {
+  for (const version of [2, 2.1, 2.2, 2.3]) {
+    const { rules } = run(
+      [
+        webhook(),
+        openai(
+          {
+            responses: { values: [{ content: "={{ $json.body.email }}" }] },
+            options: {
+              instructions: "={{ $json.body.password }}",
+              metadata: { opaque_customer_key: "={{ $json.body.email }}" },
+            },
+            messages: { values: [{ content: "inactive" }] },
+          },
+          version,
+        ),
+      ],
+      { Source: edge("Model") },
+      (ctx, hash) =>
+        policy(
+          ctx,
+          hash,
+          "openai",
+          ["https://api.openai.com"],
+          ["public", "personal", "secret"],
+        ),
+    );
+    assert.ok(codes(rules).includes("openai_responses_output_profile"));
+    assert.ok(codes(rules).includes("personal_data_candidate_transferred"));
+    assert.ok(codes(rules).includes("secret_candidate_transferred"));
+    assert.ok(
+      diagnostics(rules).includes(
+        "provider_endpoint_from_credentials_unverified",
+      ),
+    );
+    assert.ok(
+      diagnostics(rules).includes("trusted_policy_transfer_unresolved"),
+    );
+    assert.equal(JSON.stringify(rules).includes("opaque_customer_key"), false);
+    assert.equal(JSON.stringify(rules).includes("synthetic-model"), false);
+  }
+});
+
+test("OpenAI Responses selects output format and remote prompt variables without sending local loop controls", () => {
+  for (const type of ["text", "json_schema"]) {
+    const { rules } = run(
+      [
+        webhook(),
+        openai({
+          options: {
+            promptConfig: {
+              promptOptions: {
+                promptId: "synthetic",
+                variables: { opaque: "={{ $json.body.email }}" },
+              },
+            },
+            textFormat: {
+              textOptions: {
+                type,
+                schema: "={{ $json.body.password }}",
+                description: "={{ $json.body.password }}",
+                strict: "={{ $json.body.password }}",
+              },
+            },
+            maxToolsIterations: "synthetic@example.invalid",
+            backgroundMode: {
+              values: { enabled: false, timeout: "={{ $json.body.password }}" },
+            },
+          },
+        }),
+      ],
+      { Source: edge("Model") },
+    );
+    assert.ok(codes(rules).includes("personal_data_candidate_transferred"));
+    assert.equal(
+      codes(rules).includes("secret_candidate_transferred"),
+      type === "json_schema",
+    );
+    assert.ok(
+      diagnostics(rules).includes("model_remote_prompt_content_unverified"),
+    );
+  }
+  const inactive = run([
+    openai({
+      options: {
+        maxToolsIterations: "synthetic@example.invalid",
+        textFormat: {
+          textOptions: { type: "text", schema: "synthetic@example.invalid" },
+        },
+      },
+    }),
+  ]);
+  assert.equal(
+    codes(inactive.rules).includes("personal_data_candidate_transferred"),
+    false,
+  );
+});
+
+test("OpenAI media inputs select active references and preserve binary or remote content uncertainty", () => {
+  for (const imageType of ["url", "base64", "unknown"]) {
+    const { rules } = run(
+      [
+        webhook(),
+        openai({
+          responses: {
+            values: [
+              { type: "text", content: "public" },
+              {
+                type: "image",
+                imageType,
+                imageUrl: "={{ $json.body.email }}",
+                fileId: "={{ $json.body.password }}",
+                binaryPropertyName: "={{ $json.body.password }}",
+              },
+            ],
+          },
+        }),
+      ],
+      { Source: edge("Model") },
+    );
+    assert.equal(
+      codes(rules).includes("personal_data_candidate_transferred"),
+      imageType === "url",
+    );
+    assert.equal(codes(rules).includes("secret_candidate_transferred"), false);
+    assert.ok(
+      diagnostics(rules).includes(
+        imageType === "url"
+          ? "remote_attachment_content_unavailable"
+          : imageType === "base64"
+            ? "binary_payload_unavailable"
+            : "model_message_media_selection_unresolved",
+      ),
+    );
+  }
+});
+
+test("OpenAI built-in tools retain selected metadata and unknown actual execution while JSON strings stay literal", () => {
+  const { rules } = run(
+    [
+      webhook(),
+      openai({
+        builtInTools: {
+          webSearch: { city: "={{ $json.body.email }}" },
+          fileSearch: { filters: '{"match":"={{ $json.body.password }}"}' },
+          codeInterpreter: true,
+        },
+        options: { previousResponseId: "synthetic-history" },
+      }),
+    ],
+    { Source: edge("Model") },
+  );
+  assert.ok(codes(rules).includes("personal_data_candidate_transferred"));
+  assert.equal(codes(rules).includes("secret_candidate_transferred"), false);
+  assert.ok(diagnostics(rules).includes("model_provider_tools_unverified"));
+  assert.ok(
+    diagnostics(rules).includes("model_remote_history_content_unverified"),
+  );
+  const plain = run([openai({ builtInTools: { codeInterpreter: false } })]);
+  assert.equal(
+    diagnostics(plain.rules).includes("model_provider_tools_unverified"),
+    false,
+  );
+});
+
+test("OpenAI unsupported operations versions and dynamic option shapes remain unresolved", () => {
+  for (const target of [
+    openai({}, 1.8),
+    openai({}, 99),
+    openai({ operation: "message" }),
+    openai({ resource: "audio" }),
+  ]) {
+    const { rules } = run([target]);
+    assert.ok(
+      diagnostics(rules).some((code) =>
+        ["unsupported_node_version", "unsupported_send_operation"].includes(
+          code,
+        ),
+      ),
+    );
+    assert.equal(
+      codes(rules).includes("openai_responses_output_profile"),
+      false,
+    );
+  }
+  const dynamic = run([
+    openai({
+      responses: "={{ $json.messages }}",
+      options: { promptConfig: "={{ $json.config }}" },
+      builtInTools: { fileSearch: "={{ $json.tools }}" },
+    }),
+  ]);
+  for (const code of [
+    "model_messages_unresolved",
+    "model_options_selection_unresolved",
+    "model_provider_tools_selection_unresolved",
+    "trusted_policy_transfer_unresolved",
+  ])
+    assert.ok(diagnostics(dynamic.rules).includes(code));
+  const missing = run([openai({ responses: { values: [] } })]);
+  assert.ok(
+    diagnostics(missing.rules).includes(
+      "model_required_text_prompt_unresolved",
+    ),
+  );
+});
+
+test("OpenAI main-node custom tools remain unresolved and hideTools excludes the inactive connection", () => {
+  for (const hideTools of [undefined, "hide"]) {
+    const { rules } = run(
+      [
+        node("Tool", "httpRequestTool", 4.2, {
+          url: "https://example.invalid",
+        }),
+        openai({ hideTools }),
+      ],
+      {
+        Tool: { ai_tool: [[{ node: "Model", type: "ai_tool", index: 0 }]] },
+      },
+    );
+    assert.equal(
+      diagnostics(rules).includes(
+        "model_custom_tool_schema_and_result_unverified",
+      ),
+      hideTools !== "hide",
+    );
+  }
+});
+
+const openaiJsonFields = [
+  (value) => ({ options: { metadata: value } }),
+  (value) => ({
+    options: {
+      promptConfig: {
+        promptOptions: { promptId: "synthetic", variables: value },
+      },
+    },
+  }),
+  (value) => ({
+    options: {
+      textFormat: { textOptions: { type: "json_schema", schema: value } },
+    },
+  }),
+  (value) => ({ builtInTools: { fileSearch: { filters: value } } }),
+  (value) => ({ builtInTools: { fileSearch: { vectorStoreIds: value } } }),
+];
+test("OpenAI parsed JSON data strings preserve the same secret and personal fields as literal objects", () => {
+  const data = {
+    nested: { password: "synthetic-private-marker" },
+    email: "synthetic@example.invalid",
+  };
+  for (const configure of openaiJsonFields) {
+    for (const value of [data, JSON.stringify(data)]) {
+      const { rules } = run([openai(configure(value))]);
+      assert.ok(codes(rules).includes("secret_candidate_transferred"));
+      assert.ok(codes(rules).includes("personal_data_candidate_transferred"));
+      for (const raw of [
+        "synthetic-private-marker",
+        "synthetic@example.invalid",
+        "password",
+      ])
+        assert.equal(JSON.stringify(rules).includes(raw), false);
+    }
+  }
+});
+
+test("OpenAI parsed data never reinterprets nested expression-shaped strings as runtime references", () => {
+  for (const configure of openaiJsonFields) {
+    for (const data of [
+      { note: "={{ $json.body.password }}" },
+      "={{ $json.body.password }}",
+    ]) {
+      const { rules } = run(
+        [webhook(), openai(configure(JSON.stringify(data)))],
+        { Source: edge("Model") },
+      );
+      assert.equal(
+        codes(rules).includes("secret_candidate_transferred"),
+        false,
+      );
+      assert.equal(
+        codes(rules).includes("personal_data_candidate_transferred"),
+        false,
+      );
+    }
+    const live = run(
+      [webhook(), openai(configure({ note: "={{ $json.body.password }}" }))],
+      { Source: edge("Model") },
+    );
+    assert.ok(codes(live.rules).includes("secret_candidate_transferred"));
+  }
+});
+
+test("OpenAI invalid and expression-produced JSON retain explicit structure uncertainty", () => {
+  for (const configure of openaiJsonFields) {
+    for (const [value, diagnostic] of [
+      ["{invalid", "model_json_data_parse_unverified"],
+      ["={{ $json.body.payload }}", "model_json_data_structure_unverified"],
+    ]) {
+      const { rules } = run([webhook(), openai(configure(value))], {
+        Source: edge("Model"),
+      });
+      assert.ok(diagnostics(rules).includes(diagnostic));
+      assert.ok(
+        diagnostics(rules).includes("trusted_policy_transfer_unresolved"),
+      );
+      assert.equal(rules[0].coverage.at(-1).status, "partial");
+    }
+  }
+});
+
+test("OpenAI JSON data depth and size limits preserve known candidates and an unknown remainder", () => {
+  let nested = { note: "public" };
+  for (let i = 0; i < 20; i++) nested = { next: nested };
+  const cases = [
+    { password: "synthetic-private-marker", nested },
+    {
+      password: "synthetic-private-marker",
+      values: Array.from({ length: 600 }, () => "public"),
+    },
+    {
+      password: "synthetic-private-marker",
+      rows: Array.from({ length: 100 }, () =>
+        Array.from({ length: 30 }, () => "x"),
+      ),
+    },
+  ];
+  for (const value of cases) {
+    const { rules } = run([
+      openai({ options: { metadata: JSON.stringify(value) } }),
+    ]);
+    assert.ok(codes(rules).includes("secret_candidate_transferred"));
+    assert.ok(diagnostics(rules).includes("model_json_data_limit"));
+    assert.ok(
+      diagnostics(rules).includes("trusted_policy_transfer_unresolved"),
+    );
+  }
+  const oversized = run([
+    openai({
+      options: { metadata: JSON.stringify({ note: "x".repeat(65536) }) },
+    }),
+  ]);
+  assert.ok(diagnostics(oversized.rules).includes("model_json_data_limit"));
+});
+
+test("flow-proven literal destinations resolve while public declarations do not invent addresses", () => {
+  const target = node("Send", "telegram", 1.2, {
+    chatId: "={{ $json.target }}",
+    text: "Public status",
+  });
+  const fixed = run(
+    [
+      node("Map", "set", 3.4, {
+        mode: "raw",
+        jsonOutput: JSON.stringify({ target: "12345678" }),
+      }),
+      target,
+    ],
+    { Map: edge("Send") },
+    (ctx, hash) => policy(ctx, hash, "telegram", ["12345678"]),
+  );
+  assert.equal(
+    diagnostics(fixed.rules).includes("trusted_policy_transfer_unresolved"),
+    false,
+  );
+  assert.ok(codes(fixed.rules).includes("dynamic_recipient_or_destination"));
+  assert.equal(JSON.stringify(fixed.rules).includes("12345678"), false);
+  const unknown = run(
+    [webhook(), target],
+    { Source: edge("Send") },
+    (ctx, hash) =>
+      policy(ctx, hash, "telegram", ["12345678"], ["public"], {
+        classifications: [
+          {
+            nodeKey: ctx.nodes[0].key,
+            field: "/target",
+            dataClass: "public",
+            sourceId: "operator",
+          },
+        ],
+      }),
+  );
+  assert.ok(
+    diagnostics(unknown.rules).includes("trusted_policy_transfer_unresolved"),
+  );
+});
+
+test("response nested body and noData headers retain personal and secret classes", () => {
+  for (const respondWith of ["json", "noData", "binary", "unknown_mode"]) {
+    const { rules } = run(
+      [
+        webhook(),
+        node("Response", "respondToWebhook", 1.5, {
+          respondWith,
+          responseBody: { opaque_label: "={{ $json.body.email }}" },
+          options: {
+            responseHeaders: {
+              entries: [
+                { name: "X-Synthetic", value: "={{ $json.body.password }}" },
+              ],
+            },
+          },
+        }),
+      ],
+      { Source: edge("Response") },
+      (ctx, hash) => policy(ctx, hash, "response", ["caller"], ["public"]),
+    );
+    assert.ok(codes(rules).includes("secret_candidate_transferred"));
+    assert.equal(
+      codes(rules).includes("personal_data_candidate_transferred"),
+      respondWith === "json",
+    );
+    assert.ok(codes(rules).includes("data_class_not_allowed"));
+    if (respondWith === "binary")
+      assert.ok(
+        diagnostics(rules).includes("binary_response_content_unavailable"),
+      );
+    if (respondWith === "unknown_mode")
+      assert.ok(diagnostics(rules).includes("response_mode_unresolved"));
+    assert.equal(JSON.stringify(rules).includes("opaque_label"), false);
+  }
+  const plain = run(
+    [
+      webhook(),
+      node("Response", "respondToWebhook", 1.5, {
+        respondWith: "json",
+        responseBody: '{"message":"={{ $json.body.password }}"}',
+      }),
+    ],
+    { Source: edge("Response") },
+  );
+  assert.equal(
+    codes(plain.rules).includes("secret_candidate_transferred"),
+    false,
+  );
+});
+
+test("JWT and redirect responses expose selected payload fields without treating signing as encryption", () => {
+  for (const [mode, fields, code] of [
+    [
+      "jwt",
+      {
+        payload: { opaque_label: "={{ $json.body.email }}" },
+        responseBody: "={{ $json.body.password }}",
+      },
+      "signed_response_payload_not_encrypted",
+    ],
+    [
+      "redirect",
+      {
+        redirectURL: "={{ $json.body.email }}",
+        payload: "={{ $json.body.password }}",
+      },
+      "redirect_location_response",
+    ],
+  ]) {
+    const { rules } = run(
+      [
+        webhook(),
+        node("Response", "respondToWebhook", 1.5, {
+          respondWith: mode,
+          ...fields,
+        }),
+      ],
+      { Source: edge("Response") },
+    );
+    assert.ok(codes(rules).includes(code));
+    assert.ok(codes(rules).includes("personal_data_candidate_transferred"));
+    assert.equal(codes(rules).includes("secret_candidate_transferred"), false);
+  }
+});
+
+test("oversized response headers retain known candidates and unknown remainder", () => {
+  const entries = Array.from({ length: 129 }, (_, i) => ({
+    name: "X-Synthetic",
+    value: i ? "public" : "={{ $json.body.email }}",
+  }));
+  const { rules } = run(
+    [
+      webhook(),
+      node("Response", "respondToWebhook", 1.5, {
+        respondWith: "noData",
+        options: { responseHeaders: { entries } },
+      }),
+    ],
+    { Source: edge("Response") },
+    (ctx, hash) =>
+      policy(ctx, hash, "response", ["caller"], ["public", "personal"]),
+  );
+  assert.ok(codes(rules).includes("personal_data_candidate_transferred"));
+  assert.ok(diagnostics(rules).includes("response_headers_limit"));
+  assert.ok(diagnostics(rules).includes("trusted_policy_transfer_unresolved"));
+});
+
+test("Notion read filters select active typed values and leave remote properties unclassified", () => {
+  for (const condition of ["equals", "is_empty"]) {
+    const { rules } = run(
+      [
+        webhook(),
+        node("Read", "notion", 2.2, {
+          resource: "databasePage",
+          operation: "getAll",
+          databaseId: rlc("synthetic-db"),
+          filterType: "manual",
+          filters: {
+            conditions: [
+              {
+                key: "Opaque|email",
+                condition,
+                emailValue: "={{ $json.body.email }}",
+                numberValue: "={{ $json.body.password }}",
+              },
+            ],
+          },
+          title: "={{ $json.body.password }}",
+        }),
+      ],
+      { Source: edge("Read") },
+    );
+    assert.ok(codes(rules).includes("external_read_capability"));
+    assert.ok(
+      codes(rules).includes("notion_remote_properties_response_profile"),
+    );
+    assert.equal(
+      codes(rules).includes("personal_data_candidate_transferred"),
+      condition === "equals",
+    );
+    assert.equal(codes(rules).includes("secret_candidate_transferred"), false);
+    assert.ok(
+      diagnostics(rules).includes("read_response_classification_unverified"),
+    );
+  }
+  const docs = run([
+    node("Read", "googleDocs", 2, {
+      operation: "get",
+      documentURL: "synthetic-doc",
+      title: "={{ $json.body.password }}",
+    }),
+  ]);
+  assert.ok(codes(docs.rules).includes("google_document_response_profile"));
+  assert.ok(
+    diagnostics(docs.rules).includes("read_response_classification_unverified"),
+  );
+  assert.equal(
+    codes(docs.rules).includes("secret_candidate_transferred"),
+    false,
+  );
+});
+
+test("Slack option transformations inspect selected values and ephemeral recipient independently", () => {
+  const { rules } = run(
+    [
+      webhook(),
+      node("Send", "slack", 2.7, {
+        select: "channel",
+        channelId: rlc("C-SYNTHETIC"),
+        text: "public",
+        otherOptions: {
+          includeLinkToWorkflow: false,
+          thread_ts: {
+            replyValues: {
+              thread_ts: "={{ $json.body.email }}",
+              reply_broadcast: false,
+            },
+          },
+          botProfile: {
+            imageValues: {
+              profilePhotoType: "image",
+              icon_url: "={{ $json.body.email }}",
+              icon_emoji: "={{ $json.body.password }}",
+            },
+          },
+          ephemeral: { ephemeralValues: { user: rlc("U-SYNTHETIC") } },
+        },
+      }),
+    ],
+    { Source: edge("Send") },
+    (ctx, hash) =>
+      policy(ctx, hash, "slack", ["C-SYNTHETIC"], ["public", "personal"]),
+  );
+  assert.ok(codes(rules).includes("personal_data_candidate_transferred"));
+  assert.equal(codes(rules).includes("secret_candidate_transferred"), false);
+  assert.ok(codes(rules).includes("destination_not_allowlisted"));
+  assert.ok(
+    diagnostics(rules).includes("ephemeral_recipient_authorization_unverified"),
+  );
+  const missing = run([
+    node("Send", "slack", 2.3, { select: "user", text: "public" }),
+  ]);
+  assert.ok(diagnostics(missing.rules).includes("required_send_field_missing"));
+});
 function policy(
   context,
   hash,
@@ -144,6 +745,357 @@ test("Gmail transmitted message tracks sensitive source fields without exporting
   assert.ok(diagnostics(rules).includes("trusted_policy_transfer_unresolved"));
 });
 
+test("structured n8n parameters resolve nested expressions without parsing plain JSON string literals", () => {
+  const settings = {
+    url: "https://approved.example.invalid/",
+    sendBody: true,
+    specifyBody: "json",
+    options: { redirect: { redirect: { followRedirects: false } } },
+  };
+  const nested = run(
+    [
+      webhook(),
+      node("Send", "httpRequest", 4.2, {
+        ...settings,
+        jsonBody: {
+          opaque_customer_field: {
+            email: "={{ $json.body.email }}",
+            token: "={{ $json.body.password }}",
+          },
+        },
+      }),
+    ],
+    { Source: edge("Send") },
+  );
+  assert.ok(
+    codes(nested.rules).includes("personal_data_candidate_transferred"),
+  );
+  assert.ok(codes(nested.rules).includes("secret_candidate_transferred"));
+  assert.equal(
+    JSON.stringify(nested.rules).includes("opaque_customer_field"),
+    false,
+  );
+  const literal = run(
+    [
+      webhook(),
+      node("Send", "httpRequest", 4.2, {
+        ...settings,
+        jsonBody: JSON.stringify({ value: "={{ $json.body.password }}" }),
+      }),
+    ],
+    { Source: edge("Send") },
+  );
+  assert.equal(
+    codes(literal.rules).includes("secret_candidate_transferred"),
+    false,
+  );
+});
+
+test("structured parameter limits retain known facts and never make truncated content public", () => {
+  const fields = Object.fromEntries(
+    Array.from({ length: 600 }, (_, i) => [
+      "slot" + i,
+      i === 0 ? "={{ $json.body.email }}" : "Public",
+    ]),
+  );
+  const { rules } = run(
+    [
+      webhook(),
+      node("Send", "httpRequest", 4.2, {
+        url: "https://approved.example.invalid/",
+        sendBody: true,
+        specifyBody: "json",
+        jsonBody: fields,
+        options: { redirect: { redirect: { followRedirects: false } } },
+      }),
+    ],
+    { Source: edge("Send") },
+    (ctx, hash) =>
+      policy(
+        ctx,
+        hash,
+        "http",
+        ["https://approved.example.invalid"],
+        ["public", "personal"],
+      ),
+  );
+  assert.ok(codes(rules).includes("personal_data_candidate_transferred"));
+  assert.ok(diagnostics(rules).includes("parameter_value_analysis_limit"));
+  assert.ok(diagnostics(rules).includes("trusted_policy_transfer_unresolved"));
+});
+
+test("Airtable create maps selected column values and enforces compound destination and every data class", () => {
+  const { rules } = run(
+    [
+      webhook(),
+      node("Write", "airtable", 2.1, {
+        operation: "create",
+        base: rlc("appSynthetic"),
+        table: rlc("tblSynthetic"),
+        columns: {
+          mappingMode: "defineBelow",
+          value: {
+            opaque_field: "={{ $json.body.email }}",
+            credential_field: "={{ $json.body.password }}",
+          },
+        },
+        options: {},
+      }),
+    ],
+    { Source: edge("Write") },
+    (ctx, hash) =>
+      policy(
+        ctx,
+        hash,
+        "airtable",
+        ["appSynthetic/tblSynthetic"],
+        ["public", "secret"],
+      ),
+  );
+  assert.ok(codes(rules).includes("personal_data_candidate_transferred"));
+  assert.ok(codes(rules).includes("secret_candidate_transferred"));
+  assert.ok(codes(rules).includes("data_class_not_allowed"));
+  assert.ok(codes(rules).includes("airtable_record_response_profile"));
+  assert.equal(JSON.stringify(rules).includes("opaque_field"), false);
+  assert.equal(JSON.stringify(rules).includes("appSynthetic"), false);
+});
+
+test("Airtable update excludes non-id local matching values whereas upsert transmits them", () => {
+  for (const operation of ["update", "upsert"]) {
+    const { rules } = run(
+      [
+        webhook(),
+        node("Write", "airtable", 2.1, {
+          operation,
+          base: rlc("appSynthetic"),
+          table: rlc("tblSynthetic"),
+          columns: {
+            mappingMode: "defineBelow",
+            matchingColumns: ["match"],
+            value: { match: "={{ $json.body.email }}", status: "Public" },
+          },
+          options: {},
+        }),
+      ],
+      { Source: edge("Write") },
+    );
+    assert.equal(
+      codes(rules).includes("personal_data_candidate_transferred"),
+      operation === "upsert",
+    );
+    assert.ok(diagnostics(rules).includes("record_match_selection_unverified"));
+  }
+});
+
+test("Airtable search profiles query transmission and response without treating inactive writes as sent", () => {
+  for (const version of [2.1, 2.2]) {
+    const { rules } = run(
+      [
+        webhook(),
+        node("Read", "airtable", version, {
+          operation: "search",
+          base: rlc("appSynthetic"),
+          table: rlc("tblSynthetic"),
+          filterByFormula: "={{ $json.body.email }}",
+          columns: {
+            mappingMode: "defineBelow",
+            value: { unused: "={{ $json.body.password }}" },
+          },
+          options: {},
+        }),
+      ],
+      { Source: edge("Read") },
+    );
+    assert.ok(codes(rules).includes("external_read_capability"));
+    assert.equal(codes(rules).includes("outbound_send_capability"), false);
+    assert.ok(codes(rules).includes("personal_data_candidate_transferred"));
+    assert.equal(codes(rules).includes("secret_candidate_transferred"), false);
+    assert.ok(
+      codes(rules).includes(
+        version < 2.2
+          ? "airtable_flattened_response_profile"
+          : "airtable_record_response_profile",
+      ),
+    );
+    assert.ok(
+      diagnostics(rules).includes("read_response_classification_unverified"),
+    );
+  }
+});
+
+test("Airtable default get and delete select only record id and preserve attachment uncertainty", () => {
+  for (const operation of [undefined, "deleteRecord"]) {
+    const { rules } = run(
+      [
+        webhook(),
+        node("Record", "airtable", 2.1, {
+          operation,
+          base: rlc("appSynthetic"),
+          table: rlc("tblSynthetic"),
+          id: "={{ $json.body.email }}",
+          filterByFormula: "={{ $json.body.password }}",
+          options: { downloadFields: ["attachment"] },
+        }),
+      ],
+      { Source: edge("Record") },
+    );
+    assert.ok(codes(rules).includes("personal_data_candidate_transferred"));
+    assert.equal(codes(rules).includes("secret_candidate_transferred"), false);
+    assert.equal(
+      codes(rules).includes("external_read_capability"),
+      operation === undefined,
+    );
+  }
+});
+
+test("table profiles keep unsupported versions, resources and dynamic mapping explicit", () => {
+  for (const [kind, version, parameters] of [
+    ["airtable", 99, { operation: "create" }],
+    ["airtable", 2.1, { resource: "base", operation: "create" }],
+    ["googleSheets", 3, { operation: "append" }],
+    ["googleSheets", 4.6, { resource: "spreadsheet", operation: "create" }],
+  ]) {
+    const { rules } = run([node("Table", kind, version, parameters)]);
+    assert.ok(codes(rules).includes("external_connector_declared"));
+    assert.ok(
+      diagnostics(rules).some((code) => code.startsWith("unsupported_")),
+    );
+  }
+  const dynamic = run([
+    node("Table", "airtable", 2.1, {
+      operation: "create",
+      base: rlc("appSynthetic"),
+      table: rlc("tblSynthetic"),
+      columns: { mappingMode: "={{ $json.mode }}", value: { label: "Public" } },
+    }),
+  ]);
+  assert.ok(
+    diagnostics(dynamic.rules).includes("resource_mapping_mode_unresolved"),
+  );
+  assert.ok(
+    diagnostics(dynamic.rules).includes("trusted_policy_transfer_unresolved"),
+  );
+});
+
+test("Google Sheets manual append preserves the conditional empty-sheet whole-input fallback", () => {
+  const { rules } = run(
+    [
+      webhook(),
+      node("Sheet", "googleSheets", 4.6, {
+        operation: "append",
+        documentId: rlc("docSynthetic"),
+        sheetName: rlc("0"),
+        columns: {
+          mappingMode: "defineBelow",
+          value: { label: "Public" },
+          schema: [{ id: "label" }],
+        },
+        options: {},
+      }),
+    ],
+    { Source: edge("Sheet") },
+  );
+  assert.ok(
+    diagnostics(rules).includes("sheet_empty_header_fallback_possible"),
+  );
+  assert.ok(diagnostics(rules).includes("sheet_headers_runtime_unverified"));
+  const whole = rules[0].findings.find(
+    (f) => f.evidence[0].code === "whole_object_transferred",
+  );
+  assert.ok(whole);
+  assert.equal(whole.claim, "candidate");
+});
+
+test("Google Sheets mapped update selects values while default read does not send local lookup filters", () => {
+  const baseParameters = {
+    documentId: rlc("docSynthetic"),
+    sheetName: rlc("0"),
+    columns: {
+      mappingMode: "defineBelow",
+      value: { value: "={{ $json.body.email }}" },
+      schema: [{ id: "value" }],
+      matchingColumns: ["value"],
+    },
+    filtersUI: {
+      values: [
+        { lookupColumn: "value", lookupValue: "={{ $json.body.password }}" },
+      ],
+    },
+    options: {},
+  };
+  const update = run(
+    [
+      webhook(),
+      node("Sheet", "googleSheets", 4.6, {
+        ...baseParameters,
+        operation: "update",
+      }),
+    ],
+    { Source: edge("Sheet") },
+  );
+  assert.ok(
+    codes(update.rules).includes("personal_data_candidate_transferred"),
+  );
+  assert.equal(
+    codes(update.rules).includes("secret_candidate_transferred"),
+    false,
+  );
+  const read = run(
+    [webhook(), node("Sheet", "googleSheets", 4.6, baseParameters)],
+    { Source: edge("Sheet") },
+  );
+  assert.ok(codes(read.rules).includes("external_read_capability"));
+  assert.equal(
+    codes(read.rules).includes("secret_candidate_transferred"),
+    false,
+  );
+  assert.equal(
+    codes(read.rules).includes("personal_data_candidate_transferred"),
+    false,
+  );
+  assert.ok(
+    diagnostics(read.rules).includes("read_response_classification_unverified"),
+  );
+});
+
+test("Gmail read requests inspect selected filters or id while remote content remains unclassified", () => {
+  for (const [operation, simple] of [
+    ["get", false],
+    ["getAll", undefined],
+  ]) {
+    const { rules } = run(
+      [
+        webhook(),
+        node("Read", "gmail", 2.1, {
+          operation,
+          simple,
+          messageId: "={{ $json.body.email }}",
+          filters: { q: "={{ $json.body.email }}" },
+          message: "={{ $json.body.password }}",
+          options: { downloadAttachments: true },
+        }),
+      ],
+      { Source: edge("Read") },
+    );
+    assert.ok(codes(rules).includes("personal_data_candidate_transferred"));
+    assert.equal(codes(rules).includes("secret_candidate_transferred"), false);
+    assert.ok(
+      codes(rules).includes(
+        simple === false
+          ? "gmail_parsed_message_response_profile"
+          : "gmail_metadata_response_profile",
+      ),
+    );
+    assert.ok(
+      diagnostics(rules).includes("read_response_classification_unverified"),
+    );
+    assert.equal(
+      diagnostics(rules).includes("binary_response_content_unavailable"),
+      simple === false,
+    );
+  }
+});
+
 test("EmailSend v1 scans both bodies and top-level CC/BCC without treating V2 options as active", () => {
   const mail = node("Mail", "emailSend", 1, {
     toEmail: "approved@example.invalid",
@@ -172,7 +1124,7 @@ test("EmailSend v1 scans both bodies and top-level CC/BCC without treating V2 op
     false,
   );
   assert.equal(JSON.stringify(rules).includes("other@example.invalid"), false);
-  assert.equal(rules[0].profileVersion, "1.2.0");
+  assert.equal(rules[0].profileVersion, "1.3.0");
 });
 
 test("Telegram documents retain recipient and caption facts while binary content stays unknown", () => {

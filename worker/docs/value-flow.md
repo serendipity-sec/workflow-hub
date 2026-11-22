@@ -2,6 +2,8 @@
 
 `src/value-flow.ts`는 워크플로 JSON에서 가능한 값의 출처·민감도·변환·분기 조건을 추적한다. 업로드한 표현식·Code·워크플로를 실행하지 않는다. Acorn은 JavaScript 구문을 파싱하는 데만 사용한다.
 
+0.6의 `src/bounded-code.ts`는 단순 const 프로필이 처리하지 못한 Code를 위한 별도 유한 추상 해석기다. `eval`, VM, `Function`, 제출된 함수·메서드·정규식의 실행을 사용하지 않는다. 지역 상태와 AST의 가능한 출처를 옮기는 작업이며 n8n 실행 재현이 아니다.
+
 ## 내부 API와 결과 의미
 
 `buildValueFlow(context, { sourceAnnotations })`가 반환하는 객체는 `resolve(nodeKey, value, options)`와 `output(nodeKey, fieldPath, outputIndex)`를 제공한다. 일반 노드 값은 `=` 접두사가 있어야 표현식으로 읽는다. Postgres처럼 별도 템플릿 처리기가 있는 호출자는 `expressionMode: 'template'`을 명시한다.
@@ -14,6 +16,7 @@
 - `trust`: 외부 입력 여부다. 외부 입력이라는 이유만으로 개인정보·비밀값이라고 판단하지 않는다.
 - `sensitivity`: `secret_candidate`, `pii_candidate`, `public_literal`, `unknown`이다. `sensitivityBasis`가 필드명 추정, 리터럴 형식 추정, 운영자·스키마 선언을 구분한다. 후보를 확인된 개인정보로 승격하지 않는다.
 - `sensitivityClasses`: 값에 포함될 수 있는 분류의 전체 집합이다. 객체 합성·배열·직렬화·문자열 결합·경로 병합에서 비밀 후보와 개인정보 후보를 모두 보존한다. `sensitivity`는 호환용 최대 분류이며, 전송 정책은 전체 집합에 적용한다. 미확인 부분의 `unknown`도 유지하고, 정확히 한 필드를 선택할 때는 그 필드의 분류만 반환한다.
+- `constant`: 내부용 원시 리터럴 근거다. 문자열·숫자·불리언·null과 제한된 고정 문자열 결합에만 설정한다. 공개라는 별도 분류 선언, 외부 응답, 모델 결과, 시계, 객체·배열 래퍼와 미확인 변환에는 설정하지 않는다. SQL·수신처 소비자는 `status: resolved`인 문자열 상수만 사용할 수 있다. 원문이므로 공개 결과·로그로 복사하면 안 된다.
 - Code·표현식 객체도 JSON·Set과 같이 필드명 힌트를 반영한다. 예를 들어 `password`와 `phone`에는 각각 비밀·개인정보 후보를 추가하며, 값에서 이미 얻은 다른 분류를 덮어쓰지 않는다. 신뢰된 별도 분류 선언은 기존 Set 프로필과 같은 우선순위를 유지한다. 이름 추정은 확인된 개인정보나 실제 비밀값의 증명이 아니다.
 - `presence`: 필드가 정의됨, 제거됨, 미확인을 구분한다. Set에서 삭제된 필드를 추적 실패와 같은 상태로 취급하지 않는다.
 - `valueId`, `guards`, `transforms`: 방어 조건이 검사한 값과 실제 사용 값의 동일성을 확인하는 내부 근거다. 숫자 변환, URL component 인코딩, 문자열 결합, 직렬화는 별도 문맥이다. 범용 `sanitized=true` 판정은 없다.
@@ -46,6 +49,27 @@ Code의 출력 해석은 `const` 선언 뒤 단일 `return`만 허용하는 별�
 
 허용된 상수 포맷·옵션 인자의 민감 후보는 날짜 결과에 합쳐 보존한다. Luxon `toFormat`의 작은따옴표 구간은 리터럴로 출력될 수 있으므로, 이메일 같은 상수를 포맷 문자열에 넣어도 공개 값으로 낮아지지 않는다. 일반 날짜 포맷은 외부 입력 민감도를 상속하지 않는다.
 
+## 추가 유한 Code 프로필
+
+확장 프로필은 `code_bounded_flow_partial`을 남긴다. 지원한 필드의 정확한 출처와 상수는 추적하지만 전체 프로그램의 실행 성공·행 수·반복 횟수·경로 실행 가능성을 보증하지 않는다.
+
+- const/let 지역 변수와 스칼라의 `=`·`+=` 대입은 추적한다. 객체의 속성 대입이나 배열 push가 있으면 전체 Code 반환의 필드 정밀도를 포기하고 `code_object_mutation_unresolved`를 남긴다. 모든 관찰한 대입 값·이전 지역 값·진단·직접 참조의 민감 분류와 unknown을 합치며 개별 필드나 상수를 공개로 확정하지 않는다. 내부적으로 관찰한 고정 키 변경은 후보 수집에만 사용하고 완전한 heap alias 해석이라고 주장하지 않는다. 다른 객체·배열·helper를 거친 참조 변경에는 추가로 `code_nested_alias_mutation_unresolved`가 남을 수 있다. `__proto__`·`prototype`·`constructor` 쓰기도 프로토타입 의미를 실행하지 않고 미확인으로 처리하며 분석용 사전은 null prototype을 사용한다.
+- if/else는 조건을 실행하지 않고 가능한 결과를 합치며 독립 출력 필드의 출처를 각각 유지한다. try/catch는 예외가 발생하는 시점의 중간 대입 상태를 완전히 재구성하지 않는다. 따라서 `code_try_state_unresolved`와 함께 전체 Code 반환을 부분 분석으로 처리하고, try/catch 양쪽에서 관찰한 RHS·지역 값·직접 참조 후보를 보존한다. catch를 try 시작 전의 값으로만 판단하여 중간 비밀 값을 공개로 낮추지 않는다. 조건을 통한 정보 누설 같은 암시적 흐름은 증명하지 않으며, finally·임의 제어문은 미지원이다.
+- 객체 spread의 알려진 필드와 덮어쓰기 순서를 보존한다. 불명확한 spread가 나중에 나타나면 기존 필드를 공개로 확정하지 않는다. 배열 spread의 길이·인덱스는 미확인으로 유지한다.
+- `$input.all()` 및 `map`은 가능한 모든 아이템을 합친 단일 요소 요약을 사용한다. 반환 배열의 첫 아이템만 선택하지 않는다. for-of/push는 0회와 추상 1회 결과를 합쳐 `code_loop_summary_partial`을 남긴다. 반복 안에서 쓰인 바인딩에는 전체 반복 입력과 알려진 반복 상태를 합친 `code_loop_carried_state_unverified`를 추가하여 두 번째 이후 반복의 비밀·개인정보가 첫 번째 반복의 공개값에 가려지지 않게 한다. 구체적인 반복 실행·횟수와 일반 for/while, 재귀·복잡한 반복 상태는 완전 해석하지 않는다.
+- 순수한 지역 helper는 매개변수, 자체 지역 변수, 명시적으로 지원한 n8n 참조·내장 변환·순수 함수 참조를 제한적으로 추적한다. 바깥 지역 변수를 읽는 closure는 `code_closure_capture_unresolved`로 남기며 caller의 동명 매개변수나 정의 시의 과거 값으로 대신하지 않는다. 객체를 helper에 전달·반환하거나 복합 식에 저장하면 밖으로 전달된 참조로 표시하고 이후 변경을 미확인으로 처리한다. 함수 깊이 6, 문장 깊이 12, 추상 전이 2,048회와 공통 요청 예산을 적용한다. 임의 호출·외부 효과·지원하지 않는 구문은 입력, 알려진 지역 값, 대입·진단에서 관찰한 값과 정적 n8n 직접 참조의 민감 가능성을 모두 보존한 `code_effects_partially_analyzed`로 끝낸다.
+- trim/대소문자/replace/split/join/slice 등의 문자열 메서드는 값의 출처·민감도 전이만 모델링한다. 제출된 정규식을 컴파일하거나 매칭·치환하지 않는다. 이 변환을 개인정보 제거·인젝션 방어로 인정하지 않는다. `JSON.parse`는 고정 문자열에 한해서 데이터 파서로 읽고, 동적 문자열은 원래 민감도와 구조 미확인을 유지한다.
+
+이 프로필은 [고정 Code 샌드박스의 반환 정규화 계약](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Code/JavaScriptSandbox.ts)을 참고한다. 해당 샌드박스를 워커에서 호출하지 않는다.
+
+## 외부 결과와 AI 출력의 값 흐름
+
+HTTP Request 3/4–4.3, Gmail 2.1/2.2 get/getAll, Airtable 2–2.2의 고정 record 작업, Google Sheets 3/4–4.7 read, Notion 2–2.2 databasePage get/getAll·database get, Google Docs 1/2 document get은 직전 입력을 그대로 복사하는 것으로 가정하지 않는다. 새 외부 결과 출처와 `service_response_shape_unverified`를 남긴다. 응답·권한·정확한 스키마가 없으므로 실제 내용은 unknown이며, 이메일 결과의 주소·본문은 서비스 스키마에 따른 개인정보 가능성으로만 표시한다. Sheets append는 실행 중 빈 시트에 따라 원본 입력 반환으로 바뀔 수 있어 입력 가능성을 보존한다.
+
+Manual Trigger 1은 고정 소스의 빈 JSON 아이템을 모델링한다. Error Trigger 1의 실제 오류 데이터는 별도 출처와 미확인으로 표시한다. 검토한 AI main 출력은 `aiPromptInputs`가 선택한 실제 prompt 설정의 민감 후보와 출력 unknown을 합치며 guard와 상수를 만들지 않는다. 모델·파서 연결을 데이터 정제나 안전 증명으로 보지 않는다.
+
+근거: [HTTP Request](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/HttpRequest/V3/HttpRequestV3.node.ts), [Gmail](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Google/Gmail/v2/GmailV2.node.ts), [Airtable 결과 변환](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Airtable/v2/helpers/utils.ts), [Sheets append](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Google/Sheet/v2/actions/sheet/append.operation.ts), [Manual Trigger](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/ManualTrigger/ManualTrigger.node.ts), [Error Trigger](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/ErrorTrigger/ErrorTrigger.node.ts).
+
 Code의 선택적 접근·기본값 구문도 위 한정 문법을 적용한다. 한 객체 안의 `summary`가 동적 입력을 포함해도 독립적인 상수·날짜 `docTitle`에는 그 민감도를 복사하지 않는다. 객체 전체를 보내거나 요약 필드를 보내면 해당 민감 후보는 유지한다. 이 분리는 모든 선언과 반환이 지원되는 순수 문법인 경우에만 적용하며, 미지원 함수나 대입문이 있는 Code 전체를 공개 출력으로 추론하지 않는다.
 
 ## 방어 조건과 한도
@@ -64,9 +88,17 @@ Switch fallback은 생략, `none`, `extra`, 범위 안의 고정 정수 출력 �
 
 현재 한도는 재귀 64, 요청 4096, 표현식 AST 2048 노드, 객체 필드 128, 경로·출처 대안 64, 별도 분류 선언 256이다. 순환, 한도 초과, 미지원 변환은 종료와 진단을 보장한다. 선언된 경로의 존재를 실제 실행 가능성 증명으로 표현하지 않는다.
 
+미지원 Code 문법을 발견해도 그 지점에서 이미 알려진 출처를 버리지 않는다. 소스 순서로 AST 최대 2,048노드에서 직접 n8n 참조·자격 증명 참조·개인정보 형식의 literal/template 조각·민감 필드명 후보를 최대 256개 관찰한다. 이 후보들은 추상 전달 작업 전에 평가해 전달 예산 소진 뒤 사라지지 않게 한다. 함수 매개변수·블록 선언·함수 범위 var·이름 있는 클래스가 같은 이름의 root를 가리면 외부 자격 증명으로 승격하지 않는다. 별도 함수의 동명 매개변수가 파일의 실제 global 참조까지 지우지는 않는다. 이는 관찰용 제한 scope이며 일반 JavaScript 실행·heap·동적 binding 해석이 아니다.
+
+문법 오류나 길이 제한은 정상 실행 가능성을 주장하지 않는다. 활성 JavaScript 프로필에 대해서만 최대 65,536자·4,096토큰의 Acorn tokenizer로 확실한 RHS/return·직접 member 및 literal 필드 후보를 제한적으로 회수한다. 주석·일반 문자열·정규식 안의 root처럼 보이는 문구, 일반 property/method 이름과 모호한 binding은 실제 root 읽기로 인정하지 않는다. 복구 범위 밖의 문맥은 `code_source_binding_unresolved`·`code_token_observation_incomplete`·`code_source_observation_limit`로 남긴다. 길이 검사는 const 전용 빠른 경로보다 먼저 적용하며 비활성 Python 노드의 jsCode를 분석 대상으로 바꾸지 않는다. 모든 opaque 관찰 결과는 `code_source_observations_only` 또는 해당 미지원 진단과 함께 unknown을 보존하고 constant·fields·guards를 제거한다. AST/형태/반환 한도에서도 관찰한 비밀·개인정보 후보는 유지하며, 읽지 못한 나머지를 공개로 확정하지 않는다.
+
+확장 Code의 객체 구성·선택·복제 전에는 반복 참조 경로를 각각 세어 한 값 묶음의 구조 노드 512개, 구조 깊이 32, 분석 중 누적 구조 순회 16,384개 한도를 확인한다. 한도 초과는 `code_value_shape_limit`으로 구조와 상수 확정을 버리되 이미 관찰한 민감 분류를 유지한다. 작은 소스의 중첩 객체 복제가 지수적으로 커지는 것을 허용하지 않는다. 문자열 상수 추론도 결합하기 전에 결과 길이와 분석 전체 누적 65,536문자 예산을 확인하며 초과 시 `constant_inference_size_limit`과 원래 민감도·unknown을 남긴다. 이는 정적 상수 추론의 한계이며 데이터 정제를 의미하지 않는다. 배열 push나 리터럴이 필드 한도를 넘으면 128개 이후에 관찰한 후보도 전체 결과에 합치고 공개값으로 자르지 않는다.
+
+JS 템플릿은 literal quasi와 substitution을 원래 순서대로 합치고, n8n 문자열도 literal 부분과 `{{ ... }}` 결과를 원래 위치에 둔다. 단일 표현식 앞뒤의 literal 공백도 버리지 않는다. 민감도 집합을 합칠 때 쓰던 순서를 상수 문자열 생성에 재사용하지 않는다. 합성 URL 회귀는 차단된 호스트의 접두사가 허용된 호스트로 바뀌지 않고 목적지 정책에서 계속 거부되는 것을 확인한다. 고정 [n8n 표현식 처리](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/workflow/src/expression.ts)는 맨 앞의 `=`를 제거한 본문을 렌더러에 넘기며, 워커는 이 본문을 실행하지 않고 한정 AST 값과 literal 조각만 해석한다.
+
 같은 분석 인스턴스 안에서는 노드별 Code 전체 출력과 동일한 값·옵션의 `resolve` 결과를 재사용한다. 다른 노드나 별도 분석의 분류 선언을 공유하지 않으며 반환값은 복제해 호출자의 변경이 캐시를 오염시키지 않는다. 캐시 재사용으로 이미 해석한 Code를 필드마다 다시 분석하는 비용을 줄이고, 새로운 분석 요청의 한도나 미지원 상태는 그대로 유지한다.
 
-객체·배열의 필드를 128개에서 잘랐다면 `fieldsComplete=false`와 `flow_field_limit`를 유지한다. 잘린 객체에서 필드를 선택해도 필드가 없거나 공개 데이터라고 확정하지 않는다. 선택 결과는 존재 미확인, 부분 분석, 기존 민감 후보와 `unknown`을 보존한다. 표현식 객체는 한도 뒤의 같은 이름 속성이 앞의 값을 덮어쓸 수 있어 앞부분 필드의 선택도 보수적으로 처리한다. 완전히 분석한 객체의 실제 미정의 필드만 `absent`로 판단한다.
+객체·배열의 필드를 128개에서 잘랐다면 `fieldsComplete=false`와 `flow_field_limit`를 유지한다. 잘린 객체에서 필드를 선택해도 필드가 없거나 공개 데이터라고 확정하지 않는다. 선택 결과는 존재 미확인, 부분 분석, 기존 민감 후보와 `unknown`을 보존한다. 미지원 객체 속성을 만나도 같은 필드 예산 안의 뒤쪽 형제 속성까지 key·RHS·spread 후보를 합치며, 읽지 못한 나머지는 한도 진단으로 표시한다. 표현식 객체는 한도 뒤의 같은 이름 속성이 앞의 값을 덮어쓸 수 있어 앞부분 필드의 선택도 보수적으로 처리한다. 완전히 분석한 객체의 실제 미정의 필드만 `absent`로 판단한다.
 
 ## 고정 소스 근거와 검증
 

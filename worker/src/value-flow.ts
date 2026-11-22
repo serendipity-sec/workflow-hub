@@ -1,5 +1,11 @@
 import { createHash } from "node:crypto";
 import { parse, parseExpressionAt } from "acorn";
+import {
+  analyzeBoundedCode,
+  observeInvalidCode,
+  type BoundedCodeHost,
+} from "./bounded-code.js";
+import { aiPromptInputs } from "./ai-flow.js";
 import type { NormalizedNode } from "./n8n.js";
 import { isObject } from "./static-context.js";
 import type { Context } from "./static-context.js";
@@ -27,7 +33,10 @@ export type TransformEvidence = {
     | "html_escape"
     | "concatenation"
     | "object_mapping"
-    | "serialization";
+    | "serialization"
+    | "string_processing"
+    | "json_parsing"
+    | "collection_mapping";
   inputValueIds: string[];
 };
 export type GuardEvidence = {
@@ -40,6 +49,8 @@ export type GuardEvidence = {
   origins: Origin[];
 };
 export interface AbstractValue {
+  /** Internal scalar literal evidence; never copy to public reports. */
+  constant?: string | number | boolean | null;
   status: "resolved" | "partial" | "unknown";
   presence: "present" | "absent" | "unknown";
   origins: Origin[];
@@ -255,6 +266,7 @@ class ValueFlowAnalyzer implements ValueFlow {
   private readonly codeOutputs = new Map<string, AbstractValue>();
   private readonly resolvedInputs = new Map<string, AbstractValue>();
   private requests = 0;
+  private constantCharacters = 0;
   constructor(
     private readonly context: Context,
     private readonly options: ValueFlowOptions,
@@ -341,6 +353,19 @@ class ValueFlowAnalyzer implements ValueFlow {
     return { sensitivity: "unknown", basis: [] };
   }
 
+  private reserveConstant(nodeKey: string, characters: number): boolean {
+    if (
+      characters > valueFlowLimits.expressionCharacters ||
+      this.constantCharacters + characters >
+        valueFlowLimits.expressionCharacters
+    ) {
+      this.note(nodeKey, "constant_inference_size_limit");
+      return false;
+    }
+    this.constantCharacters += characters;
+    return true;
+  }
+
   private literal(
     nodeKey: string,
     value: unknown,
@@ -381,6 +406,7 @@ class ValueFlowAnalyzer implements ValueFlow {
       );
       return {
         ...result,
+        constant: undefined,
         presence: "present",
         fullObject: true,
         fields,
@@ -401,8 +427,15 @@ class ValueFlowAnalyzer implements ValueFlow {
         : stringPii
           ? "pii_candidate"
           : "public_literal";
-    return {
+    const constantFits =
+      typeof value !== "string" || this.reserveConstant(nodeKey, value.length);
+    const result: AbstractValue = {
       status: "resolved",
+      ...((value === null ||
+        ["string", "number", "boolean"].includes(typeof value)) &&
+      constantFits
+        ? { constant: value as string | number | boolean | null }
+        : {}),
       presence: "present",
       origins: [{ nodeKey, fieldPath: "", kind: "literal" }],
       sensitivity,
@@ -423,6 +456,9 @@ class ValueFlowAnalyzer implements ValueFlow {
       diagnosticCodes: [],
       valueId: hash(["literal", value]),
     };
+    return constantFits
+      ? result
+      : this.unknown(nodeKey, "constant_inference_size_limit", [result]);
   }
 
   private source(
@@ -519,13 +555,18 @@ class ValueFlowAnalyzer implements ValueFlow {
     const remainder = text.replace(/\{\{([\s\S]*?)\}\}/g, "");
     if (remainder.includes("{{") || remainder.includes("}}"))
       return this.unknown(nodeKey, "expression_syntax_unsupported", values);
-    if (matches.length === 1 && text.trim() === matches[0]![0])
-      return values[0]!;
-    return this.transform(
-      nodeKey,
-      [...values, this.literal(nodeKey, remainder)],
-      "concatenation",
-    );
+    if (matches.length === 1 && text === matches[0]![0]) return values[0]!;
+    const ordered: AbstractValue[] = [];
+    let offset = 0;
+    for (const [index, match] of matches.entries()) {
+      ordered.push(
+        this.literal(nodeKey, text.slice(offset, match.index)),
+        values[index]!,
+      );
+      offset = match.index + match[0].length;
+    }
+    ordered.push(this.literal(nodeKey, text.slice(offset)));
+    return this.transform(nodeKey, ordered, "concatenation");
   }
 
   private expression(
@@ -568,8 +609,23 @@ class ValueFlowAnalyzer implements ValueFlow {
     kind: TransformEvidence["kind"],
   ): AbstractValue {
     const merged = join(values, nodeKey);
-    return {
+    let constant: string | undefined;
+    let constantOverflow = false;
+    if (
+      kind === "concatenation" &&
+      values.every((value) => typeof value.constant === "string")
+    ) {
+      const length = values.reduce(
+        (total, value) => total + (value.constant as string).length,
+        0,
+      );
+      if (this.reserveConstant(nodeKey, length))
+        constant = values.map((value) => value.constant).join("");
+      else constantOverflow = true;
+    }
+    const result: AbstractValue = {
       ...merged,
+      constant,
       fullObject: kind === "serialization" && merged.fullObject,
       guards: [],
       transforms: [
@@ -578,6 +634,9 @@ class ValueFlowAnalyzer implements ValueFlow {
       ].slice(0, valueFlowLimits.alternatives),
       valueId: hash([kind, values.map((value) => value.valueId)]),
     };
+    return constantOverflow
+      ? this.unknown(nodeKey, "constant_inference_size_limit", [result])
+      : result;
   }
 
   private astValue(
@@ -587,11 +646,14 @@ class ValueFlowAnalyzer implements ValueFlow {
   ): AbstractValue {
     if (!this.bounded(nodeKey, depth))
       return this.unknown(nodeKey, "flow_budget_exceeded");
+    if (ast.type === "BoundedValue" && isObject(ast.value))
+      return structuredClone(ast.value) as unknown as AbstractValue;
     if (ast.type === "ParenthesizedExpression" && isObject(ast.expression))
       return this.astValue(nodeKey, ast.expression, depth + 1);
     if (ast.type === "Literal") {
       const value = this.literal(nodeKey, ast.value, "", depth + 1);
       if (ast.boundedClock === true) {
+        delete value.constant;
         value.sensitivityBasis = ["runtime_clock"];
         const arguments_ = Array.isArray(ast.boundedClockArguments)
           ? ast.boundedClockArguments
@@ -709,14 +771,18 @@ class ValueFlowAnalyzer implements ValueFlow {
         name === "Number" ||
         name === "parseInt" ||
         name === "parseFloat" ||
-        name === "encodeURIComponent"
+        name === "encodeURIComponent" ||
+        name === "String" ||
+        name === "Boolean"
       )
         return this.transform(
           nodeKey,
           [this.astValue(nodeKey, ast.arguments[0], depth + 1)],
-          name === "encodeURIComponent"
-            ? "url_component_encoding"
-            : "numeric_conversion",
+          name === "String" || name === "Boolean"
+            ? "string_processing"
+            : name === "encodeURIComponent"
+              ? "url_component_encoding"
+              : "numeric_conversion",
         );
       if (
         ast.callee.type === "MemberExpression" &&
@@ -730,6 +796,125 @@ class ValueFlowAnalyzer implements ValueFlow {
           [this.astValue(nodeKey, ast.arguments[0], depth + 1)],
           "serialization",
         );
+      if (
+        ast.callee.type === "MemberExpression" &&
+        isObject(ast.callee.object) &&
+        ast.callee.object.name === "JSON" &&
+        isObject(ast.callee.property) &&
+        ast.callee.property.name === "parse"
+      ) {
+        const input = this.astValue(nodeKey, ast.arguments[0], depth + 1);
+        if (
+          typeof input.constant === "string" &&
+          input.constant.length <= valueFlowLimits.expressionCharacters
+        ) {
+          try {
+            const decoded = this.literal(
+              nodeKey,
+              JSON.parse(input.constant),
+              "",
+              depth + 1,
+            );
+            const value = join([input, decoded], nodeKey);
+            return {
+              ...value,
+              constant: decoded.constant,
+              fullObject: decoded.fullObject,
+              fieldsComplete: false,
+              transforms: [
+                ...value.transforms,
+                {
+                  nodeKey,
+                  kind: "json_parsing",
+                  inputValueIds: [input.valueId],
+                },
+              ],
+            };
+          } catch {
+            return this.unknown(nodeKey, "json_parse_content_unresolved", [
+              input,
+            ]);
+          }
+        }
+        return {
+          ...this.unknown(nodeKey, "json_parse_shape_unverified", [input]),
+          fullObject: true,
+          fieldsComplete: false,
+          guards: [],
+        };
+      }
+    }
+    if (
+      ast.type === "CallExpression" &&
+      isObject(ast.callee) &&
+      ast.callee.type === "MemberExpression" &&
+      isObject(ast.callee.object) &&
+      isObject(ast.callee.property) &&
+      ast.callee.computed !== true &&
+      Array.isArray(ast.arguments) &&
+      ast.arguments.every(isObject)
+    ) {
+      const method = ast.callee.property.name;
+      if (
+        [
+          "trim",
+          "trimStart",
+          "trimEnd",
+          "toLowerCase",
+          "toUpperCase",
+          "replace",
+          "replaceAll",
+          "split",
+          "join",
+          "slice",
+          "substring",
+          "concat",
+          "includes",
+          "startsWith",
+          "endsWith",
+          "toString",
+        ].includes(String(method))
+      ) {
+        const receiver = this.astValue(nodeKey, ast.callee.object, depth + 1);
+        const args = ast.arguments.map((argument) =>
+          this.astValue(nodeKey, argument, depth + 1),
+        );
+        const result = this.transform(
+          nodeKey,
+          [receiver, ...args],
+          "string_processing",
+        );
+        if (method === "split")
+          return {
+            ...this.unknown(nodeKey, "string_split_cardinality_unverified", [
+              result,
+            ]),
+            fullObject: true,
+            fieldsComplete: false,
+          };
+        return result;
+      }
+    }
+    if (
+      ast.type === "ConditionalExpression" &&
+      isObject(ast.test) &&
+      isObject(ast.consequent) &&
+      isObject(ast.alternate)
+    ) {
+      const values = [
+        this.astValue(nodeKey, ast.test, depth + 1),
+        this.astValue(nodeKey, ast.consequent, depth + 1),
+        this.astValue(nodeKey, ast.alternate, depth + 1),
+      ];
+      return {
+        ...join(values, nodeKey),
+        guards: [],
+        fieldsComplete: false,
+        valueId: hash([
+          "conditional_selection",
+          values.map((value) => value.valueId),
+        ]),
+      };
     }
     if (
       ast.type === "BinaryExpression" &&
@@ -749,29 +934,86 @@ class ValueFlowAnalyzer implements ValueFlow {
       ast.type === "TemplateLiteral" &&
       Array.isArray(ast.expressions) &&
       Array.isArray(ast.quasis)
-    )
-      return this.transform(
-        nodeKey,
-        [
-          ...ast.expressions.map((item) =>
-            isObject(item)
-              ? this.astValue(nodeKey, item, depth + 1)
+    ) {
+      const ordered: AbstractValue[] = [];
+      for (const [index, quasi] of ast.quasis.entries()) {
+        ordered.push(
+          isObject(quasi) &&
+            isObject(quasi.value) &&
+            typeof quasi.value.cooked === "string"
+            ? this.literal(nodeKey, quasi.value.cooked)
+            : this.unknown(nodeKey, "expression_syntax_unsupported"),
+        );
+        if (index < ast.expressions.length) {
+          const value = ast.expressions[index];
+          ordered.push(
+            isObject(value)
+              ? this.astValue(nodeKey, value, depth + 1)
               : this.unknown(nodeKey, "expression_syntax_unsupported"),
-          ),
-          ...ast.quasis.map((item) =>
-            this.literal(
-              nodeKey,
-              isObject(item) && isObject(item.value) ? item.value.cooked : "",
-            ),
-          ),
-        ],
-        "concatenation",
-      );
+          );
+        }
+      }
+      if (ast.quasis.length !== ast.expressions.length + 1)
+        return this.unknown(nodeKey, "expression_syntax_unsupported", ordered);
+      return this.transform(nodeKey, ordered, "concatenation");
+    }
     if (ast.type === "ObjectExpression" && Array.isArray(ast.properties)) {
       if (!ast.properties.length)
         return this.literal(nodeKey, {}, "", depth + 1);
       const fields: Record<string, AbstractValue> = {};
-      for (const item of ast.properties.slice(0, valueFlowLimits.fields)) {
+      const properties = ast.properties;
+      const withFieldHint = (
+        value: AbstractValue,
+        name: string,
+      ): AbstractValue => {
+        const inferred = this.classify(name);
+        return inferred.sensitivity === "unknown" ||
+          value.sensitivityBasis.some((basis) => basis.startsWith("trusted_"))
+          ? value
+          : {
+              ...value,
+              sensitivity:
+                severity(inferred.sensitivity) > severity(value.sensitivity)
+                  ? inferred.sensitivity
+                  : value.sensitivity,
+              sensitivityClasses: unique([
+                ...value.sensitivityClasses,
+                inferred.sensitivity,
+              ]),
+              sensitivityBasis: unique([
+                ...value.sensitivityBasis,
+                ...inferred.basis,
+              ]),
+            };
+      };
+      const unresolved = (code: string, start: number): AbstractValue => {
+        const candidates = Object.values(fields);
+        for (const item of properties.slice(start, valueFlowLimits.fields)) {
+          if (!isObject(item)) continue;
+          if (item.type === "Property" && item.kind !== "init")
+            candidates.push(this.input(nodeKey, [], depth + 1));
+          if (item.computed === true && isObject(item.key))
+            candidates.push(this.astValue(nodeKey, item.key, depth + 1));
+          if (isObject(item.value)) {
+            const value = this.astValue(nodeKey, item.value, depth + 1);
+            const name =
+              item.computed !== true && isObject(item.key)
+                ? (item.key.name ?? item.key.value)
+                : undefined;
+            candidates.push(
+              typeof name === "string" ? withFieldHint(value, name) : value,
+            );
+          }
+          if (item.type === "SpreadElement" && isObject(item.argument))
+            candidates.push(this.astValue(nodeKey, item.argument, depth + 1));
+        }
+        if (properties.length > valueFlowLimits.fields)
+          candidates.push(this.unknown(nodeKey, "flow_field_limit"));
+        return this.unknown(nodeKey, code, candidates);
+      };
+      for (const [index, item] of properties
+        .slice(0, valueFlowLimits.fields)
+        .entries()) {
         if (
           !isObject(item) ||
           item.type !== "Property" ||
@@ -780,43 +1022,16 @@ class ValueFlowAnalyzer implements ValueFlow {
           !isObject(item.key) ||
           !isObject(item.value)
         )
-          return this.unknown(
-            nodeKey,
-            "object_expression_unsupported",
-            Object.values(fields),
-          );
+          return unresolved("object_expression_unsupported", index);
         const name =
           item.key.type === "Identifier" ? item.key.name : item.key.value;
         if (typeof name !== "string" || !safeParts([name]))
-          return this.unknown(
-            nodeKey,
-            "unsafe_field_reference",
-            Object.values(fields),
-          );
+          return unresolved("unsafe_field_reference", index);
         const value = this.astValue(nodeKey, item.value, depth + 1);
-        const inferred = this.classify(name);
         // Object syntax and Code aliases retain the same field-name hints as
         // JSON/Set mappings. A hint adds a class; it never replaces the value's
         // existing secret, personal, public or unknown possibilities.
-        fields[pointer([name])] =
-          inferred.sensitivity === "unknown" ||
-          value.sensitivityBasis.some((basis) => basis.startsWith("trusted_"))
-            ? value
-            : {
-                ...value,
-                sensitivity:
-                  severity(inferred.sensitivity) > severity(value.sensitivity)
-                    ? inferred.sensitivity
-                    : value.sensitivity,
-                sensitivityClasses: unique([
-                  ...value.sensitivityClasses,
-                  inferred.sensitivity,
-                ]),
-                sensitivityBasis: unique([
-                  ...value.sensitivityBasis,
-                  ...inferred.basis,
-                ]),
-              };
+        fields[pointer([name])] = withFieldHint(value, name);
       }
       const result = join(
         Object.values(fields),
@@ -827,6 +1042,7 @@ class ValueFlowAnalyzer implements ValueFlow {
       );
       return {
         ...result,
+        constant: undefined,
         fullObject: true,
         fields,
         fieldsComplete: ast.properties.length <= valueFlowLimits.fields,
@@ -855,6 +1071,7 @@ class ValueFlowAnalyzer implements ValueFlow {
             ? "flow_field_limit"
             : undefined,
         ),
+        constant: undefined,
         fullObject: true,
         fields,
         fieldsComplete: ast.elements.length <= valueFlowLimits.fields,
@@ -1144,11 +1361,31 @@ class ValueFlowAnalyzer implements ValueFlow {
         port === 0
       )
         result = this.codeValue(node, path, depth + 1);
-      else
-        result = this.unknown(nodeKey, "node_transform_unsupported", [
-          this.source(node, path, "node_output", depth + 1),
-          this.input(nodeKey, [], depth + 1),
-        ]);
+      else {
+        const ai = aiPromptInputs(node);
+        const service = ai
+          ? undefined
+          : this.serviceValue(node, path, depth + 1);
+        if (ai) {
+          for (const code of ai.diagnostics) this.note(node.key, code);
+          result = this.unknown(node.key, "ai_generation_output_unverified", [
+            this.source(node, path, "node_output", depth + 1),
+            ...ai.inputs.map((input) =>
+              input.value === undefined
+                ? this.unknown(node.key, "ai_prompt_value_unresolved")
+                : this.resolveValue(node.key, input.value, {}, depth + 1),
+            ),
+          ]);
+          result.guards = [];
+          result.fullObject = path.length === 0;
+          result.fieldsComplete = false;
+        } else if (service) result = service;
+        else
+          result = this.unknown(nodeKey, "node_transform_unsupported", [
+            this.source(node, path, "node_output", depth + 1),
+            this.input(nodeKey, [], depth + 1),
+          ]);
+      }
       if (
         result.status === "unknown" &&
         !result.origins.length &&
@@ -1162,11 +1399,112 @@ class ValueFlowAnalyzer implements ValueFlow {
       result.paths = result.paths.map((entry) =>
         entry.at(-1) === nodeKey ? entry : [...entry, nodeKey].slice(-64),
       );
+      if (result.fullObject) delete result.constant;
       this.cache.set(cacheKey, structuredClone(result));
       return result;
     } finally {
       this.active.delete(cacheKey);
     }
+  }
+
+  private serviceValue(
+    node: NormalizedNode,
+    path: string[],
+    depth: number,
+  ): AbstractValue | undefined {
+    if (node.type === prefix + "manualTrigger" && node.typeVersion === 1)
+      return this.project(
+        this.literal(node.key, {}),
+        path,
+        node.key,
+        depth + 1,
+      );
+    const operation = node.parameters.operation;
+    const gmail =
+      node.type === prefix + "gmail" &&
+      [2.1, 2.2].includes(node.typeVersion) &&
+      (node.parameters.resource ?? "message") === "message" &&
+      ["get", "getAll"].includes(String(operation));
+    const airtable =
+      node.type === prefix + "airtable" &&
+      [2, 2.1, 2.2].includes(node.typeVersion) &&
+      (node.parameters.resource ?? "record") === "record" &&
+      ["get", "search", "create", "update", "upsert", "deleteRecord"].includes(
+        String(operation ?? "get"),
+      );
+    const sheets =
+      node.type === prefix + "googleSheets" &&
+      [3, 4, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7].includes(node.typeVersion) &&
+      (node.parameters.resource ?? "sheet") === "sheet" &&
+      (operation ?? "read") === "read";
+    const http =
+      node.type === prefix + "httpRequest" &&
+      [3, 4, 4.1, 4.2, 4.3].includes(node.typeVersion);
+    const notion =
+      node.type === prefix + "notion" &&
+      [2, 2.1, 2.2].includes(node.typeVersion) &&
+      ((node.parameters.resource === "databasePage" &&
+        ["get", "getAll"].includes(String(operation))) ||
+        (node.parameters.resource === "database" && operation === "get"));
+    const docs =
+      node.type === prefix + "googleDocs" &&
+      [1, 2].includes(node.typeVersion) &&
+      (node.parameters.resource ?? "document") === "document" &&
+      operation === "get";
+    const trigger =
+      node.type === prefix + "errorTrigger" && node.typeVersion === 1;
+    if (gmail || airtable || sheets || http || trigger || notion || docs) {
+      const source = this.source(node, path, "node_output", depth + 1);
+      source.trust = "external";
+      if (
+        gmail &&
+        (!path.length ||
+          path.some((part) =>
+            /^(?:from|to|cc|bcc|sender|replyTo|text|html|snippet)$/i.test(part),
+          )) &&
+        !source.sensitivityBasis.some((basis) => basis.startsWith("trusted_"))
+      ) {
+        source.sensitivityClasses = unique([
+          ...source.sensitivityClasses,
+          "pii_candidate",
+        ]);
+        source.sensitivity =
+          source.sensitivity === "secret_candidate"
+            ? "secret_candidate"
+            : "pii_candidate";
+        source.sensitivityBasis = unique([
+          ...source.sensitivityBasis,
+          "service_email_schema_candidate",
+        ]);
+      }
+      return {
+        ...this.unknown(
+          node.key,
+          trigger
+            ? "trigger_runtime_data_unverified"
+            : "service_response_shape_unverified",
+          [source],
+        ),
+        guards: [],
+        fullObject: path.length === 0,
+        fieldsComplete: false,
+      };
+    }
+    if (
+      node.type === prefix + "googleSheets" &&
+      [3, 4, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7].includes(node.typeVersion) &&
+      (node.parameters.resource ?? "sheet") === "sheet" &&
+      operation === "append"
+    )
+      return {
+        ...this.unknown(node.key, "sheets_append_output_mode_unverified", [
+          this.source(node, path, "node_output", depth + 1),
+          this.input(node.key, [], depth + 1),
+        ]),
+        guards: [],
+        fieldsComplete: false,
+      };
+    return;
   }
 
   private setValue(
@@ -1249,6 +1587,7 @@ class ValueFlowAnalyzer implements ValueFlow {
         );
         return {
           ...join(Object.values(fields), node.key),
+          constant: undefined,
           fullObject: true,
           fields,
         };
@@ -1414,6 +1753,7 @@ class ValueFlowAnalyzer implements ValueFlow {
       if (!values.length) return this.literal(node.key, {});
       return {
         ...join(values, node.key),
+        constant: undefined,
         presence: "present",
         fullObject: true,
         fields,
@@ -1447,6 +1787,7 @@ class ValueFlowAnalyzer implements ValueFlow {
           ],
           node.key,
         ),
+        constant: undefined,
         fullObject: true,
         fields: Object.fromEntries(
           nested.map(([name, value]) => [name.slice(target.length), value]),
@@ -1714,6 +2055,7 @@ class ValueFlowAnalyzer implements ValueFlow {
             nested.map(([, child]) => child),
             nodeKey,
           ),
+          constant: undefined,
           fullObject: true,
           fields: Object.fromEntries(
             nested.map(([name, child]) => [
@@ -1748,6 +2090,85 @@ class ValueFlowAnalyzer implements ValueFlow {
   }
 
   private codeValue(
+    node: NormalizedNode,
+    path: string[],
+    depth: number,
+  ): AbstractValue {
+    const cached = this.codeOutputs.get(node.key);
+    if (cached)
+      return this.project(structuredClone(cached), path, node.key, depth + 1);
+    const source = node.parameters.jsCode;
+    if (
+      (node.typeVersion >= 2 &&
+        (node.parameters.language ?? "javaScript") !== "javaScript") ||
+      typeof source !== "string" ||
+      (node.parameters.mode ?? "runOnceForAllItems") !== "runOnceForAllItems"
+    )
+      return this.simpleCodeValue(node, path, depth);
+    const host: BoundedCodeHost = {
+      evaluate: (value) => this.astValue(node.key, value, depth + 1),
+      literal: (value) => this.literal(node.key, value, "", depth + 1),
+      union: (values) => join(values, node.key),
+      project: (value, selected) =>
+        safeParts(selected)
+          ? this.project(value, selected, node.key, depth + 1)
+          : this.unknown(node.key, "unsafe_field_reference", [value]),
+      unknown: (code, values) => this.unknown(node.key, code, values),
+      input: () => this.input(node.key, [], depth + 1),
+      bounded: () => this.bounded(node.key, depth + 1),
+    };
+    const finish = (output: AbstractValue): AbstractValue => {
+      this.codeOutputs.set(node.key, structuredClone(output));
+      return this.project(output, path, node.key, depth + 1);
+    };
+    if (
+      typeof source === "string" &&
+      source.length > valueFlowLimits.expressionCharacters
+    )
+      return finish(observeInvalidCode(source, host, "code_source_size_limit"));
+    const simple = this.simpleCodeValue(node, path, depth);
+    if (
+      typeof source === "string" &&
+      simple.diagnosticCodes.includes("code_parse_unavailable")
+    )
+      return finish(
+        observeInvalidCode(source, host, "code_parse_unavailable", [simple]),
+      );
+    if (!simple.diagnosticCodes.includes("code_mapping_unsupported"))
+      return simple;
+    try {
+      if (
+        typeof source !== "string" ||
+        source.length > valueFlowLimits.expressionCharacters
+      )
+        return this.unknown(node.key, "code_source_size_limit", [simple]);
+      const ast = parse(source, {
+        ecmaVersion: "latest",
+        allowReturnOutsideFunction: true,
+      }) as unknown;
+      if (!isObject(ast)) return simple;
+      const output = analyzeBoundedCode(ast, host);
+      // The fallback reports its actual bounded transfer limitations instead
+      // of retaining the fast profile's generic mapping rejection.
+      for (let index = this.diagnostics.length - 1; index >= 0; index--)
+        if (
+          this.diagnostics[index]!.nodeKey === node.key &&
+          this.diagnostics[index]!.code === "code_mapping_unsupported"
+        )
+          this.diagnostics.splice(index, 1);
+      return finish(output);
+    } catch {
+      return typeof source === "string"
+        ? finish(
+            observeInvalidCode(source, host, "code_parse_unavailable", [
+              simple,
+            ]),
+          )
+        : this.unknown(node.key, "code_parse_unavailable", [simple]);
+    }
+  }
+
+  private simpleCodeValue(
     node: NormalizedNode,
     path: string[],
     depth: number,

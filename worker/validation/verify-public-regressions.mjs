@@ -29,7 +29,7 @@ for (const sample of manifest.samples) {
   );
   assert.notEqual(report.status, "error");
   assert.equal(report.inputSha256, sample.sha256);
-  assert.equal(report.engineVersion, "0.5.0");
+  assert.equal(report.engineVersion, "0.6.0");
   assert.equal(report.boundary.kind, "docker");
   assert.equal(
     `sha256:${report.boundary.imageSha256}`,
@@ -324,7 +324,110 @@ check(
     ),
   ),
 );
+for (const id of [2490, 18521]) {
+  const outbound = rule(id, "N8N_EXTENDED_OUTBOUND_DATA");
+  check(
+    `${id}_table_operation_capability_observed`,
+    outbound.findings.some((f) =>
+      codes(f).some((code) =>
+        ["outbound_send_capability", "external_read_capability"].includes(code),
+      ),
+    ),
+  );
+  check(
+    `${id}_table_runtime_and_policy_gaps_retained`,
+    outbound.diagnostics.some(
+      (d) => d.code === "trusted_policy_transfer_unresolved",
+    ),
+  );
+}
+check(
+  "sheets_runtime_headers_not_assumed",
+  rule(18521, "N8N_EXTENDED_OUTBOUND_DATA").diagnostics.some(
+    (d) => d.code === "sheet_headers_runtime_unverified",
+  ),
+);
+for (const id of [7622, 7643])
+  check(
+    `${id}_reversed_ai_connection_not_auto_repaired`,
+    rule(id, "N8N_AI_CONNECTION_CONTRACTS").diagnostics.some(
+      (d) => d.code === "ai_connection_contract_unresolved",
+    ),
+  );
+check(
+  "reviewed_ai_prompt_model_transfer_has_explicit_execution_gap",
+  [...reports.keys()].some((id) =>
+    rule(id, "N8N_AI_PROMPT_DATA").diagnostics.some(
+      (d) => d.code === "ai_model_invocation_and_output_unverified",
+    ),
+  ),
+);
+check(
+  "structured_postgres_default_insert_is_observed",
+  rule(10111, "N8N_DATABASE_OPERATIONS").findings.some((f) =>
+    codes(f).includes("database_insert_capability"),
+  ),
+);
+check(
+  "known_builtin_capability_inventory_covers_fixed_samples",
+  [...reports.values()].every(
+    (report) =>
+      !report.files[0].base.rules
+        .find((r) => r.ruleId === "N8N_DEPENDENCY_CAPABILITIES")
+        .diagnostics.some(
+          (d) => d.code === "builtin_capability_profile_unreviewed",
+        ),
+  ),
+);
+check(
+  "dynamic_sql_structure_stays_explicit",
+  rule(20459, "N8N_ADVANCED_SQL").diagnostics.some(
+    (d) => d.code === "sql_query_structure_unresolved",
+  ),
+);
+check(
+  "read_response_fields_not_promoted_to_known_personal_data",
+  rule(7643, "N8N_EXTENDED_OUTBOUND_DATA").diagnostics.some(
+    (d) => d.code === "read_response_classification_unverified",
+  ),
+);
+check(
+  "local_or_remote_file_content_stays_unavailable",
+  rule(11007, "N8N_FILE_OPERATION_PATHS").diagnostics.some(
+    (d) => d.code === "binary_payload_unavailable",
+  ),
+);
+
+const openAiNode = contexts
+  .get(10476)
+  .nodes.find(
+    (node) =>
+      node.type === "@n8n/n8n-nodes-langchain.openAi" && node.typeVersion === 2,
+  );
+check("openai_responses_fixed_public_control_exists", Boolean(openAiNode));
+check(
+  "openai_responses_default_profile_is_supported",
+  !rule(10476, "N8N_EXTENDED_OUTBOUND_DATA").diagnostics.some(
+    (d) =>
+      d.location.nodeKey === openAiNode.key &&
+      [
+        "unsupported_node_version",
+        "unsupported_send_operation",
+        "unsupported_connector_resource",
+      ].includes(d.code),
+  ),
+);
+check(
+  "openai_endpoint_still_requires_credential_context",
+  rule(10476, "N8N_EXTENDED_OUTBOUND_DATA").diagnostics.some(
+    (d) =>
+      d.location.nodeKey === openAiNode.key &&
+      d.code === "provider_endpoint_from_credentials_unverified",
+  ),
+);
+
 const output = {
+  // These assertions concern the fixed definitions, not operational safety.
   outcome: "passed",
   scope: "previously_documented_public_regressions",
   workflowExecution: "not_run",

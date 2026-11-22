@@ -656,11 +656,58 @@ const builtinProfiles = new Map<
     "n8n-nodes-base.noOp",
     { versions: new Set([1]), code: "pass_through_capability" },
   ],
+  ...[
+    ["set", [1, 2, 3, 3.1, 3.2, 3.3, 3.4, 3.5], "field_mapping_capability"],
+    [
+      "switch",
+      [1, 2, 3, 3.1, 3.2, 3.3, 3.4, 3.5],
+      "conditional_routing_capability",
+    ],
+    ["merge", [1, 2, 2.1, 3, 3.1, 3.2], "item_merge_capability"],
+    ["wait", [1, 1.1], "execution_wait_or_resume_capability"],
+    ["aggregate", [1], "item_aggregation_capability"],
+    ["extractFromFile", [1, 1.1, 1.2], "binary_content_extraction_capability"],
+    ["gmailTrigger", [1, 1.1, 1.2, 1.3, 1.4], "email_event_trigger_capability"],
+    [
+      "telegramTrigger",
+      [1, 1.1, 1.2, 1.3, 1.4, 1.5],
+      "message_event_trigger_capability",
+    ],
+    ["emailReadImap", [1, 2, 2.1, 2.2], "email_read_trigger_capability"],
+    [
+      "formTrigger",
+      [1, 2, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6],
+      "form_input_trigger_capability",
+    ],
+    ["gmail", [1, 2, 2.1, 2.2], "email_access_capability"],
+    ["emailSend", [1, 2, 2.1], "email_send_capability"],
+    ["telegram", [1, 1.1, 1.2], "message_access_capability"],
+    [
+      "slack",
+      [1, 2, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7],
+      "message_access_capability",
+    ],
+    [
+      "googleSheets",
+      [1, 2, 3, 4, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7],
+      "spreadsheet_access_capability",
+    ],
+    ["airtable", [1, 2, 2.1, 2.2], "record_store_access_capability"],
+    ["notion", [1, 2, 2.1, 2.2, 3], "document_store_access_capability"],
+    ["googleDocs", [1, 2], "document_access_capability"],
+    ["whatsApp", [1, 1.1], "message_access_capability"],
+  ].map(
+    ([name, versions, code]) =>
+      [
+        "n8n-nodes-base." + name,
+        { versions: new Set(versions as number[]), code: code as string },
+      ] as const,
+  ),
 ]);
 
 function dependencies(context: Context): RuleResult {
   const rule = makeRule("N8N_DEPENDENCY_CAPABILITIES", "dependencies");
-  rule.profileVersion = "1.1.0";
+  rule.profileVersion = "1.2.0";
   for (const node of context.nodes) {
     const scope = new Scope(rule, node);
     const privilege = privilegeProfiles.get(node.type);
@@ -695,7 +742,12 @@ function dependencies(context: Context): RuleResult {
       scope.finding("ai_node_declared", "/type", "info", "configuration", [
         "model_and_tool_permissions_unverified",
       ]);
-      scope.diagnostic("ai_node_semantics_unreviewed", "/typeVersion");
+      scope.diagnostic(
+        isReviewedAiNode(context, node)
+          ? "ai_runtime_invocation_and_permissions_unverified"
+          : "ai_node_semantics_unreviewed",
+        "/typeVersion",
+      );
     } else if (!node.type.startsWith("n8n-nodes-base.")) {
       scope.finding(
         "community_or_external_node_declared",
@@ -735,7 +787,14 @@ function dependencies(context: Context): RuleResult {
       );
       scope.diagnostic("ai_tool_approval_and_access_unverified", "/type");
     } else if (context.unsupportedEdges.some(({ from }) => from === node.key)) {
-      scope.diagnostic("non_main_connection_semantics_unreviewed", "/type");
+      scope.diagnostic(
+        context.unsupportedEdges
+          .filter((edge) => edge.from === node.key)
+          .every((edge) => coveredAiEdge(context, edge))
+          ? "ai_runtime_invocation_and_permissions_unverified"
+          : "non_main_connection_semantics_unreviewed",
+        "/type",
+      );
     }
     scope.finish();
   }
@@ -750,3 +809,4 @@ export function analyzeSettings(context: Context): RuleResult[] {
     dependencies(context),
   ];
 }
+import { isReviewedAiNode, coveredAiEdge } from "./ai-flow.js";

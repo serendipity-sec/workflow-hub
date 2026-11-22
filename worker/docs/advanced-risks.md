@@ -10,7 +10,9 @@
 
 ## SQL 프로필
 
-프로필 **1.2.0**의 지원 범위는 Postgres 2.4/2.5/2.6/2.8, MySQL 2–2.5, Microsoft SQL 1/1.1/1.2의 `executeQuery`다. Postgres·MySQL resource 생략은 database, 세 노드의 operation 생략은 insert로 취급하여 SQL 실행으로 추정하지 않는다.
+프로필 **1.3.0**의 지원 범위는 Postgres 2.4/2.5/2.6/2.8, MySQL 2–2.5, Microsoft SQL 1/1.1/1.2의 `executeQuery`다. 같은 등록 버전에서 생성되는 `postgresTool`의 쿼리도 조사하고 실제 모델 호출·권한은 미확인으로 남긴다. Postgres·MySQL resource 생략은 database, 세 노드의 operation 생략은 insert로 취급하여 SQL 실행으로 추정하지 않는다. 구조화된 Postgres 작업은 [별도 정의 프로파일](definition-risks.md)로 조사한다.
+
+쿼리 전체가 단일 n8n 표현식이면 먼저 공통 값 흐름으로 정의를 추적한다. 유한 AST 해석으로 얻은 정확한 문자열 상수만 SQL AST로 넘긴다. 문자열 안의 `{{ ... }}`를 다시 n8n 표현식으로 실행·해석하지 않는다. 실제 값에 따라 달라지는 쿼리는 `sql_dynamic_query_text_candidate`와 `sql_query_structure_unresolved`를 남기며 SQL 문법 파서의 실패와 구별한다. 파라미터가 있다는 사실로 미확인 쿼리를 안전하게 바인딩됐다고 선언하지 않는다.
 
 `inspectSqlOperation(query, dialect)`는 파싱 상태, 작업 종류, 최상위 문장 수, 값 매개변수 수, AST 해시를 반환한다. 원본 SQL·테이블명은 반환하지 않는다. 작업 정보는 권한·실제 영향의 증명이 아니라 재검토와 버전 비교에 쓰는 구조적 근거다.
 
@@ -29,6 +31,8 @@ Postgres 문자열 Query Parameters도 별도 값 채널로 조사한다. 2.4는
 ## 명령과 Code 프로필
 
 Execute Command 1 및 SSH 1 command 설정에서 고정 실행 기능과 동적 값 전달을 분리한다. Code 1/2 JavaScript에서는 다음 선언을 제한적으로 조사한다.
+
+LangChain `toolCode` 1/1.1/1.2/1.3의 JavaScript도 같은 AST 호출 분석을 적용한다. 모델이 제공하는 `query`는 미확인 입력으로 표시하며 실제 호출·선택·실행 권한을 확정하지 않는다. Python Tool의 `_query`는 별도 native Python AST 분석의 입력 프로파일로 구분한다. [공식 Tool Code 정의](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/@n8n/nodes-langchain/nodes/tools/ToolCode/ToolCode.node.ts)를 따르며 코드를 실행하지 않는다.
 
 `=` 접두사만 있고 `{{ ... }}` 보간이 없는 고정 명령은 실행 기능만 기록한다. 입력값 의존성의 근거 없이 동적 명령 후보로 분류하지 않는다. 보간 구분자가 깨진 경우는 미확인 후보로 유지한다. 이 구분은 고정 명령의 설치·파일·네트워크 동작이 안전하다는 뜻이 아니다.
 

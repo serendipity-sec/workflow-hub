@@ -250,7 +250,8 @@ test("SQL interpolation recognizes omitted database resource on supported older 
     assert.equal(result.findings.length, 0);
     assert.ok(
       result.diagnostics.some(
-        (item) => item.code === "unsupported_database_operation",
+        (item) =>
+          item.code === "database_runtime_schema_and_permissions_unverified",
       ),
     );
   }

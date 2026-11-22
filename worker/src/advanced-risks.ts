@@ -8,6 +8,7 @@ import { locationFor, stableId } from "./static-contract.js";
 import type { Finding, RuleResult } from "./static-contract.js";
 import { buildValueFlow } from "./value-flow.js";
 import type { AbstractValue, ValueFlow } from "./value-flow.js";
+import { isStructuredPostgres } from "./definition-risks.js";
 
 export type SqlDialect = "Postgresql" | "MySQL" | "TransactSQL";
 export type SqlOperation =
@@ -133,7 +134,7 @@ function rule(ruleId: string, category: "sql" | "code_execution"): RuleResult {
   return {
     ruleId,
     category,
-    profileVersion: "1.2.0",
+    profileVersion: "1.3.0",
     coverage: [],
     findings: [],
     diagnostics: [],
@@ -559,24 +560,31 @@ function sqlLexicalView(
 function sqlRules(context: Context, flow: ValueFlow): RuleResult {
   const result = rule("N8N_ADVANCED_SQL", "sql");
   for (const node of context.nodes.filter((item) =>
-    [prefix + "postgres", prefix + "mySql", prefix + "microsoftSql"].includes(
-      item.type,
-    ),
+    [
+      prefix + "postgres",
+      prefix + "postgresTool",
+      prefix + "mySql",
+      prefix + "microsoftSql",
+    ].includes(item.type),
   )) {
     const scope = new Scope(result, node);
     scope.nodeContext = context;
-    const dialect: SqlDialect =
-      node.type === prefix + "postgres"
-        ? "Postgresql"
-        : node.type === prefix + "mySql"
-          ? "MySQL"
-          : "TransactSQL";
+    const dialect: SqlDialect = [
+      prefix + "postgres",
+      prefix + "postgresTool",
+    ].includes(node.type)
+      ? "Postgresql"
+      : node.type === prefix + "mySql"
+        ? "MySQL"
+        : "TransactSQL";
     const versions =
       dialect === "Postgresql"
         ? postgresVersions
         : dialect === "MySQL"
           ? mysqlVersions
           : mssqlVersions;
+    if (node.type === prefix + "postgresTool")
+      scope.diagnostic("model_tool_invocation_unverified");
     if (node.disabled || !versions.has(node.typeVersion)) {
       scope.diagnostic(
         node.disabled
@@ -591,7 +599,14 @@ function sqlRules(context: Context, flow: ValueFlow): RuleResult {
       (dialect !== "TransactSQL" &&
         (node.parameters.resource ?? "database") !== "database")
     ) {
-      scope.diagnostic("database_operation_profile_unsupported");
+      if (isStructuredPostgres(node)) {
+        scope.add(
+          "database_structured_operation_declared",
+          "info",
+          "configuration",
+        );
+        scope.diagnostic("database_runtime_schema_and_permissions_unverified");
+      } else scope.diagnostic("database_operation_profile_unsupported");
       scope.finish();
       continue;
     }
@@ -601,8 +616,48 @@ function sqlRules(context: Context, flow: ValueFlow): RuleResult {
       scope.finish();
       continue;
     }
-    const query = raw.startsWith("=") ? raw.slice(1) : raw;
-    const templates = sqlTemplates(query);
+    let query = raw.startsWith("=") ? raw.slice(1) : raw;
+    let templates = sqlTemplates(query);
+    let constantQuery = false;
+    if (
+      templates.length === 1 &&
+      templates[0]!.offset === 0 &&
+      templates[0]!.end === query.length
+    ) {
+      const value = flow.resolve(
+        node.key,
+        raw.startsWith("=") ? raw : "=" + raw,
+      );
+      const constant = (value as AbstractValue & { constant?: unknown })
+        .constant;
+      if (
+        value.status === "resolved" &&
+        typeof constant === "string" &&
+        constant.length <= 16384
+      ) {
+        // A static scalar definition obtained by the bounded AST analyzer is
+        // SQL text, not another n8n template. Never re-evaluate its delimiters.
+        query = constant;
+        templates = [];
+        constantQuery = true;
+        scope.add("sql_query_definition_resolved", "info", "configuration");
+      } else {
+        scope.add(
+          "sql_dynamic_query_text_candidate",
+          "high",
+          "candidate",
+          value,
+        );
+        scope.diagnostic("sql_query_structure_unresolved");
+        if (
+          isObject(node.parameters.options) &&
+          node.parameters.options.queryReplacement !== undefined
+        )
+          scope.diagnostic("sql_parameter_binding_unresolved");
+        scope.finish();
+        continue;
+      }
+    }
     let structure = query;
     for (const [index, template] of [...templates.entries()].reverse())
       structure =
@@ -706,7 +761,7 @@ function sqlRules(context: Context, flow: ValueFlow): RuleResult {
       scope.diagnostic("sql_native_parameter_mapping_unverified");
     if (dialect === "MySQL" && query.includes("?") && !placeholders.length)
       scope.diagnostic("sql_native_parameter_mapping_unverified");
-    if (!templates.length && /\{\{|\}\}/.test(raw))
+    if (!constantQuery && !templates.length && /\{\{|\}\}/.test(raw))
       scope.diagnostic("sql_dynamic_expression_unresolved");
     for (const template of templates) {
       const value = flow.resolve(node.key, "=" + template.expression);
@@ -776,22 +831,27 @@ const hasExternal = (value: AbstractValue | undefined): boolean =>
 function javascriptRules(context: Context, flow: ValueFlow): RuleResult {
   const result = rule("N8N_ADVANCED_EXECUTION", "code_execution");
   for (const node of context.nodes.filter((item) =>
-    [prefix + "code", prefix + "executeCommand", prefix + "ssh"].includes(
-      item.type,
-    ),
+    [
+      prefix + "code",
+      "@n8n/n8n-nodes-langchain.toolCode",
+      prefix + "executeCommand",
+      prefix + "ssh",
+    ].includes(item.type),
   )) {
     const scope = new Scope(result, node);
     scope.nodeContext = context;
+    const toolCode = node.type === "@n8n/n8n-nodes-langchain.toolCode";
     if (node.disabled) {
       scope.diagnostic("disabled_node_not_executed");
       scope.finish();
       continue;
     }
-    if (node.type !== prefix + "code") {
+    if (node.type !== prefix + "code" && !toolCode) {
       if (
         node.typeVersion !== 1 ||
         (node.type === prefix + "ssh" &&
-          (node.parameters.resource ?? "command") !== "command")
+          ((node.parameters.resource ?? "command") !== "command" ||
+            (node.parameters.operation ?? "execute") !== "execute"))
       ) {
         scope.diagnostic("command_profile_unsupported");
         scope.finish();
@@ -820,8 +880,8 @@ function javascriptRules(context: Context, flow: ValueFlow): RuleResult {
       continue;
     }
     if (
-      ![1, 2].includes(node.typeVersion) ||
-      (node.typeVersion === 2 &&
+      !(toolCode ? [1, 1.1, 1.2, 1.3] : [1, 2]).includes(node.typeVersion) ||
+      ((node.typeVersion === 2 || toolCode) &&
         (node.parameters.language ?? "javaScript") !== "javaScript")
     ) {
       scope.diagnostic("javascript_profile_unsupported");
@@ -839,6 +899,29 @@ function javascriptRules(context: Context, flow: ValueFlow): RuleResult {
         ? source.slice(ast.start, ast.end)
         : "";
     const env = new Map<string, Binding>();
+    if (toolCode) {
+      const query = flow.resolve(node.key, "={{ __model_tool_query }}");
+      // ToolCode receives this argument from a possible model tool call. Its
+      // content and actual invocation are unknown, but its untrusted input
+      // provenance must survive into process/network sink candidates.
+      env.set("query", {
+        value: {
+          ...query,
+          status: "partial",
+          trust: "external",
+          origins: [
+            { nodeKey: node.key, fieldPath: "/query", kind: "node_output" },
+          ],
+          guards: [],
+          constant: undefined,
+          diagnosticCodes: [
+            ...query.diagnosticCodes,
+            "model_tool_query_and_execution_unverified",
+          ],
+        },
+      });
+      scope.diagnostic("model_tool_query_and_execution_unverified");
+    }
     let visited = 0;
     const expressionKinds = new Set([
       "Identifier",

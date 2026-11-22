@@ -4,6 +4,7 @@ import { createContext } from "../dist/static-context.js";
 import { analyzeExtendedSinks } from "../dist/extended-sinks.js";
 import { analyzeAdvancedRisks } from "../dist/advanced-risks.js";
 import { buildValueFlow, valueFlowLimits } from "../dist/value-flow.js";
+import { assessDestination } from "../dist/assessment-policy.js";
 
 const node = (name, type, version, parameters = {}) => ({
   id: name,
@@ -1571,4 +1572,707 @@ test("Switch static fallback profiles only attach the selected rule's proven gua
       assert.equal(fallback.guards.length, 0);
     }
   }
+});
+
+const boundedCode = (jsCode, annotations = []) =>
+  setup(
+    chain(web(), node("Formatter", "code", 2, { jsCode }), pass()),
+    annotations,
+  );
+
+test("internal scalar constants never leak through dates, object wrappers or unknown transforms", () => {
+  const run = setup(chain(web(), pass()));
+  assert.equal(run.resolve("={{ 'SELECT ' + '1' }}").constant, "SELECT 1");
+  assert.equal(run.resolve("={{ $json.body.query }}").constant, undefined);
+  assert.equal(
+    run.flow.resolveExpression(run.key("Sink"), "({query:'SELECT 1'})")
+      .constant,
+    undefined,
+  );
+  assert.equal(
+    run.flow.resolveExpression(run.key("Sink"), "['SELECT 1']").constant,
+    undefined,
+  );
+  assert.equal(
+    run.flow.resolveExpression(run.key("Sink"), "' SELECT 1 '.trim()").constant,
+    undefined,
+  );
+  const clock = boundedCode(
+    "const today=new Date().toDateString(); return {json:{today}};",
+  );
+  assert.equal(clock.resolve("={{ $json.today }}").constant, undefined);
+  const constant = boundedCode(
+    "let query='SELECT '; query += '1'; return {json:{query}};",
+  );
+  assert.equal(constant.resolve("={{ $json.query }}").constant, "SELECT 1");
+});
+
+test("bounded let, string methods and JSON parse retain sensitive data through both exception outcomes", () => {
+  const run = boundedCode(
+    `let text=$json.body.email; text=text.trim().replace(/x/g,''); let result; try {result=JSON.parse(text);} catch(error) {result={fallback:text};} return {json:{result,fixed:'public'}};`,
+  );
+  const result = run.resolve("={{ $json.result }}");
+  assert.ok(result.sensitivityClasses.includes("pii_candidate"));
+  assert.notEqual(result.status, "resolved");
+  const fixed = run.resolve("={{ $json.fixed }}");
+  assert.equal(fixed.status, "partial");
+  assert.ok(fixed.sensitivityClasses.includes("pii_candidate"));
+  assert.ok(
+    run.flow.diagnostics.some(
+      ({ code }) => code === "code_try_state_unresolved",
+    ),
+  );
+});
+
+test("object writes retain candidates and mark every returned projection opaque", () => {
+  const alias = boundedCode(
+    "const out={fixed:'public'}; const alias=out; alias.value=$json.body.password; return {json:out};",
+  );
+  assert.ok(
+    alias
+      .resolve("={{ $json.value }}")
+      .sensitivityClasses.includes("secret_candidate"),
+  );
+  const separate = boundedCode(
+    "const a={value:$json.body.password}; const b={value:$json.body.password}; b.value='public'; return {json:{first:a.value,second:b.value}};",
+  );
+  assert.ok(
+    separate
+      .resolve("={{ $json.first }}")
+      .sensitivityClasses.includes("secret_candidate"),
+  );
+  const second = separate.resolve("={{ $json.second }}");
+  assert.equal(second.status, "partial");
+  assert.ok(second.sensitivityClasses.includes("secret_candidate"));
+  assert.equal(second.constant, undefined);
+  assert.ok(
+    separate.flow.diagnostics.some(
+      ({ code }) => code === "code_object_mutation_unresolved",
+    ),
+  );
+  const pushed = boundedCode(
+    "const a={x:'safe'}; const b=[]; b.push(a); a.x=$json.body.email; return {json:{v:b[0].x,fixed:'public'}};",
+  );
+  for (const field of ["v", "fixed"]) {
+    const projected = pushed.resolve(`={{ $json.${field} }}`);
+    assert.equal(projected.status, "partial");
+    assert.ok(projected.sensitivityClasses.includes("pii_candidate"));
+    assert.equal(projected.constant, undefined);
+  }
+  assert.ok(
+    pushed.flow.diagnostics.some(
+      ({ code }) => code === "code_object_mutation_unresolved",
+    ),
+  );
+});
+
+test("bounded if alternatives retain secret and personal classes without tainting independent fields", () => {
+  const run = boundedCode(
+    "let result=$json.body.password; if($json.body.flag){result=$json.body.email;} return {json:{result,fixed:'public'}};",
+  );
+  const result = run.resolve("={{ $json.result }}");
+  assert.ok(result.sensitivityClasses.includes("secret_candidate"));
+  assert.ok(result.sensitivityClasses.includes("pii_candidate"));
+  assert.equal(result.guards.length, 0);
+  assert.deepEqual(run.resolve("={{ $json.fixed }}").sensitivityClasses, [
+    "public_literal",
+  ]);
+});
+
+test("map summarizes every possible item and preserves current input wrapper fields", () => {
+  const run = boundedCode(
+    "return $input.all().map(item=>({json:{contact:item.json.body.email,fixed:'public'}}));",
+  );
+  const value = run.resolve("={{ $json.contact }}");
+  assert.ok(value.sensitivityClasses.includes("pii_candidate"));
+  assert.ok(value.origins.some(({ fieldPath }) => fieldPath === "/body/email"));
+  assert.deepEqual(run.resolve("={{ $json.fixed }}").sensitivityClasses, [
+    "public_literal",
+  ]);
+  const later = boundedCode(
+    "const values=[{value:'public'},{value:$json.body.password}]; return values.map(item=>({json:{result:item.value}}));",
+  );
+  assert.ok(
+    later
+      .resolve("={{ $json.result }}")
+      .sensitivityClasses.includes("secret_candidate"),
+  );
+});
+
+test("multiple Code return items never discard sensitive later items", () => {
+  const run = boundedCode(
+    "return [{json:{value:'public'}},{json:{value:$json.body.password}},{json:{value:$json.body.email}}];",
+  );
+  const value = run.resolve("={{ $json.value }}");
+  assert.ok(value.sensitivityClasses.includes("secret_candidate"));
+  assert.ok(value.sensitivityClasses.includes("pii_candidate"));
+  const malformed = boundedCode(
+    "return {0:{json:{value:'public'}},secret:$json.body.password};",
+  );
+  const rejected = malformed.resolve("={{ $json.value }}");
+  assert.notEqual(rejected.status, "resolved");
+  assert.ok(rejected.sensitivityClasses.includes("secret_candidate"));
+});
+
+test("for-of and push preserve zero-iteration uncertainty and possible input classifications", () => {
+  const run = boundedCode(
+    "const result=[]; for(const item of $input.all()){result.push({json:{contact:item.json.body.email}});} return result;",
+  );
+  const value = run.resolve("={{ $json.contact }}");
+  assert.ok(value.sensitivityClasses.includes("pii_candidate"));
+  assert.ok(
+    run.flow.diagnostics.some(
+      ({ code }) => code === "code_loop_summary_partial",
+    ),
+  );
+});
+
+test("spread ordering never proves an overwritten field public or loses classified unknown contents", () => {
+  const annotations = [
+    {
+      node: "Input",
+      fieldPath: "body.password",
+      sensitivity: "secret_candidate",
+      provenance: "schema",
+    },
+  ];
+  const before = boundedCode(
+    "let out={...$json.body,fixed:'public'}; return {json:out};",
+    annotations,
+  );
+  assert.deepEqual(before.resolve("={{ $json.fixed }}").sensitivityClasses, [
+    "public_literal",
+  ]);
+  const after = boundedCode(
+    "let out={fixed:'public',...$json.body}; return {json:out};",
+    annotations,
+  );
+  const value = after.resolve("={{ $json.fixed }}");
+  assert.notEqual(value.status, "resolved");
+  assert.ok(value.sensitivityClasses.includes("secret_candidate"));
+  const arraySpread = boundedCode(
+    "let list=[...$json.body.password]; return {json:{result:list[7]}};",
+    annotations,
+  );
+  assert.ok(
+    arraySpread
+      .resolve("={{ $json.result }}")
+      .sensitivityClasses.includes("secret_candidate"),
+  );
+});
+
+test("pure local helpers retain data while closure writes and external calls stay opaque", () => {
+  const pure = boundedCode(
+    "function clean(value){return value.trim().replace(/x/g,'');} let result=clean($json.body.email); return {json:{result,fixed:'public'}};",
+  );
+  assert.ok(
+    pure
+      .resolve("={{ $json.result }}")
+      .sensitivityClasses.includes("pii_candidate"),
+  );
+  assert.deepEqual(pure.resolve("={{ $json.fixed }}").sensitivityClasses, [
+    "public_literal",
+  ]);
+  const annotations = [
+    {
+      node: "Input",
+      fieldPath: "body.password",
+      sensitivity: "secret_candidate",
+      provenance: "schema",
+    },
+  ];
+  for (const source of [
+    "let result='public'; function mutate(){result=$json.body.password; return 'public';} mutate(); return {json:{result}};",
+    "let result=fetch('https://example.invalid'); return {json:{fixed:'public'}};",
+    "let result='public'; while($json.body.flag){result=$json.body.password;} return {json:{result}};",
+    "let result='public'; globalThis.__valueFlowExecuted=true; return {json:{result}};",
+  ]) {
+    const value = boundedCode(source, annotations).resolve("={{ $json }}");
+    assert.notEqual(value.status, "resolved");
+    assert.ok(value.sensitivityClasses.includes("secret_candidate"));
+  }
+  assert.equal(globalThis.__valueFlowExecuted, undefined);
+});
+
+test("service read responses are new unknown external origins and AI generation retains prompt candidates", () => {
+  for (const service of [
+    node("Service", "gmail", 2.2, { operation: "getAll" }),
+    node("Service", "airtable", 2.1, { operation: "search" }),
+    node("Service", "googleSheets", 4.6, { operation: "read" }),
+    node("Service", "httpRequest", 4.2, { url: "https://example.invalid" }),
+  ]) {
+    const run = setup(chain(web(), service, pass()));
+    const value = run.resolve("={{ $json.email }}");
+    assert.equal(value.status, "partial");
+    assert.equal(value.trust, "external");
+    assert.ok(value.sensitivityClasses.includes("unknown"));
+    assert.ok(
+      value.origins.every(({ nodeKey }) => nodeKey === run.key("Service")),
+    );
+  }
+  const ai = {
+    ...node("Model", "unused", 2.2, {
+      promptType: "define",
+      text: "={{ $json.body.password }}",
+      options: { passthroughBinaryImages: false },
+    }),
+    type: "@n8n/n8n-nodes-langchain.agent",
+  };
+  const run = setup(chain(web(), ai, pass()));
+  const output = run.resolve("={{ $json.output }}");
+  assert.equal(output.status, "partial");
+  assert.ok(output.sensitivityClasses.includes("secret_candidate"));
+  assert.ok(output.sensitivityClasses.includes("unknown"));
+  assert.equal(output.guards.length, 0);
+  assert.equal(output.constant, undefined);
+});
+
+test("nested object and array aliases cannot retain stale public copies after mutation", () => {
+  for (const source of [
+    "function identity(value){return value;} const inner={value:'public'}; const out=identity(inner); inner.value=$json.body.password; return {json:{result:out.value}};",
+    "const inner={value:'public'}; function read(){return inner;} const out=read(); inner.value=$json.body.password; return {json:{result:out.value}};",
+    "const inner={value:'public'}; let out; out=inner; inner.value=$json.body.password; return {json:{result:out.value}};",
+    "const inner={value:'public'}; const out={inner}; inner.value=$json.body.password; return {json:{result:out.inner.value}};",
+    "const inner={value:'public'}; const out=[inner]; inner.value=$json.body.email; return {json:{result:out[0].value}};",
+    "const inner=['public']; const out={inner}; inner.push($json.body.password); return {json:{result:out.inner}};",
+  ]) {
+    const run = boundedCode(source);
+    const value = run.resolve("={{ $json.result }}");
+    assert.equal(value.status, "partial");
+    assert.ok(
+      value.sensitivityClasses.includes(
+        source.includes("email") ? "pii_candidate" : "secret_candidate",
+      ),
+    );
+    assert.equal(value.constant, undefined);
+    assert.ok(
+      run.flow.diagnostics.some(({ code }) =>
+        [
+          "code_nested_alias_mutation_unresolved",
+          "code_closure_capture_unresolved",
+        ].includes(code),
+      ),
+    );
+  }
+});
+
+test("helpers with outer variable captures stay opaque across shadowing callers and branches", () => {
+  const run = boundedCode(
+    "let value=$json.body.password; function read(){return value;} function wrapper(value){return read();} const result=wrapper('public'); return {json:{result}};",
+  );
+  const value = run.resolve("={{ $json.result }}");
+  assert.ok(value.sensitivityClasses.includes("secret_candidate"));
+  assert.equal(value.constant, undefined);
+  assert.equal(value.status, "partial");
+  assert.ok(
+    run.flow.diagnostics.some(
+      ({ code }) => code === "code_closure_capture_unresolved",
+    ),
+  );
+  const updated = boundedCode(
+    "let value='public'; function read(){return value;} value=$json.body.email; let result=read(); return {json:{result}};",
+  );
+  assert.ok(
+    updated
+      .resolve("={{ $json.result }}")
+      .sensitivityClasses.includes("pii_candidate"),
+  );
+  const branch = boundedCode(
+    "let value='public'; let result='public'; function read(){return value;} if($json.body.flag){value=$json.body.password;result=read();} return {json:{result}};",
+  );
+  assert.ok(
+    branch
+      .resolve("={{ $json.result }}")
+      .sensitivityClasses.includes("secret_candidate"),
+  );
+  const shadow = boundedCode(
+    "let value='public'; function read(){return value;} function wrapper(value){return read();} let result='public'; if($json.body.flag){value=$json.body.password; result=wrapper('public');} return {json:{result}};",
+  );
+  const classified = shadow.resolve("={{ $json.result }}");
+  assert.equal(classified.status, "partial");
+  assert.ok(classified.sensitivityClasses.includes("secret_candidate"));
+});
+
+test("loop-carried assignments preserve later-iteration inputs even when first assignment is unchanged", () => {
+  const run = boundedCode(
+    "let previous='public'; let result='public'; for(const item of [$json.body.password,$json.body.email]){result=previous;previous=item;} return {json:{result,fixed:'public'}};",
+  );
+  const value = run.resolve("={{ $json.result }}");
+  assert.equal(value.status, "partial");
+  assert.ok(value.sensitivityClasses.includes("secret_candidate"));
+  assert.ok(value.sensitivityClasses.includes("pii_candidate"));
+  assert.equal(value.constant, undefined);
+  assert.deepEqual(run.resolve("={{ $json.fixed }}").sensitivityClasses, [
+    "public_literal",
+  ]);
+  assert.ok(
+    run.flow.diagnostics.some(
+      ({ code }) => code === "code_loop_carried_state_unverified",
+    ),
+  );
+});
+
+test("array truncation and unresolved writes retain known RHS candidates in the returned value", () => {
+  const entries = Array.from({ length: 128 }, () => "'public'").join(",");
+  for (const source of [
+    `const out=[${entries}]; out.push($json.body.password,$json.body.email); return {json:{result:out}};`,
+    `let out=[${entries},$json.body.password,$json.body.email]; return {json:{result:out}};`,
+    "const out={value:'public'}; out[$json.body.key]=$json.body.password+$json.body.email; return {json:{result:out}};",
+    "let out={[$json.body.key]:$json.body.password+$json.body.email}; return {json:{result:out}};",
+  ]) {
+    const value = boundedCode(source).resolve("={{ $json.result }}");
+    assert.equal(value.status, "partial");
+    assert.ok(value.sensitivityClasses.includes("secret_candidate"));
+    assert.ok(value.sensitivityClasses.includes("pii_candidate"));
+    assert.equal(value.constant, undefined);
+  }
+});
+
+test("prototype mutations stay opaque and never mutate analysis dictionaries", () => {
+  const annotations = [
+    {
+      node: "Input",
+      fieldPath: "body.password",
+      sensitivity: "secret_candidate",
+      provenance: "schema",
+    },
+  ];
+  for (const source of [
+    "let out={__proto__:$json.body}; return {json:{result:out.password}};",
+    "let out={}; out['__proto__']=$json.body; return {json:{result:out.password}};",
+    "let out={'__proto__':{password:$json.body.password}}; return {json:{result:out.password}};",
+  ]) {
+    const run = boundedCode(source, annotations);
+    const value = run.resolve("={{ $json.result }}");
+    assert.equal(value.status, "partial");
+    assert.ok(value.sensitivityClasses.includes("secret_candidate"));
+    assert.equal(value.constant, undefined);
+    assert.ok(
+      run.flow.diagnostics.some(
+        ({ code }) => code === "code_prototype_semantics_unresolved",
+      ),
+    );
+  }
+  assert.equal(Object.prototype.password, undefined);
+  for (const source of [
+    "const out={__proto__:{password:$json.body.password}}; return [{json:{result:out.password}}];",
+    "return [{json:{__proto__:{password:$json.body.password}}}];",
+  ]) {
+    const run = boundedCode(source);
+    const value = run.resolve("={{ $json.result }}");
+    assert.notEqual(value.status, "resolved");
+    assert.ok(value.sensitivityClasses.includes("secret_candidate"));
+  }
+});
+
+test("abstract shape and constant budgets stop exponential construction before allocation", () => {
+  const source = [
+    "let a0={value:$json.body.password};",
+    ...Array.from(
+      { length: 10 },
+      (_, i) => `let a${i + 1}={left:a${i},right:a${i}};`,
+    ),
+    "return {json:{result:a10}};",
+  ].join("");
+  const shape = boundedCode(source);
+  const value = shape.resolve("={{ $json.result }}");
+  assert.equal(value.status, "partial");
+  assert.ok(value.sensitivityClasses.includes("secret_candidate"));
+  assert.ok(
+    shape.flow.diagnostics.some(
+      ({ code }) => code === "code_value_shape_limit",
+    ),
+  );
+  assert.ok(JSON.stringify(value).length < 65536);
+  const text = boundedCode(
+    "let x='x';" + "x=x+x;".repeat(18) + "return {json:{x}};",
+  );
+  const huge = text.resolve("={{ $json.x }}");
+  assert.equal(huge.status, "partial");
+  assert.equal(huge.constant, undefined);
+  assert.ok(
+    text.flow.diagnostics.some(
+      ({ code }) => code === "constant_inference_size_limit",
+    ),
+  );
+});
+
+test("unsupported object properties retain computed-key, RHS and spread classifications", () => {
+  const run = setup(chain(web(), pass()), [
+    {
+      node: "Input",
+      fieldPath: "body.password",
+      sensitivity: "secret_candidate",
+      provenance: "schema",
+    },
+    {
+      node: "Input",
+      fieldPath: "body.email",
+      sensitivity: "pii_candidate",
+      provenance: "schema",
+    },
+  ]);
+  for (const expression of [
+    "({[$json.body.email]:$json.body.password}).x",
+    "({...$json.body}).x",
+    "({...{}, result:$json.body.password, contact:$json.body.email}).result",
+    "({['public']:'public', result:$json.body.password, contact:$json.body.email}).result",
+    "({__proto__:{},result:$json.body.password,contact:$json.body.email}).result",
+    "({...{}, password:'synthetic-private', email:'synthetic@example.test'}).missing",
+  ]) {
+    const value = run.flow.resolveExpression(run.key("Sink"), expression);
+    assert.equal(value.status, "partial");
+    assert.ok(value.sensitivityClasses.includes("secret_candidate"));
+    assert.ok(value.sensitivityClasses.includes("pii_candidate"));
+    assert.equal(value.constant, undefined);
+  }
+  const crowded = `({...{}, secret:$json.body.password, ${Array.from({ length: 128 }, (_, index) => `v${index}:'public'`).join(",")}}).missing`;
+  const limited = run.flow.resolveExpression(run.key("Sink"), crowded);
+  assert.equal(limited.status, "partial");
+  assert.ok(limited.sensitivityClasses.includes("secret_candidate"));
+  assert.ok(limited.sensitivityClasses.includes("unknown"));
+  assert.ok(limited.diagnosticCodes.includes("flow_field_limit"));
+  for (const source of [
+    "return [{json:{result: ({[$json.body.email]:$json.body.password}).x}}];",
+    "const a={...$json.body.password}; return [{json:{result:a.x}}];",
+  ]) {
+    const value = boundedCode(source).resolve("={{ $json.result }}");
+    assert.equal(value.status, "partial");
+    assert.ok(value.sensitivityClasses.includes("secret_candidate"));
+    assert.equal(value.constant, undefined);
+  }
+});
+
+test("try catch never loses an intermediate sensitive assignment on the exception path", () => {
+  const run = boundedCode(
+    "let x='safe'; try{x=$env.SECRET;JSON.parse($json.body.text);}catch(e){return{json:{v:x}};}return{json:{v:'safe'}};",
+  );
+  const value = run.resolve("={{ $json.v }}");
+  assert.equal(value.status, "partial");
+  assert.ok(value.sensitivityClasses.includes("secret_candidate"));
+  assert.equal(value.constant, undefined);
+  assert.ok(
+    run.flow.diagnostics.some(
+      ({ code }) => code === "code_try_state_unresolved",
+    ),
+  );
+});
+
+test("JS and n8n template constants preserve literal-substitution order for destination policy", () => {
+  const expected = "https://blocked.example/https://allowed.example/";
+  const code = boundedCode(
+    "let x='https://allowed.example/';return{json:{v:`https://blocked.example/${x}`}};",
+  );
+  const raw = setup(chain(web(), pass()));
+  const values = [
+    code.resolve("={{ $json.v }}"),
+    raw.flow.resolveExpression(
+      raw.key("Sink"),
+      "`https://blocked.example/${'https://allowed.example/'}`",
+    ),
+    raw.resolve("=https://blocked.example/{{ 'https://allowed.example/' }}"),
+  ];
+  for (const value of values) {
+    assert.equal(value.constant, expected);
+    const policy = {
+      policy: {
+        egress: [
+          {
+            id: "route",
+            nodeKey: "sink",
+            sink: "http",
+            mode: "allowlist",
+            destinations: ["https://allowed.example/"],
+            allowedDataClasses: ["public"],
+          },
+        ],
+      },
+    };
+    assert.equal(
+      assessDestination(policy, "sink", "http", value.constant, ["public"])
+        .status,
+      "disallowed",
+    );
+  }
+  assert.equal(
+    raw.resolve("=prefix{{ 'a' }}middle{{ 'b' }}suffix").constant,
+    "prefixamiddlebsuffix",
+  );
+  assert.equal(
+    raw.flow.resolveExpression(
+      raw.key("Sink"),
+      "`prefix${'a'}middle${'b'}suffix`",
+    ).constant,
+    "prefixamiddlebsuffix",
+  );
+  assert.equal(raw.resolve("= {{ 'public' }} ").constant, " public ");
+});
+
+test("unsupported statement profiles retain lexical credential and personal source candidates", () => {
+  const prefix = "const x=$env.SECRET; const person=$json.body.email;";
+  for (const statement of [
+    "while(false){}",
+    "for(let i=0;i<0;i++){}",
+    "for(const key in {}){}",
+    "do{}while(false);",
+    "switch(false){case true:break;}",
+    "async function ignored(){await Promise.resolve($credentials.apiKey);}",
+    "function* ignored(){yield $credentials.apiKey;}",
+    "class Ignored { constructor(){globalThis.__valueFlowExecuted=true;} }",
+    "import('synthetic-never-imported');",
+  ]) {
+    const run = boundedCode(prefix + statement + "return {json:{v:x}};");
+    const value = run.resolve("={{ $json.v }}");
+    assert.equal(value.status, "partial");
+    assert.ok(value.sensitivityClasses.includes("secret_candidate"));
+    assert.ok(value.sensitivityClasses.includes("pii_candidate"));
+    assert.ok(value.origins.some(({ kind }) => kind === "credential"));
+    assert.equal(value.constant, undefined);
+    assert.equal(value.fields, undefined);
+    assert.equal(value.fieldsComplete, false);
+    assert.deepEqual(value.guards, []);
+    assert.ok(
+      run.flow.diagnostics.some(
+        ({ code }) => code === "code_source_observations_only",
+      ),
+    );
+  }
+  assert.equal(globalThis.__valueFlowExecuted, undefined);
+});
+
+test("opaque observations include bare credentials, template text and field-name personal candidates", () => {
+  for (const expression of ["$env", "$credentials", "`${$env.SECRET}`"]) {
+    const value = boundedCode(
+      `const x=${expression}; while(false){} return {json:{v:x}};`,
+    ).resolve("={{ $json.v }}");
+    assert.ok(value.sensitivityClasses.includes("secret_candidate"));
+    assert.ok(value.origins.some(({ kind }) => kind === "credential"));
+    assert.equal(value.status, "partial");
+  }
+  for (const expression of [
+    "{phone:'2025550123'}",
+    "`synthetic@example.invalid`",
+  ]) {
+    const value = boundedCode(
+      `const x=${expression}; while(false){} return {json:{v:x}};`,
+    ).resolve("={{ $json.v }}");
+    assert.ok(value.sensitivityClasses.includes("pii_candidate"));
+    assert.equal(value.status, "partial");
+  }
+});
+
+test("AST, source-size and syntax limits retain observed candidates without precise output claims", () => {
+  const prefix = "const x=$env.SECRET;const person=$json.body.email;";
+  for (const [source, diagnostic] of [
+    [
+      prefix +
+        `const many=[${Array.from({ length: 2300 }, () => "0").join(",")}];while(false){}return {json:{v:x}};`,
+      "code_ast_profile_limit",
+    ],
+    [prefix + "return {", "code_parse_unavailable"],
+    [
+      prefix + "/*" + "x".repeat(66000) + "*/return {json:{v:x}};",
+      "code_source_size_limit",
+    ],
+    [
+      prefix +
+        "const phone='unused'; await unavailable(); return {json:{v:x}};",
+      "code_parse_unavailable",
+    ],
+  ]) {
+    const run = boundedCode(source);
+    const value = run.resolve("={{ $json.v }}");
+    assert.equal(value.status, "partial");
+    assert.ok(value.sensitivityClasses.includes("secret_candidate"));
+    assert.ok(value.sensitivityClasses.includes("pii_candidate"));
+    assert.ok(value.origins.some(({ kind }) => kind === "credential"));
+    assert.equal(value.constant, undefined);
+    assert.deepEqual(value.guards, []);
+    assert.ok(run.flow.diagnostics.some(({ code }) => code === diagnostic));
+  }
+  const plain = boundedCode(
+    "const x='public';/*" + "x".repeat(66000) + "*/return{json:{v:x}};",
+  );
+  assert.notEqual(plain.resolve("={{ $json.v }}").status, "resolved");
+  assert.ok(
+    plain.flow.diagnostics.some(
+      ({ code }) => code === "code_source_size_limit",
+    ),
+  );
+});
+
+test("opaque lexical observations do not treat comments strings regexes or ordinary keys as root reads", () => {
+  for (const ending of [
+    "while(false){}return {json:{v:'public'}};",
+    "return {",
+  ]) {
+    const source =
+      "// $env.SECRET $json.body.email\nconst a='$env.SECRET'; const b={$env:'public',$credentials:'public'};const pattern=/\\$env.SECRET/;" +
+      ending;
+    const value = boundedCode(source).resolve("={{ $json.v }}");
+    assert.equal(value.sensitivityClasses.includes("secret_candidate"), false);
+    assert.equal(value.sensitivityClasses.includes("pii_candidate"), false);
+    assert.equal(
+      value.origins.some(({ kind }) => kind === "credential"),
+      false,
+    );
+    assert.notEqual(value.status, "resolved");
+  }
+});
+
+test("source observations separate scoped bindings and inactive language fields from actual global reads", () => {
+  for (const source of [
+    "function f($env){return $env.ordinary;} while(false){} return {json:{v:'public'}};",
+    "function f(){if(false){var $env;}return $env.ordinary;}while(false){}return{json:{v:'public'}};",
+    "const C=class $env{m(){return $env.ordinary;}};while(false){}return{json:{v:'public'}};",
+    "const $env={ordinary:'public'};while(false){}return {json:{v:$env.ordinary}};",
+    "{const {$env}=object;while(false){} const x=$env.ordinary;}return{json:{v:'public'}};",
+    "const x=object?.$env; )",
+    "const x={$env(){return 'public';}}; )",
+    "function f($env){return 'public';} )",
+    "const {$env}=object; )",
+    "let $env={ordinary:'public'};const x=$env.ordinary; )",
+    "const {ordinary:$env}=object;const x=$env.ordinary; )",
+  ]) {
+    const value = boundedCode(source).resolve("={{ $json.v }}");
+    assert.equal(value.sensitivityClasses.includes("secret_candidate"), false);
+    assert.equal(
+      value.origins.some(({ kind }) => kind === "credential"),
+      false,
+    );
+    assert.notEqual(value.status, "resolved");
+  }
+  for (const source of [
+    "function unused($env){} const x=$env.SECRET;while(false){}return{json:{v:x}};",
+    "const C=class $env{m(){return $env.ordinary;}};const x=$env.SECRET;while(false){}return{json:{v:x}};",
+    "{const $env={ordinary:'public'};const ignored=$env.ordinary;} const x=$env.SECRET;while(false){}return{json:{v:x}};",
+  ]) {
+    const value = boundedCode(source).resolve("={{ $json.v }}");
+    assert.ok(value.sensitivityClasses.includes("secret_candidate"));
+    assert.ok(value.origins.some(({ kind }) => kind === "credential"));
+  }
+  const inactive = setup(
+    chain(
+      web(),
+      node("Formatter", "code", 2, {
+        language: "python",
+        pythonCode: "return []",
+        jsCode: "const x=$env.SECRET;/*" + "x".repeat(66000) + "*/",
+      }),
+      pass(),
+    ),
+  );
+  const value = inactive.resolve("={{ $json.v }}");
+  assert.equal(value.sensitivityClasses.includes("secret_candidate"), false);
+  assert.ok(
+    inactive.flow.diagnostics.some(
+      ({ code }) => code === "code_language_unresolved",
+    ),
+  );
+  assert.equal(
+    inactive.flow.diagnostics.some(
+      ({ code }) => code === "code_source_size_limit",
+    ),
+    false,
+  );
 });
