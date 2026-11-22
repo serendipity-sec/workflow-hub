@@ -236,8 +236,13 @@ export class WorkerApiClient {
     leaseEnd = Infinity,
   ): Promise<T> {
     checkActive(signal, leaseEnd);
+    const remainingLeaseMs = leaseEnd - Date.now();
+    // A relative timer may fire just before Date.now() reaches the deadline.
+    // Preserve which deadline bounded this request instead of retrying an expired lease.
+    const timeoutCode =
+      remainingLeaseMs <= limits.apiTimeoutMs ? "lease_expired" : "api_timeout";
     const timeout = AbortSignal.timeout(
-      Math.max(1, Math.min(limits.apiTimeoutMs, leaseEnd - Date.now())),
+      Math.max(1, Math.min(limits.apiTimeoutMs, remainingLeaseMs)),
     );
     const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
     try {
@@ -249,7 +254,7 @@ export class WorkerApiClient {
       try {
         const value = await handle(response);
         checkActive(signal, leaseEnd);
-        if (timeout.aborted) throw new WorkerFailure("api_timeout");
+        if (timeout.aborted) throw new WorkerFailure(timeoutCode);
         return value;
       } finally {
         await response.body?.cancel().catch(() => undefined);
@@ -258,7 +263,7 @@ export class WorkerApiClient {
       if (error instanceof WorkerFailure) throw error;
       checkActive(signal, leaseEnd);
       throw new WorkerFailure(
-        timeout.aborted ? "api_timeout" : "api_unreachable",
+        timeout.aborted ? timeoutCode : "api_unreachable",
       );
     }
   }

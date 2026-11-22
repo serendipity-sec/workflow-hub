@@ -363,6 +363,34 @@ test("lease expiry stops a stalled download and a stalled submission", async (t)
   }
 });
 
+test("a lease-limited timer stays terminal when the wall clock trails the timer", async (t) => {
+  const now = Date.now();
+  t.mock.method(Date, "now", () => now);
+  for (const scenario of [{ stallFile: true }, { stallSubmit: true }]) {
+    const { client, requests } = await mock(t, {
+      ...scenario,
+      claim: { leaseExpiresAt: new Date(now + 50).toISOString() },
+    });
+    await assert.rejects(
+      runRemoteOnce(client, {
+        analyzer: async (_bytes, ids) => ({
+          ...ids,
+          ...resultVersions,
+          status: "error",
+          code: "invalid_json",
+        }),
+      }),
+      { code: "lease_expired" },
+    );
+    assert.deepEqual(
+      requests.map(({ url }) => url),
+      scenario.stallFile
+        ? [claimPath, filePath]
+        : [claimPath, filePath, resultPath],
+    );
+  }
+});
+
 test("lease rejection, expired lease and rejected retry wait are explicit", async (t) => {
   for (const [code, wanted] of [
     [409, "lease_rejected"],

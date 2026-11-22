@@ -76,6 +76,8 @@ async function execute(
     bytes = await fetchBytes();
   } catch (error) {
     checkActive(signal, leaseEnd);
+    if (error instanceof WorkerFailure && error.code === "lease_expired")
+      throw error;
     return resultError(identity, knownFailure(error, "file_access"));
   }
   checkActive(signal, leaseEnd);

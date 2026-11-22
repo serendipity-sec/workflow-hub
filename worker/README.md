@@ -2,7 +2,7 @@
 
 Workflow Hub의 `worker/`에서 n8n JSON을 정적으로 분석합니다. 결과에 적용된 규칙과 분석 범위를 기록합니다. 설계 기준은 [보안 설계](../docs/SECURITY_DESIGN.md)와 [Workflow Hub PR #7](https://github.com/serendipity-sec/workflow-hub/pull/7)입니다.
 
-현재 기본 진입점은 **`assess`**입니다. 10개 범주에 필드 흐름·메신저/이메일·실제 NLP/Python AST·SQL AST·정책·환경/패키지 근거·자식 정의·수정안을 연결합니다. Docker에서 네트워크·파일 쓰기·자원을 제한합니다. [통합 검사 실행법과 지원 범위](docs/assessment.md), [SEC 사례 25개 대응표](docs/assessment-evidence.md), [현재 실측 검증](validation/worker-completion-0.4.0-results.json)을 먼저 확인하세요. 실제 팀 API는 연결하지 않았습니다.
+현재 기본 진입점은 **`assess`**입니다. 10개 범주에 필드 흐름·메신저/이메일·실제 NLP/Python AST·SQL AST·정책·환경/패키지 근거·자식 정의·수정안을 연결합니다. Docker에서 네트워크·파일 쓰기·자원을 제한합니다. [통합 검사 실행법과 지원 범위](docs/assessment.md), [SEC 사례 25개 대응표](docs/assessment-evidence.md), [현재 완료 범위와 실측 검증](docs/worker-completion.md)을 먼저 확인하세요. 실제 팀 API는 연결하지 않았습니다.
 
 [엔진 0.3.0의 공개 템플릿 15개 검증](docs/public-service-validation.md)에서 확인한 입력 호환성·개인정보 오탐·SQL/전송 지원·전체 비교 공백을 0.4.0에서 보완했습니다. 현재 완료 범위와 남은 서비스 조건은 [#7 기준 워커 완료 범위](docs/worker-completion.md), 전체 결과 비교는 [compare-assessment 계약](docs/assessment-comparison.md)을 확인하세요. 과거 실측 기록은 덮어쓰지 않습니다.
 
