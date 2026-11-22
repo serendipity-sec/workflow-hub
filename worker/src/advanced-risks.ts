@@ -59,7 +59,24 @@ export function inspectSqlOperation(
   });
   if (query.length > 16384) return unavailable("sql_parser_input_limit");
   try {
-    const parsed = parser.astify(query, { database: dialect }) as unknown;
+    // PostgreSQL's $N::type is valid in expressions where this parser version
+    // only accepts ($N)::type. Parentheses preserve the value and cast. Never
+    // rewrite quoted strings/identifiers, comments, or dollar-quoted bodies.
+    const lexical = sqlLexicalView(query, dialect);
+    if (lexical.diagnosticCodes.length)
+      return unavailable(lexical.diagnosticCodes[0]!);
+    const outside = dialect === "Postgresql" ? lexical.text : "";
+    let normalized = query;
+    for (const match of [
+      ...outside.matchAll(/(?<![A-Za-z0-9_$\u0080-\uFFFF])\$(\d+)(?=\s*::)/g),
+    ].reverse())
+      normalized =
+        normalized.slice(0, match.index) +
+        "(" +
+        match[0] +
+        ")" +
+        normalized.slice(match.index + match[0].length);
+    const parsed = parser.astify(normalized, { database: dialect }) as unknown;
     const statements = Array.isArray(parsed) ? parsed : [parsed];
     if (statements.length > 32 || statements.some((item) => !isObject(item)))
       return unavailable("sql_statement_profile_unsupported");
@@ -116,7 +133,7 @@ function rule(ruleId: string, category: "sql" | "code_execution"): RuleResult {
   return {
     ruleId,
     category,
-    profileVersion: "1.0.0",
+    profileVersion: "1.1.0",
     coverage: [],
     findings: [],
     diagnostics: [],
@@ -223,7 +240,7 @@ function finish(result: RuleResult): RuleResult {
     });
   return result;
 }
-const postgresVersions = new Set([2.5, 2.6, 2.8]);
+const postgresVersions = new Set([2.4, 2.5, 2.6, 2.8]);
 const mysqlVersions = new Set([2, 2.1, 2.2, 2.3, 2.4, 2.5]);
 const mssqlVersions = new Set([1, 1.1, 1.2]);
 
@@ -309,12 +326,144 @@ function replacementCount(value: unknown): number | undefined {
   }
 }
 
-function outsideSqlText(query: string): string {
+interface ParameterBinding {
+  configured: boolean;
+  count?: number;
+  diagnostics: string[];
+}
+
+function postgresBinding(value: unknown, version: number): ParameterBinding {
+  const arrayCount = replacementCount(value);
+  if (arrayCount !== undefined)
+    return { configured: true, count: arrayCount, diagnostics: [] };
+  if (typeof value === "number")
+    return { configured: true, count: 1, diagnostics: [] };
+  if (typeof value !== "string") return { configured: false, diagnostics: [] };
+  const raw = value.replace(/^=+/, "");
+  const expressions = [...raw.matchAll(/\{\{([\s\S]*?)\}\}/g)];
+  const remainder = raw.replace(/\{\{([\s\S]*?)\}\}/g, "");
+  if (remainder.includes("{{") || remainder.includes("}}"))
+    return {
+      configured: false,
+      diagnostics: ["sql_parameter_expression_unresolved"],
+    };
+  if (!expressions.length)
+    return {
+      configured: raw.length > 0,
+      count: raw.split(",").filter(Boolean).length,
+      diagnostics: [],
+    };
+  // 2.5/2.6 split each evaluated scalar on commas and can omit undefined array
+  // entries. This is still a value channel, but the positional mapping depends
+  // on actual data. 2.8 preserves each scalar as one value, including null.
+  if (version >= 2.5 && version < 2.8) {
+    for (const match of expressions) {
+      try {
+        const expression = match[1]!;
+        const ast = parseExpressionAt(expression, 0, {
+          ecmaVersion: "latest",
+        }) as unknown;
+        if (
+          !isObject(ast) ||
+          typeof ast.end !== "number" ||
+          expression.slice(ast.end).trim()
+        )
+          return {
+            configured: false,
+            diagnostics: ["sql_parameter_expression_unresolved"],
+          };
+      } catch {
+        return {
+          configured: false,
+          diagnostics: ["sql_parameter_expression_unresolved"],
+        };
+      }
+    }
+    return {
+      configured: true,
+      diagnostics: ["sql_parameter_mapping_data_dependent"],
+    };
+  }
+  let count = 0;
+  for (const match of expressions) {
+    try {
+      const expression = match[1]!;
+      const ast = parseExpressionAt(expression, 0, {
+        ecmaVersion: "latest",
+      }) as unknown;
+      if (
+        !isObject(ast) ||
+        typeof ast.end !== "number" ||
+        expression.slice(ast.end).trim()
+      )
+        return {
+          configured: false,
+          diagnostics: ["sql_parameter_expression_unresolved"],
+        };
+      if (
+        version < 2.5 &&
+        value.startsWith("=") &&
+        raw.trim() === match[0] &&
+        ast.type !== "Literal"
+      )
+        return {
+          configured: true,
+          diagnostics: ["sql_parameter_mapping_data_dependent"],
+        };
+      if (version >= 2.8) {
+        // A field can evaluate to an array. Its runtime cardinality is unknown;
+        // literal primitive expressions and literal array syntax are bounded.
+        if (ast.type === "Literal") count++;
+        else if (
+          ast.type === "ArrayExpression" &&
+          Array.isArray(ast.elements) &&
+          !ast.elements.some(
+            (item) => !isObject(item) || item.type === "SpreadElement",
+          )
+        )
+          count += ast.elements.length;
+        else
+          return {
+            configured: true,
+            diagnostics: ["sql_parameter_mapping_data_dependent"],
+          };
+      } else {
+        // <2.5 splits raw text first. Commas inside an expression can break the
+        // token boundary; do not treat such syntax as an exact scalar mapping.
+        if (expression.includes(","))
+          return {
+            configured: true,
+            diagnostics: ["sql_parameter_mapping_data_dependent"],
+          };
+        count++;
+      }
+    } catch {
+      return {
+        configured: false,
+        diagnostics: ["sql_parameter_expression_unresolved"],
+      };
+    }
+  }
+  if (version < 2.5)
+    count += raw
+      .split(",")
+      .filter((part) => part.length > 0 && !part.includes("{{")).length;
+  return { configured: true, count, diagnostics: [] };
+}
+
+function sqlLexicalView(
+  query: string,
+  dialect: SqlDialect,
+): { text: string; diagnosticCodes: string[] } {
   let masked = "",
     quote: string | undefined,
-    block = false,
+    blockDepth = 0,
     line = false,
-    dollar: string | undefined;
+    dollar: string | undefined,
+    escapeString = false,
+    ambiguousString = false;
+  const identifierPart = (value: string | undefined): boolean =>
+    value !== undefined && /[A-Za-z0-9_$\u0080-\uFFFF]/.test(value);
   for (let index = 0; index < query.length; index++) {
     if (dollar) {
       if (query.startsWith(dollar, index)) {
@@ -329,13 +478,16 @@ function outsideSqlText(query: string): string {
       if (query[index] === "\n") line = false;
       continue;
     }
-    if (block) {
-      masked += " ";
-      if (query.startsWith("*/", index)) {
-        masked += " ";
+    if (blockDepth) {
+      if (dialect !== "MySQL" && query.startsWith("/*", index)) {
+        masked += "  ";
         index++;
-        block = false;
-      }
+        blockDepth++;
+      } else if (query.startsWith("*/", index)) {
+        masked += "  ";
+        index++;
+        blockDepth--;
+      } else masked += " ";
       continue;
     }
     if (quote) {
@@ -345,15 +497,26 @@ function outsideSqlText(query: string): string {
           masked += " ";
           index++;
         } else quote = undefined;
-      } else if (query[index] === "\\" && quote !== "]") {
-        masked += " ";
-        index++;
+      } else if (query[index] === "\\") {
+        if (escapeString || (dialect === "MySQL" && quote !== "]")) {
+          if (index + 1 < query.length) {
+            masked += " ";
+            index++;
+          }
+        } else if (dialect === "Postgresql" && quote === "'") {
+          // The workflow does not provide standard_conforming_strings. Do
+          // not normalize or certify bindings across an ambiguous boundary.
+          ambiguousString = true;
+        }
       }
       continue;
     }
-    const tag = /^(\$[A-Za-z_][A-Za-z0-9_]*\$|\$\$)/.exec(
-      query.slice(index),
-    )?.[1];
+    const tag =
+      dialect === "Postgresql" && !identifierPart(query[index - 1])
+        ? /^(\$[A-Za-z_\u0080-\uFFFF][A-Za-z0-9_\u0080-\uFFFF]*\$|\$\$)/.exec(
+            query.slice(index),
+          )?.[1]
+        : undefined;
     if (tag) {
       dollar = tag;
       masked += " ".repeat(tag.length);
@@ -363,15 +526,34 @@ function outsideSqlText(query: string): string {
       masked += "  ";
       index++;
     } else if (query.startsWith("/*", index)) {
-      block = true;
+      blockDepth = 1;
       masked += "  ";
       index++;
-    } else if (["'", '"', "`", "["].includes(query[index]!)) {
+    } else if (
+      [
+        "'",
+        '"',
+        ...(dialect === "MySQL" ? ["`"] : []),
+        ...(dialect === "TransactSQL" ? ["["] : []),
+      ].includes(query[index]!)
+    ) {
       quote = query[index] === "[" ? "]" : query[index];
+      escapeString =
+        dialect === "Postgresql" &&
+        quote === "'" &&
+        /[eE]/.test(query[index - 1] ?? "") &&
+        !identifierPart(query[index - 2]);
       masked += " ";
     } else masked += query[index];
   }
-  return masked;
+  return {
+    text: masked,
+    diagnosticCodes: ambiguousString
+      ? ["sql_string_escape_context_unverified"]
+      : quote || dollar || blockDepth
+        ? ["sql_lexical_boundary_unresolved"]
+        : [],
+  };
 }
 
 function sqlRules(context: Context, flow: ValueFlow): RuleResult {
@@ -431,13 +613,17 @@ function sqlRules(context: Context, flow: ValueFlow): RuleResult {
         structure.slice(template.end);
     // n8n MySQL and MSSQL expose $N; their adapters convert them to native
     // driver placeholders. :name is an identifier formatting mode, not a value.
-    const outside = outsideSqlText(query);
+    const lexical = sqlLexicalView(query, dialect);
+    const outside = lexical.text;
+    for (const code of lexical.diagnosticCodes) scope.diagnostic(code);
     const identifiers = [
       ...outside.matchAll(/\$(\d+):(name|csv|raw|value|alias)/g),
     ];
-    const placeholders = [...outside.matchAll(/\$(\d+)(?!\d|:)/g)].map(
-      (match) => Number(match[1]),
-    );
+    const placeholders = [
+      ...outside.matchAll(
+        /(?<![A-Za-z0-9_$\u0080-\uFFFF])\$(\d+)(?!\d|:(?!:))/g,
+      ),
+    ].map((match) => Number(match[1]));
     if (dialect !== "Postgresql")
       structure = structure.replace(/\$(\d+)(?!\d|:)/g, (_, index: string) =>
         dialect === "MySQL" ? "?" : "@p" + index,
@@ -459,7 +645,11 @@ function sqlRules(context: Context, flow: ValueFlow): RuleResult {
       : {};
     if (
       options.queryReplacement !== undefined &&
-      [...query.matchAll(/\$(\d+)(?!\d|:)/g)].length !== placeholders.length
+      [
+        ...query.matchAll(
+          /(?<![A-Za-z0-9_$\u0080-\uFFFF])\$(\d+)(?!\d|:(?!:))/g,
+        ),
+      ].length !== placeholders.length
     )
       scope.diagnostic("sql_quoted_parameter_mapping_unverified");
     if (identifiers.length) {
@@ -473,16 +663,40 @@ function sqlRules(context: Context, flow: ValueFlow): RuleResult {
         scope.add("sql_raw_format_input_candidate", "high", "candidate");
     }
     if (placeholders.length) {
-      const count = replacementCount(options.queryReplacement);
+      const binding =
+        dialect === "Postgresql"
+          ? postgresBinding(options.queryReplacement, node.typeVersion)
+          : {
+              configured:
+                replacementCount(options.queryReplacement) !== undefined,
+              count: replacementCount(options.queryReplacement),
+              diagnostics: [],
+            };
+      const count = binding.count;
+      for (const code of binding.diagnostics) scope.diagnostic(code);
       if (
         count !== undefined &&
         count >= Math.max(...placeholders) &&
         placeholders.every((number) => number >= 1) &&
         !identifiers.length &&
-        operation.status === "parsed"
+        operation.status === "parsed" &&
+        operation.valueParameterCount >= placeholders.length
       )
         scope.add("sql_value_binding_configured", "info", "configuration");
-      else scope.diagnostic("sql_parameter_binding_unresolved");
+      else {
+        if (
+          binding.configured &&
+          !identifiers.length &&
+          operation.status === "parsed" &&
+          operation.valueParameterCount > 0
+        )
+          scope.add(
+            "sql_value_parameter_channel_configured",
+            "info",
+            "configuration",
+          );
+        scope.diagnostic("sql_parameter_binding_unresolved");
+      }
     }
     if (
       dialect === "TransactSQL" &&
@@ -492,7 +706,7 @@ function sqlRules(context: Context, flow: ValueFlow): RuleResult {
       scope.diagnostic("sql_native_parameter_mapping_unverified");
     if (dialect === "MySQL" && query.includes("?") && !placeholders.length)
       scope.diagnostic("sql_native_parameter_mapping_unverified");
-    if (!templates.length && raw.startsWith("="))
+    if (!templates.length && /\{\{|\}\}/.test(raw))
       scope.diagnostic("sql_dynamic_expression_unresolved");
     for (const template of templates) {
       const value = flow.resolve(node.key, "=" + template.expression);
@@ -588,7 +802,7 @@ function javascriptRules(context: Context, flow: ValueFlow): RuleResult {
         scope.diagnostic("command_content_missing");
       else {
         scope.add("command_execution_capability", "medium", "configuration");
-        if (command.startsWith("=")) {
+        if (command.startsWith("=") && /\{\{|\}\}/.test(command)) {
           const value = flow.resolve(node.key, command);
           scope.add(
             hasExternal(value)

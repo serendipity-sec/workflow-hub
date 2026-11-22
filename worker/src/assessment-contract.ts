@@ -11,6 +11,12 @@ import { policyEvaluationSchema } from "./assessment-policy.js";
 import { scannerResultSchema } from "./static-engine.js";
 import { nativeInspectionResultSchema } from "./native-inspection.js";
 import { remediationPlansSchema } from "./assessment-change.js";
+import { errorCodes } from "./contract.js";
+import {
+  functionSummarySchema,
+  findingPresentationSchema,
+  presentFindings,
+} from "./assessment-summary.js";
 
 export const assessmentLimits = {
   inputBytes: 2 * 1024 * 1024,
@@ -103,6 +109,8 @@ export const fileAssessmentSchema = z
       native: nativeInspectionResultSchema,
     }),
     remediation: remediationPlansSchema,
+    functionSummary: functionSummarySchema.optional(),
+    findingPresentation: findingPresentationSchema.optional(),
   })
   .refine(
     (file) =>
@@ -129,6 +137,39 @@ export const fileAssessmentSchema = z
       reportStatus(rules) !== "analyzed" ||
       file.tools.gitleaks.status === "error" ||
       file.tools.native.modes.some((mode) => mode.status === "error");
+    if (file.functionSummary) {
+      const inventory = new Map(
+        file.functionSummary.nodes.map((node) => [node.nodeKey, node.pointer]),
+      );
+      const locations = rules.flatMap((rule) => [
+        ...rule.coverage.map((entry) => entry.location),
+        ...rule.findings.flatMap((finding) => [
+          finding.location,
+          ...finding.evidence.map((entry) => entry.location),
+        ]),
+        ...rule.diagnostics.map((entry) => entry.location),
+      ]);
+      if (
+        locations.some(
+          (location) =>
+            location.nodeKey !== null &&
+            (inventory.get(location.nodeKey) === undefined ||
+              !(
+                location.pointer === inventory.get(location.nodeKey) ||
+                location.pointer.startsWith(
+                  `${inventory.get(location.nodeKey)}/`,
+                )
+              )),
+        )
+      )
+        return false;
+    }
+    if (
+      file.findingPresentation &&
+      JSON.stringify(file.findingPresentation) !==
+        JSON.stringify(presentFindings(rules.flatMap((rule) => rule.findings)))
+    )
+      return false;
     if (incomplete && file.policy.decision === "allow") return false;
     if (file.policy.status !== "evaluated") return true;
     const findingIds = new Set(
@@ -143,7 +184,7 @@ export const fileAssessmentSchema = z
   });
 const header = {
   assessmentVersion: z.literal("1.0.0"),
-  engineVersion: z.literal("0.3.0"),
+  engineVersion: z.enum(["0.3.0", "0.4.0"]),
   inputSha256: hash,
   execution: z.literal("not_run"),
   boundary: assessmentBoundarySchema,
@@ -154,6 +195,15 @@ export const assessmentReportSchema = z
       ...header,
       status: z.literal("error"),
       code: z.enum(assessmentFailureCodes),
+      inputDiagnosis: z
+        .strictObject({
+          code: z.enum(errorCodes),
+          pointer: z
+            .string()
+            .regex(/^\/(?:nodes(?:\/(?:0|[1-9][0-9]*))?|connections)$/)
+            .nullable(),
+        })
+        .optional(),
     }),
     z.strictObject({
       ...header,
@@ -174,7 +224,15 @@ export const assessmentReportSchema = z
       Buffer.byteLength(JSON.stringify(report)) > assessmentLimits.resultBytes
     )
       return false;
-    if (report.status === "error") return true;
+    if (report.status === "error")
+      return !report.inputDiagnosis || report.code === "invalid_input";
+    if (
+      report.engineVersion === "0.4.0" &&
+      report.files.some(
+        (file) => !file.functionSummary || !file.findingPresentation,
+      )
+    )
+      return false;
     const root = report.files[0];
     const keys = new Set(report.files.map((file) => file.analysisKey));
     const incomplete =
@@ -249,7 +307,7 @@ export function assessmentError(
 ): AssessmentReport {
   return {
     assessmentVersion: "1.0.0",
-    engineVersion: "0.3.0",
+    engineVersion: "0.4.0",
     inputSha256,
     execution: "not_run",
     boundary,

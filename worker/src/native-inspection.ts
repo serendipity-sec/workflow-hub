@@ -41,6 +41,12 @@ const diagnosticCode = z.enum([
   "nlp_english_model_profile",
   "nlp_language_outside_profile",
   "nlp_field_analysis_failed",
+  "nlp_metadata_formats_only",
+  "nlp_program_formats_only",
+  "nlp_template_literal_text_only",
+  "nlp_json_string_values_only",
+  "nlp_json_text_unresolved",
+  "nlp_technical_entity_filtered",
   "python_static_profile_limited",
   "python_ast_limit",
   "python_wildcard_import_unresolved",
@@ -163,6 +169,47 @@ function fieldsFor(context: Context, mode: "nlp" | "python"): ScalarField[] {
   );
 }
 
+type NamedEntityScope =
+  "metadata" | "program" | "prose" | "data" | "template" | "json";
+
+/** Format recognizers still receive every key/value. NER sees data/prose, not schema syntax. */
+export function nativeNlpScope(field: ScalarField): NamedEntityScope {
+  if (field.kind === "key") return "metadata";
+  const path = field.pointer;
+  if (/^\/pinData(?:\/|$)/.test(path)) return "data";
+  if (
+    /^\/(?:id|name|versionId|versionCounter|tags|connections|settings|meta)(?:\/|$)/.test(
+      path,
+    ) ||
+    /^\/nodes\/\d+\/(?:id|name|type|typeVersion|position|credentials|webhookId|retryOnFail|onError)(?:\/|$)/.test(
+      path,
+    ) ||
+    /^\/nodes\/\d+\/parameters\/(?:resource|operation|mode|language|authentication|specifyBody|specifyQuery|specifyHeaders|respondWith|responseMode|contentType|httpMethod|messageType|emailFormat|select|rule)(?:\/|$)/.test(
+      path,
+    ) ||
+    /^\/nodes\/\d+\/parameters\/assignments\/assignments\/\d+\/(?:id|type)$/.test(
+      path,
+    ) ||
+    /^\/nodes\/\d+\/parameters\/[^/]+\/(?:cachedResultName|cachedResultUrl)$/.test(
+      path,
+    )
+  )
+    return "metadata";
+  if (/\/(?:jsCode|pythonCode|query|queryReplacement)$/.test(path))
+    return "program";
+  if (field.value.trimStart().startsWith("=") || field.value.includes("{{"))
+    return "template";
+  if (/^\s*[\[{]/.test(field.value)) {
+    try {
+      const decoded: unknown = JSON.parse(field.value);
+      if (decoded !== null && typeof decoded === "object") return "json";
+    } catch {
+      /* Bracketed prose remains prose, not an unparsed JSON blind spot. */
+    }
+  }
+  return "prose";
+}
+
 async function runMode(
   context: Context,
   mode: "nlp" | "python",
@@ -185,7 +232,11 @@ async function runMode(
     return failure(mode, "native_invalid_input");
   const fields = fieldsFor(context, mode);
   const input = JSON.stringify({
-    fields: fields.map(({ index, value }) => ({ index, value })),
+    fields: fields.map((field) => ({
+      index: field.index,
+      value: field.value,
+      ...(mode === "nlp" ? { namedEntities: nativeNlpScope(field) } : {}),
+    })),
   });
   if (Buffer.byteLength(input) > 2 * 1024 * 1024)
     return failure(mode, "native_invalid_input");
@@ -297,7 +348,7 @@ function rule(ruleId: string, category: RuleResult["category"]): RuleResult {
   return {
     ruleId,
     category,
-    profileVersion: "1.0.0",
+    profileVersion: category === "pii" ? "1.1.0" : "1.0.0",
     coverage: [],
     findings: [],
     diagnostics: [],
@@ -373,6 +424,22 @@ export function analyzeNativeInspection(
         (item.line !== null && item.line > field.value.split(/\r?\n/).length)
       ) {
         addDiagnostic(target, "native_invalid_report", null);
+        continue;
+      }
+      if (
+        mode.mode === "nlp" &&
+        ["nlp_person_candidate", "nlp_location_candidate"].includes(
+          item.code,
+        ) &&
+        ["metadata", "program"].includes(nativeNlpScope(field))
+      ) {
+        addDiagnostic(
+          target,
+          nativeNlpScope(field) === "metadata"
+            ? "nlp_metadata_formats_only"
+            : "nlp_program_formats_only",
+          field.index,
+        );
         continue;
       }
       const id = stableId(target.ruleId, field.location, item.code);

@@ -1,0 +1,307 @@
+{
+  "schemaVersion": "1.0.0",
+  "outcome": "passed",
+  "engineVersion": "0.4.0",
+  "image": "sha256:5ff8aa6989f172f8c2a5f97e8db51a228463f4a4f2bddd8381fbfbb431df9c30",
+  "workflowExecution": "not_run",
+  "unitTests": {
+    "passed": 261,
+    "failed": 0
+  },
+  "repositoryToolingTests": {
+    "passed": 6,
+    "failed": 0
+  },
+  "corpus": {
+    "cases": 27,
+    "factDenominator": 23,
+    "stateCases": 4,
+    "tp": 13,
+    "tn": 10,
+    "fp": 0,
+    "fn": 0,
+    "scope": "fixed_synthetic_only"
+  },
+  "gitleaksCases": 7,
+  "isolationChecks": {
+    "uid": 65532,
+    "interfaces": ["lo"],
+    "rootWriteDenied": true,
+    "networkFailure": "ENETUNREACH",
+    "memory": "1073741824",
+    "pids": "96",
+    "cpu": "100000 100000",
+    "noNewPrivileges": true,
+    "noCapabilities": true
+  },
+  "failureChecks": [
+    "evidence_input_mismatch",
+    "cancelled",
+    "cancelled",
+    "assessment_timeout"
+  ],
+  "cleanup": "no_new_containers",
+  "assessments": [
+    {
+      "id": "native_content_and_python",
+      "inputSha256": "a6a6c1a338b79ea99c5250f3fbedf7c15063bc4546d8da0ad3225169ca4c31b2",
+      "status": "partial",
+      "files": 1
+    },
+    {
+      "id": "mapped_sensitive_mail_and_package_policy",
+      "inputSha256": "e6566bf8a7012d081558b391a854aa99177e1857a884fe31d4ee8004d1ab28ef",
+      "status": "partial",
+      "files": 1
+    },
+    {
+      "id": "sql_original",
+      "inputSha256": "fc5b6f72454ccd175bb629fffe445273c9e7a440ab0128ea65f4d675fc4d64b8",
+      "status": "partial",
+      "files": 1
+    },
+    {
+      "id": "sql_repaired",
+      "inputSha256": "59bdcfb7cd7c4cbc5a77d557352d8b60ec17ee15fdb6de94e96af3148cbf6ba6",
+      "status": "partial",
+      "files": 1
+    },
+    {
+      "id": "inline_child_definition",
+      "inputSha256": "5902e59beb04735dd6ced364761d6d80b54b4a093a47f65a48c92efa56cbe12d",
+      "status": "partial",
+      "files": 2
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "dist/advanced-risks.js",
+      "sha256": "97e830bdb417eab1f4f8c976aad9912041038783dd976c7f7d62f376a3520a49"
+    },
+    {
+      "path": "dist/analysis.js",
+      "sha256": "6dc4f2494c2ab50310101ca27d494175529dbb6433994b1c359cd60b537ed1a8"
+    },
+    {
+      "path": "dist/analyzer.js",
+      "sha256": "556825a23e026f972a87b8c9210d93736ef1b4f1afe8c9a57c2f0c3819adefb1"
+    },
+    {
+      "path": "dist/api-client.js",
+      "sha256": "9437cf41dd1c6150d7f07f0da7da5a7cb8032ed4ee49056d0fa0db57083a4bf9"
+    },
+    {
+      "path": "dist/assessment-change.js",
+      "sha256": "d433bf0fe05468af6338c1eb0d4ac790a4fde4b6a1400d3c3098aa5a244cf43a"
+    },
+    {
+      "path": "dist/assessment-compare.js",
+      "sha256": "182cc42f16f55feaef218d711b064d1733a036d2f6984ff55726b1451eee673c"
+    },
+    {
+      "path": "dist/assessment-contract.js",
+      "sha256": "9921f839a80e3f1eb4d9f8f719474f28e31271823db5cb02a5348a8031278422"
+    },
+    {
+      "path": "dist/assessment-engine.js",
+      "sha256": "a4a5d84da44d845713fb73661820d942e65d57b8fda8e474b91291ba45e57f42"
+    },
+    {
+      "path": "dist/assessment-entry.js",
+      "sha256": "705c65c8b6555cce07d4378d1cb95377b34469b914fb2572b1e79ced5a2c89bf"
+    },
+    {
+      "path": "dist/assessment-environment.js",
+      "sha256": "f3a594bdec954ce0a2c67242fa0d53a44d56ca1a265b80d59c5309ef2009fe72"
+    },
+    {
+      "path": "dist/assessment-evidence.js",
+      "sha256": "ec3408bce467702806d3e7adccbaceedaa4b299fb80f9f10e45072354e4d1e16"
+    },
+    {
+      "path": "dist/assessment-policy.js",
+      "sha256": "d0e916f0a61c76ccb4ea5d9cc72178d52e2e364acd7159c88d33c1171874655a"
+    },
+    {
+      "path": "dist/assessment-runner.js",
+      "sha256": "6d7b64cb4255f885cf87af331fb737651ca8a7da43bc42e7e37d92597b884545"
+    },
+    {
+      "path": "dist/assessment-subworkflows.js",
+      "sha256": "2edfe7a4ad1301d1bf43218757f9b6faa731e19154c9aba06b8b2ff8cfb3e858"
+    },
+    {
+      "path": "dist/assessment-summary.js",
+      "sha256": "70d505b28d72ebd338b54a18e83a1aef91b8dcd196efd3d06d6ba1f6753e46d0"
+    },
+    {
+      "path": "dist/cli.js",
+      "sha256": "2c2063be9e359680ece2504d460220b4b6dbb3cd613ad502224cb40a857ca8b1"
+    },
+    {
+      "path": "dist/compare.js",
+      "sha256": "285316ae6361b5cdbbe06fe4e292e09bf0e4dd3d2054db9cd7bb9165d97d9957"
+    },
+    {
+      "path": "dist/contract.js",
+      "sha256": "5321b13e2f273b88397b1a705f0c33471e56da1425ea2f76a9bd047670bb5a72"
+    },
+    {
+      "path": "dist/extended-sinks.js",
+      "sha256": "6c445a738093b5bb31cf0d8050062fe619cd255d9644b85eddf00b55496ac672"
+    },
+    {
+      "path": "dist/gitleaks.js",
+      "sha256": "3a49ba7f08833d24bf9975bee850b7274349835593d5ea98a3485917d2514358"
+    },
+    {
+      "path": "dist/n8n.js",
+      "sha256": "c41ea303044befa667c47dc803e2433496426dd8d7c772c255add03a67dcbc4c"
+    },
+    {
+      "path": "dist/native-inspection.js",
+      "sha256": "b6e70fe30a761d65ce5514212b59008b96528ad27c57a7c78ba1f355ca7851a9"
+    },
+    {
+      "path": "dist/runner.js",
+      "sha256": "41083f829a0ca94b723851908b7ec5c7a7a88641f8f7ff18c2eefba9f047be32"
+    },
+    {
+      "path": "dist/static-analyzer.js",
+      "sha256": "52ac33e78475a12bec8afbb3bc781147160d82ba8cac018c7e1988a3ff27f97f"
+    },
+    {
+      "path": "dist/static-compare.js",
+      "sha256": "f7534c666fd952368de818293aa7683a1430c85465fedb0c368b00f976fd9ea5"
+    },
+    {
+      "path": "dist/static-content.js",
+      "sha256": "ff2389cf78dcc62cac86aace43211c0a71d2ff6db8b86c8b1fd2045f42ecba5e"
+    },
+    {
+      "path": "dist/static-context.js",
+      "sha256": "ae7fbeaca1144baedaed05c64889d0bdca27f490ee7499449861909e5ccc96ce"
+    },
+    {
+      "path": "dist/static-contract.js",
+      "sha256": "da4ff903eb070b64d19f18475d726e92dd2851f6509cecb8fa50654739d0a5b3"
+    },
+    {
+      "path": "dist/static-engine.js",
+      "sha256": "b14906c6fa917d66609c01b6c7598a6153cdbddb39fc6c25cb30e42d6c1c7cc8"
+    },
+    {
+      "path": "dist/static-flow.js",
+      "sha256": "ede993b18e3edca55e8a9398e88e4855045921f8ea6b78e6bd508fa365ab0411"
+    },
+    {
+      "path": "dist/static-runner.js",
+      "sha256": "96552467939754214b5eb3054e93e16ccf6445d8cb7809b875a89836040981a9"
+    },
+    {
+      "path": "dist/static-settings.js",
+      "sha256": "938f4d090e642d457251abe3541a6de6c698106b8bda554daf1b47f0cfd9a94f"
+    },
+    {
+      "path": "dist/subprocess.js",
+      "sha256": "a10601c441913e0e931cd153d7d51849bd672987fad561514d7cc79f75c94203"
+    },
+    {
+      "path": "dist/value-flow.js",
+      "sha256": "4dad255dda3484a6dc6c76fe84995192e7d9b94a6893a02d3a2e6ada755f692f"
+    },
+    {
+      "path": "dist/worker-io.js",
+      "sha256": "84d852d75dd47512213fa15c141e799b421863150525e15587faac9d71b6d6fe"
+    },
+    {
+      "path": "tools/native-inspection.py",
+      "sha256": "0e7413eed8e9476f6120cd695ed3f6d7f2e2beae0811dc41a88500e1a9cfffcf"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "b056a0b5bb26d7f55f48b18f509dc0e3d1663c8b548c971fb40d4376ea65281d"
+    }
+  ],
+  "sourceArtifacts": [
+    {
+      "path": "dist/assessment-runner.js",
+      "sha256": "6d7b64cb4255f885cf87af331fb737651ca8a7da43bc42e7e37d92597b884545"
+    },
+    {
+      "path": "dist/assessment-engine.js",
+      "sha256": "a4a5d84da44d845713fb73661820d942e65d57b8fda8e474b91291ba45e57f42"
+    },
+    {
+      "path": "dist/assessment-entry.js",
+      "sha256": "705c65c8b6555cce07d4378d1cb95377b34469b914fb2572b1e79ced5a2c89bf"
+    },
+    {
+      "path": "dist/assessment-change.js",
+      "sha256": "d433bf0fe05468af6338c1eb0d4ac790a4fde4b6a1400d3c3098aa5a244cf43a"
+    },
+    {
+      "path": "dist/value-flow.js",
+      "sha256": "4dad255dda3484a6dc6c76fe84995192e7d9b94a6893a02d3a2e6ada755f692f"
+    },
+    {
+      "path": "dist/advanced-risks.js",
+      "sha256": "97e830bdb417eab1f4f8c976aad9912041038783dd976c7f7d62f376a3520a49"
+    },
+    {
+      "path": "dist/extended-sinks.js",
+      "sha256": "6c445a738093b5bb31cf0d8050062fe619cd255d9644b85eddf00b55496ac672"
+    },
+    {
+      "path": "tools/native-inspection.py",
+      "sha256": "0e7413eed8e9476f6120cd695ed3f6d7f2e2beae0811dc41a88500e1a9cfffcf"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "b056a0b5bb26d7f55f48b18f509dc0e3d1663c8b548c971fb40d4376ea65281d"
+    },
+    {
+      "path": "Dockerfile.assessment",
+      "sha256": "67290eac8522bbf30d42058e70da1ee9bbea7cf91865d3cdff7639e700847a77"
+    },
+    {
+      "path": "Dockerfile.assessment-runtime",
+      "sha256": "e03213f7e2365ca2299bb53953c4d0ffd5d3bd8cba9a8e194d4f96c794667217"
+    },
+    {
+      "path": "tools/requirements-nlp.txt",
+      "sha256": "9c5a900fd49463a84e121748e3bd2d5fd6207a0ec6947fd101021c4bdba9a174"
+    },
+    {
+      "path": "validation/verify-assessment-runtime.mjs",
+      "sha256": "5164cfed8cd05e37c1f651bc9be7dd68fde8d3d3552d94df616961daeef9034a"
+    }
+  ],
+  "runtimeReceiptSha256": "f30c0227b69d88b9551126a050756a84f49da49b8454d571a477cf1e7a26c834",
+  "review": {
+    "fullTree": "codex_review_against_origin_main_with_untracked_files",
+    "correctedFindings": [
+      "clock_format_literal_sensitivity",
+      "sql_lexical_preservation",
+      "parent_coverage_scope",
+      "code_object_field_sensitivity"
+    ],
+    "astraFollowupSyntheticCases": 13,
+    "codexFollowupTests": 79,
+    "unresolvedSupportedScopeDefects": 0
+  },
+  "retainedBehaviorEvidence": {
+    "path": "validation/remediation-behavior-results.json",
+    "rerunThisChange": false,
+    "runtimeSqlBeforeAfterHashesUnchanged": true,
+    "newAutomaticRepairProfiles": 0
+  },
+  "limitations": [
+    "real_team_api_not_tested",
+    "runtime_permissions_and_network_not_verified",
+    "no_general_accuracy_claim",
+    "public_15403_title_candidate_overapproximation",
+    "short_names_context_sensitive",
+    "automatic_edits_limited_to_two_profiles"
+  ]
+}

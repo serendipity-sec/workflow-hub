@@ -29,11 +29,12 @@ jobs:
       - name: Build the pinned assessment runtime
         run: |
           docker build -f Dockerfile.assessment-runtime -t workflow-worker-assessment-runtime:0.3.0 .
-          docker build -f Dockerfile.assessment -t workflow-worker-assessment:0.3.0 .
+          docker build -f Dockerfile.assessment -t workflow-worker-assessment:0.4.0 .
       - name: Verify actual tools and OS isolation
         run: |
           export WORKER_DOCKER_PATH="$(command -v docker)"
-          export WORKER_ASSESSMENT_IMAGE="$(docker image inspect --format '{{.Id}}' workflow-worker-assessment:0.3.0)"
+          export WORKER_ASSESSMENT_IMAGE="$(docker image inspect --format '{{.Id}}' workflow-worker-assessment:0.4.0)"
           node validation/verify-assessment-runtime.mjs
+          node validation/verify-native-profile.mjs
         env:
           WORKER_ASSESSMENT_VALIDATION_OUTPUT: evidence-local/ci-assessment-results.json

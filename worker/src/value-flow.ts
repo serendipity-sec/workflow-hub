@@ -477,7 +477,9 @@ class ValueFlowAnalyzer implements ValueFlow {
     const text = value.startsWith("=") ? value.slice(1) : value;
     const matches = [...text.matchAll(/\{\{([\s\S]*?)\}\}/g)];
     if (!matches.length)
-      return this.unknown(nodeKey, "expression_syntax_unsupported");
+      return /\{\{|\}\}/.test(text)
+        ? this.unknown(nodeKey, "expression_syntax_unsupported")
+        : this.literal(nodeKey, text, options.fieldName, depth + 1);
     const values = matches.map((match) =>
       this.expression(nodeKey, match[1]!, depth + 1),
     );
@@ -551,8 +553,21 @@ class ValueFlowAnalyzer implements ValueFlow {
   ): AbstractValue {
     if (!this.bounded(nodeKey, depth))
       return this.unknown(nodeKey, "flow_budget_exceeded");
-    if (ast.type === "Literal")
-      return this.literal(nodeKey, ast.value, "", depth + 1);
+    if (ast.type === "Literal") {
+      const value = this.literal(nodeKey, ast.value, "", depth + 1);
+      if (ast.boundedClock === true) {
+        value.sensitivityBasis = ["runtime_clock"];
+        const arguments_ = Array.isArray(ast.boundedClockArguments)
+          ? ast.boundedClockArguments
+              .filter(isObject)
+              .map((argument) => this.astValue(nodeKey, argument, depth + 1))
+          : [];
+        // Luxon format strings may emit quoted literal text. Formatting a
+        // literal must not erase its existing secret/PII candidate classes.
+        return { ...join([value, ...arguments_], nodeKey), fullObject: false };
+      }
+      return value;
+    }
     if (
       ast.type === "CallExpression" &&
       isObject(ast.callee) &&
@@ -659,6 +674,8 @@ class ValueFlowAnalyzer implements ValueFlow {
         "concatenation",
       );
     if (ast.type === "ObjectExpression" && Array.isArray(ast.properties)) {
+      if (!ast.properties.length)
+        return this.literal(nodeKey, {}, "", depth + 1);
       const fields: Record<string, AbstractValue> = {};
       for (const item of ast.properties.slice(0, valueFlowLimits.fields)) {
         if (
@@ -682,7 +699,30 @@ class ValueFlowAnalyzer implements ValueFlow {
             "unsafe_field_reference",
             Object.values(fields),
           );
-        fields[pointer([name])] = this.astValue(nodeKey, item.value, depth + 1);
+        const value = this.astValue(nodeKey, item.value, depth + 1);
+        const inferred = this.classify(name);
+        // Object syntax and Code aliases retain the same field-name hints as
+        // JSON/Set mappings. A hint adds a class; it never replaces the value's
+        // existing secret, personal, public or unknown possibilities.
+        fields[pointer([name])] =
+          inferred.sensitivity === "unknown" ||
+          value.sensitivityBasis.some((basis) => basis.startsWith("trusted_"))
+            ? value
+            : {
+                ...value,
+                sensitivity:
+                  severity(inferred.sensitivity) > severity(value.sensitivity)
+                    ? inferred.sensitivity
+                    : value.sensitivity,
+                sensitivityClasses: unique([
+                  ...value.sensitivityClasses,
+                  inferred.sensitivity,
+                ]),
+                sensitivityBasis: unique([
+                  ...value.sensitivityBasis,
+                  ...inferred.basis,
+                ]),
+              };
       }
       const result = join(
         Object.values(fields),
@@ -702,6 +742,7 @@ class ValueFlowAnalyzer implements ValueFlow {
       };
     }
     if (ast.type === "ArrayExpression" && Array.isArray(ast.elements)) {
+      if (!ast.elements.length) return this.literal(nodeKey, [], "", depth + 1);
       const fields = Object.fromEntries(
         ast.elements
           .slice(0, valueFlowLimits.fields)
@@ -966,7 +1007,7 @@ class ValueFlowAnalyzer implements ValueFlow {
         );
       } else if (
         node.type === prefix + "postgres" &&
-        [2.5, 2.6, 2.8].includes(node.typeVersion)
+        [2.4, 2.5, 2.6, 2.8].includes(node.typeVersion)
       )
         result = this.source(node, path, "database", depth + 1);
       else if (
@@ -1589,13 +1630,270 @@ class ValueFlowAnalyzer implements ValueFlow {
       if (
         !isObject(ast) ||
         !Array.isArray(ast.body) ||
-        ast.body.length !== 1 ||
-        !isObject(ast.body[0]) ||
-        ast.body[0].type !== "ReturnStatement" ||
-        !isObject(ast.body[0].argument)
+        ast.body.length === 0 ||
+        ast.body.length > valueFlowLimits.fields
       )
         return this.unknown(node.key, "code_mapping_unsupported");
-      const returned = ast.body[0].argument;
+      // Interpret only immutable local declarations followed by a single
+      // return. Calls, mutation, branches, loops and declarations outside this
+      // grammar remain opaque; no submitted JavaScript is evaluated.
+      const locals = new Map<string, Record<string, unknown>>();
+      const roots = new Set([
+        "$json",
+        "$input",
+        "$node",
+        "$env",
+        "$credentials",
+        "$",
+        "JSON",
+        "Number",
+        "parseInt",
+        "parseFloat",
+        "encodeURIComponent",
+        "$now",
+        "$today",
+        "Date",
+        "undefined",
+      ]);
+      const literalOptions = (item: unknown): boolean => {
+        if (!isObject(item)) return false;
+        if (item.type === "Literal")
+          return !isObject(item.value) && !item.regex;
+        if (item.type === "Identifier") return item.name === "undefined";
+        if (
+          item.type === "ObjectExpression" &&
+          Array.isArray(item.properties) &&
+          item.properties.length <= 16
+        )
+          return item.properties.every(
+            (property) =>
+              isObject(property) &&
+              property.type === "Property" &&
+              property.kind === "init" &&
+              property.computed !== true &&
+              isObject(property.value) &&
+              property.value.type === "Literal" &&
+              !isObject(property.value.value),
+          );
+        return false;
+      };
+      const expand = (
+        item: Record<string, unknown>,
+        level: number,
+      ): Record<string, unknown> | undefined => {
+        if (!this.bounded(node.key, level)) return;
+        if (item.type === "Literal") return item;
+        if (item.type === "Identifier") {
+          if (typeof item.name !== "string") return;
+          return (
+            locals.get(item.name) ?? (roots.has(item.name) ? item : undefined)
+          );
+        }
+        if (
+          item.type === "CallExpression" &&
+          isObject(item.callee) &&
+          item.callee.type === "MemberExpression" &&
+          item.callee.computed !== true &&
+          isObject(item.callee.property) &&
+          isObject(item.callee.object) &&
+          Array.isArray(item.arguments)
+        ) {
+          const receiver = item.callee.object;
+          const method = item.callee.property.name;
+          const nativeClock =
+            receiver.type === "NewExpression" &&
+            isObject(receiver.callee) &&
+            receiver.callee.type === "Identifier" &&
+            receiver.callee.name === "Date" &&
+            Array.isArray(receiver.arguments) &&
+            receiver.arguments.length === 0 &&
+            typeof method === "string" &&
+            [
+              "toDateString",
+              "toISOString",
+              "toUTCString",
+              "toJSON",
+              "toLocaleDateString",
+              "toLocaleString",
+              "toLocaleTimeString",
+            ].includes(method);
+          const n8nClock =
+            receiver.type === "Identifier" &&
+            ["$now", "$today"].includes(String(receiver.name)) &&
+            typeof method === "string" &&
+            ["toFormat", "toISO", "toISODate", "toLocaleString"].includes(
+              method,
+            );
+          if ((nativeClock || n8nClock) && item.arguments.every(literalOptions))
+            return {
+              type: "Literal",
+              value: "clock_" + hash([node.key, item]),
+              boundedClock: true,
+              boundedClockArguments: item.arguments.filter(
+                (argument) =>
+                  !(
+                    isObject(argument) &&
+                    argument.type === "Identifier" &&
+                    argument.name === "undefined"
+                  ),
+              ),
+            };
+        }
+        if (
+          item.type === "ObjectExpression" &&
+          Array.isArray(item.properties)
+        ) {
+          const properties = [];
+          for (const property of item.properties.slice(
+            0,
+            valueFlowLimits.fields + 1,
+          )) {
+            if (
+              !isObject(property) ||
+              property.type !== "Property" ||
+              property.kind !== "init" ||
+              property.computed === true ||
+              !isObject(property.value)
+            )
+              return;
+            const value = expand(property.value, level + 1);
+            if (!value) return;
+            properties.push({ ...property, value });
+          }
+          return { ...item, properties };
+        }
+        if (item.type === "ArrayExpression" && Array.isArray(item.elements)) {
+          const elements = [];
+          for (const element of item.elements.slice(
+            0,
+            valueFlowLimits.fields + 1,
+          )) {
+            if (element === null) {
+              elements.push(null);
+              continue;
+            }
+            if (!isObject(element)) return;
+            const value = expand(element, level + 1);
+            if (!value) return;
+            elements.push(value);
+          }
+          return { ...item, elements };
+        }
+        if (
+          item.type === "TemplateLiteral" &&
+          Array.isArray(item.expressions)
+        ) {
+          const expressions = item.expressions.map((child) =>
+            isObject(child) ? expand(child, level + 1) : undefined,
+          );
+          return expressions.every(Boolean)
+            ? { ...item, expressions }
+            : undefined;
+        }
+        if (
+          item.type === "BinaryExpression" &&
+          item.operator === "+" &&
+          isObject(item.left) &&
+          isObject(item.right)
+        ) {
+          const left = expand(item.left, level + 1),
+            right = expand(item.right, level + 1);
+          return left && right ? { ...item, left, right } : undefined;
+        }
+        if (
+          item.type === "MemberExpression" &&
+          isObject(item.object) &&
+          isObject(item.property)
+        ) {
+          const object = expand(item.object, level + 1);
+          const property =
+            item.computed === true
+              ? expand(item.property, level + 1)
+              : item.property;
+          return object && property ? { ...item, object, property } : undefined;
+        }
+        if (
+          item.type === "CallExpression" &&
+          isObject(item.callee) &&
+          Array.isArray(item.arguments)
+        ) {
+          const callee = item.callee;
+          const simple =
+            callee.type === "Identifier" &&
+            [
+              "Number",
+              "parseInt",
+              "parseFloat",
+              "encodeURIComponent",
+              "$",
+            ].includes(String(callee.name)) &&
+            item.arguments.length === 1;
+          const stringify =
+            callee.type === "MemberExpression" &&
+            callee.computed !== true &&
+            isObject(callee.object) &&
+            callee.object.type === "Identifier" &&
+            callee.object.name === "JSON" &&
+            isObject(callee.property) &&
+            callee.property.name === "stringify" &&
+            item.arguments.length === 1;
+          const selection =
+            callee.type === "MemberExpression" &&
+            callee.computed !== true &&
+            isObject(callee.property) &&
+            ["first", "last", "all"].includes(String(callee.property.name)) &&
+            isObject(callee.object) &&
+            ((callee.object.type === "Identifier" &&
+              callee.object.name === "$input") ||
+              (callee.object.type === "CallExpression" &&
+                isObject(callee.object.callee) &&
+                callee.object.callee.name === "$")) &&
+            item.arguments.length === 0;
+          if (!simple && !stringify && !selection) return;
+          const expandedCallee = expand(callee, level + 1);
+          const args = item.arguments.map((child) =>
+            isObject(child) ? expand(child, level + 1) : undefined,
+          );
+          return expandedCallee && args.every(Boolean)
+            ? { ...item, callee: expandedCallee, arguments: args }
+            : undefined;
+        }
+        return;
+      };
+      for (const statement of ast.body.slice(0, -1)) {
+        if (
+          !isObject(statement) ||
+          statement.type !== "VariableDeclaration" ||
+          statement.kind !== "const" ||
+          !Array.isArray(statement.declarations)
+        )
+          return this.unknown(node.key, "code_mapping_unsupported");
+        for (const declaration of statement.declarations) {
+          if (
+            !isObject(declaration) ||
+            !isObject(declaration.id) ||
+            declaration.id.type !== "Identifier" ||
+            typeof declaration.id.name !== "string" ||
+            roots.has(declaration.id.name) ||
+            locals.has(declaration.id.name) ||
+            !isObject(declaration.init) ||
+            locals.size >= valueFlowLimits.fields
+          )
+            return this.unknown(node.key, "code_mapping_unsupported");
+          const value = expand(declaration.init, depth + 1);
+          if (!value) return this.unknown(node.key, "code_mapping_unsupported");
+          locals.set(declaration.id.name, value);
+        }
+      }
+      const final = ast.body.at(-1);
+      if (
+        !isObject(final) ||
+        final.type !== "ReturnStatement" ||
+        !isObject(final.argument)
+      )
+        return this.unknown(node.key, "code_mapping_unsupported");
+      const returned = expand(final.argument, depth + 1);
+      if (!returned) return this.unknown(node.key, "code_mapping_unsupported");
       if (
         returned.type === "CallExpression" &&
         isObject(returned.callee) &&
@@ -1608,15 +1906,17 @@ class ValueFlowAnalyzer implements ValueFlow {
         returned.arguments.length === 0
       )
         return this.input(node.key, path, depth + 1);
+      const object =
+        returned.type === "ObjectExpression"
+          ? returned
+          : returned.type === "ArrayExpression" &&
+              Array.isArray(returned.elements) &&
+              returned.elements.length === 1 &&
+              isObject(returned.elements[0])
+            ? returned.elements[0]
+            : undefined;
       if (
-        returned.type !== "ArrayExpression" ||
-        !Array.isArray(returned.elements) ||
-        returned.elements.length !== 1 ||
-        !isObject(returned.elements[0])
-      )
-        return this.unknown(node.key, "code_mapping_unsupported");
-      const object = returned.elements[0];
-      if (
+        !object ||
         object.type !== "ObjectExpression" ||
         !Array.isArray(object.properties) ||
         object.properties.length !== 1 ||

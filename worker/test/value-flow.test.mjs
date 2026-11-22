@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createContext } from "../dist/static-context.js";
+import { analyzeExtendedSinks } from "../dist/extended-sinks.js";
 import { buildValueFlow, valueFlowLimits } from "../dist/value-flow.js";
 
 const node = (name, type, version, parameters = {}) => ({
@@ -34,6 +35,7 @@ function setup(document, annotations = []) {
     })),
   });
   return {
+    context,
     flow,
     key,
     resolve: (value, name = "Sink") => flow.resolve(key(name), value),
@@ -680,6 +682,237 @@ test("single-return Code mappings are interpreted as syntax; arbitrary Code rema
   const value = run.resolve("={{ $json }}");
   assert.notEqual(value.status, "resolved");
   assert.equal(value.sensitivity, "secret_candidate");
+  assert.equal(globalThis.__valueFlowExecuted, undefined);
+});
+
+test("expression mode without interpolation is fixed text while malformed delimiters stay unknown", () => {
+  const run = setup(chain(web(), pass()));
+  for (const text of ["=fixed text", "=printf constant\n", "="]) {
+    const value = run.resolve(text);
+    assert.equal(value.status, "resolved");
+    assert.deepEqual(value.sensitivityClasses, ["public_literal"]);
+    assert.equal(
+      value.origins.some((origin) => origin.kind === "webhook"),
+      false,
+    );
+  }
+  assert.notEqual(run.resolve("=prefix {{ missing").status, "resolved");
+});
+
+test("immutable Code constant and clock output does not inherit unrelated upstream personal data", () => {
+  const source = web();
+  const formatter = node("Formatter", "code", 2, {
+    jsCode: `
+    const today = new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric' });
+    const message = 'No records to display.';
+    return { json: { summary: message, today, title: \`Overview - \${today}\`, output: \`\${today}: \${message}\` } };
+  `,
+  });
+  const run = setup(chain(source, formatter, pass()), [
+    {
+      node: "Input",
+      fieldPath: "body.email",
+      sensitivity: "pii_candidate",
+      provenance: "schema",
+    },
+    {
+      node: "Input",
+      fieldPath: "body.password",
+      sensitivity: "secret_candidate",
+      provenance: "schema",
+    },
+  ]);
+  for (const expression of [
+    "={{ $json }}",
+    "={{ $json.summary }}",
+    "={{ $json.title }}",
+    "={{ $json.output }}",
+  ]) {
+    const value = run.resolve(expression);
+    assert.equal(value.status, "resolved");
+    assert.deepEqual(value.sensitivityClasses, ["public_literal"]);
+    assert.ok(value.origins.every((origin) => origin.kind === "literal"));
+  }
+  assert.ok(
+    run
+      .resolve("={{ $json.today }}")
+      .sensitivityBasis.includes("runtime_clock"),
+  );
+  assert.equal(run.resolve("={{ $json.body.email }}").presence, "absent");
+});
+
+test("clock formatting preserves the sensitivity of quoted literal output and format arguments", () => {
+  for (const value of [
+    '"synthetic@example.invalid"',
+    "$now.toFormat(\"'synthetic@example.invalid'\")",
+    "$today.toFormat(\"yyyy 'synthetic@example.invalid'\")",
+  ]) {
+    const formatter = node("Formatter", "code", 2, {
+      jsCode: `return { json: { formatted: ${value} } };`,
+    });
+    const run = setup(chain(web(), formatter, pass()));
+    const projected = run.resolve("={{ $json.formatted }}");
+    assert.equal(projected.status, "resolved");
+    assert.ok(projected.sensitivityClasses.includes("pii_candidate"));
+    assert.equal(projected.sensitivity, "pii_candidate");
+    assert.equal(projected.fullObject, false);
+    assert.ok(projected.sensitivityBasis.includes("literal_format_inference"));
+  }
+  const run = setup(
+    chain(
+      web(),
+      node("Formatter", "code", 2, {
+        jsCode: 'return {json: {formatted: $now.toFormat("yyyy-MM-dd")}};',
+      }),
+      pass(),
+    ),
+  );
+  assert.deepEqual(run.resolve("={{ $json.formatted }}").sensitivityClasses, [
+    "public_literal",
+  ]);
+});
+
+test("Code immutable aliases preserve selected input fields and both supported item wrapper forms", () => {
+  for (const wrapper of ["{ json: result }", "[{ json: result }]"]) {
+    const formatter = node("Formatter", "code", 2, {
+      jsCode: `
+      const contact = $input.first().json.body.email;
+      const fixed = 'label';
+      const result = { contact, fixed };
+      return ${wrapper};
+    `,
+    });
+    const run = setup(chain(web(), formatter, pass()));
+    assert.equal(
+      run.resolve("={{ $json.contact }}").sensitivity,
+      "pii_candidate",
+    );
+    assert.deepEqual(run.resolve("={{ $json.fixed }}").sensitivityClasses, [
+      "public_literal",
+    ]);
+    assert.equal(
+      run.resolve("={{ $json.contact }}").origins[0].fieldPath,
+      "/body/email",
+    );
+  }
+});
+
+test("Code object properties and immutable aliases retain field-name sensitivity hints", () => {
+  for (const jsCode of [
+    'return [{json: {password: "synthetic-password", phone: "2025550123", label: "public"}}];',
+    'const payload = {password: "synthetic-password", phone: "2025550123", label: "public"}; return [{json: payload}];',
+  ]) {
+    const run = setup(
+      chain(web(), node("Formatter", "code", 2, { jsCode }), pass()),
+    );
+    const password = run.resolve("={{ $json.password }}");
+    const phone = run.resolve("={{ $json.phone }}");
+    assert.equal(password.status, "resolved");
+    assert.equal(password.sensitivity, "secret_candidate");
+    assert.ok(password.sensitivityBasis.includes("field_name_inference"));
+    assert.equal(phone.sensitivity, "pii_candidate");
+    assert.ok(phone.sensitivityBasis.includes("field_name_inference"));
+    assert.equal(password.sensitivityClasses.includes("pii_candidate"), false);
+    assert.equal(phone.sensitivityClasses.includes("secret_candidate"), false);
+    assert.deepEqual(run.resolve("={{ $json.label }}").sensitivityClasses, [
+      "public_literal",
+    ]);
+    const whole = run.resolve("={{ $json }}");
+    assert.ok(whole.sensitivityClasses.includes("secret_candidate"));
+    assert.ok(whole.sensitivityClasses.includes("pii_candidate"));
+  }
+});
+
+test("object field hints add to rather than overwrite the value's sensitivity classes", () => {
+  const run = setup(
+    chain(
+      web(),
+      node("Formatter", "code", 2, {
+        jsCode: `
+    const payload = {phone: $json.body.password, password: $json.body.email, token: $json.body.other};
+    return {json: payload};
+  `,
+      }),
+      pass(),
+    ),
+  );
+  for (const field of ["phone", "password"]) {
+    const value = run.resolve(`={{ $json.${field} }}`);
+    assert.equal(value.sensitivity, "secret_candidate");
+    assert.deepEqual(
+      new Set(value.sensitivityClasses),
+      new Set(["secret_candidate", "pii_candidate"]),
+    );
+  }
+  const unknown = run.resolve("={{ $json.token }}");
+  assert.ok(unknown.sensitivityClasses.includes("unknown"));
+  assert.ok(unknown.sensitivityClasses.includes("secret_candidate"));
+});
+
+test("Gmail serialization of Code objects reports both classes while selected fields stay precise", () => {
+  for (const [message, expectedSecret, expectedPersonal] of [
+    ["={{ JSON.stringify($json) }}", true, true],
+    ["={{ $json.password }}", true, false],
+    ["={{ $json.phone }}", false, true],
+    ["={{ $json.label }}", false, false],
+  ]) {
+    const run = setup(
+      chain(
+        web(),
+        node("Formatter", "code", 2, {
+          jsCode:
+            'const payload = {password: "synthetic-password", phone: "2025550123", label: "public"}; return [{json: payload}];',
+        }),
+        node("Mail", "gmail", 2.2, {
+          sendTo: "recipient@example.invalid",
+          message,
+        }),
+      ),
+    );
+    const rules = analyzeExtendedSinks(run.context, run.flow);
+    const codes = rules.flatMap((rule) =>
+      rule.findings.flatMap((finding) =>
+        finding.evidence.map((item) => item.code),
+      ),
+    );
+    assert.equal(
+      codes.includes("secret_candidate_transferred"),
+      expectedSecret,
+    );
+    assert.equal(
+      codes.includes("personal_data_candidate_transferred"),
+      expectedPersonal,
+    );
+    assert.equal(JSON.stringify(rules).includes("synthetic-password"), false);
+    assert.equal(JSON.stringify(rules).includes("2025550123"), false);
+  }
+});
+
+test("opaque calls, clock inputs, shadowing and mutation never become constant Code output proof", () => {
+  for (const jsCode of [
+    "const value = mysterious(); return {json: {message: 'fixed'}};",
+    "const Date = customDate; return {json: {today: new Date().toDateString()}};",
+    "const value = {}; value.contact = $json.body.email; return {json: value};",
+    "const today = new Date($json.body.email).toDateString(); return {json: {today}};",
+    "const today = new Date().toLocaleDateString($json.body.email); return {json: {today}};",
+    "const today = new Date().toLocaleDateString({get key() { globalThis.__valueFlowExecuted = true; }}); return {json: {today}};",
+  ]) {
+    const run = setup(
+      chain(web(), node("Formatter", "code", 2, { jsCode }), pass()),
+      [
+        {
+          node: "Input",
+          fieldPath: "body.email",
+          sensitivity: "pii_candidate",
+          provenance: "schema",
+        },
+      ],
+    );
+    const value = run.resolve("={{ $json }}");
+    assert.notEqual(value.status, "resolved");
+    assert.ok(value.sensitivityClasses.includes("unknown"));
+    assert.ok(value.sensitivityClasses.includes("pii_candidate"));
+  }
   assert.equal(globalThis.__valueFlowExecuted, undefined);
 });
 

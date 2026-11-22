@@ -2,6 +2,8 @@
 
 `analyzeExtendedSinks(context, valueFlow, evidence?)`는 `egress`와 `output`에 규칙을 추가한다. 원본 JSON과 표현식은 실행하지 않는다. 전송의 존재, 지원 경로의 데이터 출처, 운영자가 제공한 정책과의 불일치를 구분한다. 전송 또는 개인정보 후보가 있다는 이유만으로 악의나 실제 유출을 확정하지 않는다.
 
+현재 확장 전송·출력 규칙의 `profileVersion`은 1.1.0이다.
+
 | 노드·지원 버전                       | 작업                                            | 확인하는 필드                                                   |
 | ------------------------------------ | ----------------------------------------------- | --------------------------------------------------------------- |
 | Send Email 2, 2.1                    | email/send                                      | toEmail, CC/BCC, subject, emailFormat에 따라 활성화된 text/html |
@@ -12,6 +14,21 @@
 | Respond to Webhook 1–1.5의 등록 버전 | firstIncomingItem, allIncomingItems, json, text | 전체 입력 또는 responseBody                                     |
 | Webhook 2, 2.1, 2.2                  | lastNode 응답                                   | 도달 가능한 마지막 노드의 결과와 고정 responsePropertyName      |
 | Code 1, 2 JavaScript                 | console의 직접 메서드 호출                      | 정적 AST로 찾은 인수와 해당 표현식의 출처                       |
+
+추가 커넥터 프로필:
+
+| 노드·버전                      | 지원 작업                                        | 전송 데이터·대상                                                   |
+| ------------------------------ | ------------------------------------------------ | ------------------------------------------------------------------ |
+| Notion 2, 2.1, 2.2             | databasePage/create·update, page/create          | 제목, 속성 키의 타입에 따라 선택되는 값, 아이콘, databaseId/pageId |
+| Google Docs 1, 2               | document/create, update의 text/insert·replaceAll | 생성 제목·폴더, 삽입 텍스트·찾기 문자열·바꿀 문자열, 문서 ID       |
+| WhatsApp 1, 1.1                | message/send, text                               | textBody와 recipientPhoneNumber                                    |
+| 직접 Google Gemini 1, 1.1, 1.2 | text/message                                     | messages.values[].content, options.systemMessage, 선택된 도구 설정 |
+
+Notion은 실제 구현처럼 속성 `key`의 마지막 `|` 뒤 타입으로 전송 필드를 선택한다. 비활성 필드의 값은 전송으로 취급하지 않는다. 블록·원격 첨부·알 수 없는 속성 선택은 부분 분석 진단으로 남긴다. 대상 ID와 실제 문서 접근 권한은 별개이며 URL locator의 ID 해석과 Google Docs URL의 문서 ID 변환은 미확인으로 남긴다. Google Docs의 다른 수정 작업, WhatsApp의 템플릿·미디어·연락처 작업, 미등록 버전은 지원했다고 표시하지 않는다. WhatsApp 기본 작업은 `sendTemplate`이므로 operation 생략을 일반 텍스트 발송으로 추정하지 않는다.
+
+Gemini 서버 주소는 실제 n8n 구현에서 자격 증명의 host 설정으로 바뀔 수 있다. 따라서 JSON만으로 기본 Google 서버가 승인된 목적지라고 추정하지 않고 `provider_endpoint_from_credentials_unverified`를 남긴다. 모델 입력은 추적하지만 목적지 정책 판단은 미확인이다. 모델의 저장·이용 정책, 제공자 내 도구 실행과 실제 수신 권한도 별도 확인 조건이다. 운영자 정책의 sink 종류는 `notion`, `google_docs`, `whatsapp`, `gemini`이며 자동 승인이나 악성 판정을 뜻하지 않는다.
+
+Gmail message/get·getAll은 읽기 기능으로 구분한다. 발송 기능이나 미지원 발송 작업 경고를 만들지 않으며, 읽은 응답 데이터의 분류는 별도 미확인 진단으로 남긴다.
 
 Send Email의 기본 형식은 버전 2에서 text, 2.1에서 html이다. 꺼진 HTTP 본문이나 비활성 형식의 필드를 실제 전송으로 취급하지 않는다. `noData`는 본문 전송 결과를 만들지 않는다. 알 수 없는 노드 버전·작업은 외부 연동 노드의 존재와 미지원 진단을 남기며 send 작업이 실행된 것으로 표현하지 않는다.
 
@@ -34,3 +51,7 @@ Send Email의 기본 형식은 버전 2에서 text, 2.1에서 html이다. 꺼진
 - [Slack V2](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Slack/V2/SlackV2.node.ts), [대상·본문 변환](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Slack/V2/GenericFunctions.ts)
 - [Telegram](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Telegram/Telegram.node.ts)
 - [HTTP 필드](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/HttpRequest/V3/Description.ts), [Webhook 응답](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Webhook/description.ts), [Respond to Webhook](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/RespondToWebhook/RespondToWebhook.node.ts)
+- [Notion 버전](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Notion/Notion.node.ts), [V2 요청 구성](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Notion/v2/NotionV2.node.ts), [속성 값 선택](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Notion/shared/GenericFunctions.ts)
+- [Google Docs 실행](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Google/Docs/GoogleDocs.node.ts), [기본값·수정 필드](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Google/Docs/DocumentDescription.ts)
+- [WhatsApp 버전](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/WhatsApp/WhatsApp.node.ts), [작업·텍스트 필드](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/WhatsApp/MessagesDescription.ts)
+- [Gemini 버전](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/@n8n/nodes-langchain/nodes/vendors/GoogleGemini/actions/versionDescription.ts), [텍스트 요청](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/@n8n/nodes-langchain/nodes/vendors/GoogleGemini/actions/text/message.operation.ts), [자격 증명 host 사용](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/@n8n/nodes-langchain/nodes/vendors/GoogleGemini/transport/index.ts)

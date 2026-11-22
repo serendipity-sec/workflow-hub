@@ -26,13 +26,14 @@ type Profile = {
   content: Field[];
   diagnostics: string[];
   opaqueDestination?: boolean;
+  readOnly?: boolean;
 };
 
 function makeRule(ruleId: string, category: "egress" | "output"): RuleResult {
   return {
     ruleId,
     category,
-    profileVersion: "1.0.0",
+    profileVersion: "1.1.0",
     coverage: [],
     findings: [],
     diagnostics: [],
@@ -171,8 +172,262 @@ function unsupported(profile: Profile, code: string): Profile {
   return profile;
 }
 
+function locator(profile: Profile, key: string, value: unknown): void {
+  if (isObject(value)) {
+    add(profile, "recipients", key + "/value", value.value, true);
+    if (
+      !(key === "pageId" ? ["id"] : ["id", "list"]).includes(String(value.mode))
+    ) {
+      profile.opaqueDestination = true;
+      profile.diagnostics.push("destination_locator_unresolved");
+    }
+  } else {
+    add(profile, "recipients", key, value, true);
+    profile.opaqueDestination = true;
+    profile.diagnostics.push("destination_locator_unresolved");
+  }
+}
+
+function notionProperties(profile: Profile, value: unknown): void {
+  if (value === undefined) return;
+  if (!isObject(value) || !Array.isArray(value.propertyValues)) {
+    profile.diagnostics.push("notion_properties_unresolved");
+    return;
+  }
+  const selected: Record<string, string[]> = {
+    title: ["title"],
+    number: ["numberValue"],
+    url: ["urlValue"],
+    checkbox: ["checkboxValue"],
+    relation: ["relationValue"],
+    multi_select: ["multiSelectValue"],
+    email: ["emailValue"],
+    people: ["peopleValue"],
+    phone_number: ["phoneValue"],
+    select: ["selectValue"],
+    status: ["statusValue"],
+    files: ["fileUrls"],
+  };
+  for (const [index, item] of value.propertyValues.entries()) {
+    if (
+      !isObject(item) ||
+      typeof item.key !== "string" ||
+      item.key.startsWith("=")
+    ) {
+      profile.diagnostics.push("notion_property_type_unresolved");
+      continue;
+    }
+    // Official mapProperties derives type from the final pipe in key, not item.type.
+    const type = item.key.slice(item.key.lastIndexOf("|") + 1);
+    let keys = Object.hasOwn(selected, type) ? selected[type] : undefined;
+    if (type === "rich_text") {
+      if (item.richText === undefined || item.richText === false)
+        keys = ["textContent"];
+      else if (item.richText === true) keys = ["text"];
+      else profile.diagnostics.push("notion_property_type_unresolved");
+    } else if (type === "date") {
+      if (item.range === undefined || item.range === false) keys = ["date"];
+      else if (item.range === true) keys = ["dateStart", "dateEnd"];
+    }
+    if (!keys) {
+      profile.diagnostics.push("notion_property_type_unresolved");
+      continue;
+    }
+    for (const key of keys)
+      add(
+        profile,
+        "content",
+        `propertiesUi/propertyValues/${index}/${key}`,
+        item[key],
+      );
+    if (type === "files")
+      profile.diagnostics.push("remote_attachment_content_unavailable");
+  }
+}
+
+function additionalProfile(node: NormalizedNode): Profile | undefined {
+  const p = node.parameters;
+  const kinds: Record<string, SinkKind> = {
+    "n8n-nodes-base.notion": "notion",
+    "n8n-nodes-base.googleDocs": "google_docs",
+    "n8n-nodes-base.whatsApp": "whatsapp",
+    "@n8n/n8n-nodes-langchain.googleGemini": "gemini",
+  };
+  const kind = Object.hasOwn(kinds, node.type) ? kinds[node.type] : undefined;
+  if (!kind) return;
+  const profile: Profile = {
+    sink: kind,
+    recipients: [],
+    content: [],
+    diagnostics: [],
+  };
+  if (kind === "notion") {
+    if (![2, 2.1, 2.2].includes(node.typeVersion))
+      return unsupported(profile, "unsupported_node_version");
+    const resource = p.resource ?? "page";
+    const operation = p.operation ?? "create";
+    if (!(
+      (resource === "databasePage" &&
+        ["create", "update"].includes(String(operation))) ||
+      (resource === "page" && operation === "create")
+    ))
+      return unsupported(profile, "unsupported_send_operation");
+    locator(
+      profile,
+      resource === "databasePage" && operation === "create"
+        ? "databaseId"
+        : "pageId",
+      resource === "databasePage" && operation === "create"
+        ? p.databaseId
+        : p.pageId,
+    );
+    if (operation === "create") add(profile, "content", "title", p.title);
+    if (resource === "databasePage") notionProperties(profile, p.propertiesUi);
+    if (operation === "create" && p.blockUi !== undefined) {
+      add(profile, "content", "blockUi", p.blockUi);
+      profile.diagnostics.push("notion_block_selection_partially_analyzed");
+    }
+    const opts = options(p.options, profile);
+    add(profile, "content", "options/icon", opts.icon);
+    if (opts.iconType === "file")
+      profile.diagnostics.push("remote_attachment_content_unavailable");
+    if (Object.keys(opts).some((key) => !["icon", "iconType"].includes(key)))
+      profile.diagnostics.push("connector_options_unresolved");
+    profile.diagnostics.push("destination_access_unverified");
+    return profile;
+  }
+  if (kind === "google_docs") {
+    if (![1, 2].includes(node.typeVersion))
+      return unsupported(profile, "unsupported_node_version");
+    const operation = p.operation ?? "create";
+    if (
+      (p.resource ?? "document") !== "document" ||
+      !["create", "update"].includes(String(operation))
+    )
+      return unsupported(profile, "unsupported_send_operation");
+    if (operation === "create") {
+      add(profile, "recipients", "folderId", p.folderId || null);
+      add(profile, "content", "title", p.title, true);
+    } else {
+      add(profile, "recipients", "documentURL", p.documentURL, true);
+      if (!isObject(p.actionsUi) || !Array.isArray(p.actionsUi.actionFields))
+        profile.diagnostics.push("document_actions_unresolved");
+      else
+        for (const [index, action] of p.actionsUi.actionFields.entries()) {
+          if (
+            !isObject(action) ||
+            (action.object ?? "text") !== "text" ||
+            !["insert", "replaceAll"].includes(String(action.action))
+          ) {
+            profile.diagnostics.push("document_action_unsupported");
+            continue;
+          }
+          add(
+            profile,
+            "content",
+            `actionsUi/actionFields/${index}/text`,
+            action.text,
+            true,
+          );
+          if (action.action === "replaceAll")
+            add(
+              profile,
+              "content",
+              `actionsUi/actionFields/${index}/replaceText`,
+              action.replaceText,
+              true,
+            );
+        }
+      if (
+        p.updateFields !== undefined &&
+        (!isObject(p.updateFields) || Object.keys(p.updateFields).length)
+      )
+        profile.diagnostics.push("document_write_controls_unverified");
+    }
+    profile.diagnostics.push("destination_access_unverified");
+    return profile;
+  }
+  if (kind === "whatsapp") {
+    if (![1, 1.1].includes(node.typeVersion))
+      return unsupported(profile, "unsupported_node_version");
+    if (
+      (p.resource ?? "message") !== "message" ||
+      (p.operation ?? "sendTemplate") !== "send"
+    )
+      return unsupported(profile, "unsupported_send_operation");
+    add(
+      profile,
+      "recipients",
+      "recipientPhoneNumber",
+      p.recipientPhoneNumber,
+      true,
+    );
+    if ((p.messageType ?? "text") !== "text")
+      return unsupported(profile, "unsupported_message_format");
+    add(profile, "content", "textBody", p.textBody, true);
+    const opts = options(p.additionalFields, profile);
+    if (Object.keys(opts).some((key) => key !== "previewUrl"))
+      profile.diagnostics.push("connector_options_unresolved");
+    if (opts.previewUrl === true)
+      profile.diagnostics.push("message_link_preview_unverified");
+    return profile;
+  }
+  if (![1, 1.1, 1.2].includes(node.typeVersion))
+    return unsupported(profile, "unsupported_node_version");
+  if (
+    (p.resource ?? "text") !== "text" ||
+    (p.operation ?? "message") !== "message"
+  )
+    return unsupported(profile, "unsupported_send_operation");
+  // GooglePalm credentials permit an operator-defined host. JSON alone cannot
+  // establish the endpoint, even when the shipped credential default is Google.
+  add(profile, "recipients", "modelId", null);
+  profile.diagnostics.push(
+    "provider_endpoint_from_credentials_unverified",
+    "model_processing_and_retention_unverified",
+  );
+  if (!isObject(p.messages) || !Array.isArray(p.messages.values))
+    profile.diagnostics.push("model_messages_unresolved");
+  else
+    for (const [index, message] of p.messages.values.entries()) {
+      if (!isObject(message)) {
+        profile.diagnostics.push("model_messages_unresolved");
+        continue;
+      }
+      add(
+        profile,
+        "content",
+        `messages/values/${index}/content`,
+        message.content,
+      );
+      if (!["user", "model"].includes(String(message.role ?? "user")))
+        profile.diagnostics.push("model_message_role_unresolved");
+    }
+  const opts = options(p.options, profile);
+  add(profile, "content", "options/systemMessage", opts.systemMessage);
+  if (
+    p.builtInTools !== undefined &&
+    (!isObject(p.builtInTools) ||
+      Object.values(p.builtInTools).some(
+        (item) => item !== false && item !== null,
+      ))
+  ) {
+    add(profile, "content", "builtInTools", p.builtInTools);
+    profile.diagnostics.push("model_provider_tools_unverified");
+  }
+  if (
+    node.typeVersion === 1 &&
+    opts.codeExecution !== undefined &&
+    opts.codeExecution !== false
+  )
+    profile.diagnostics.push("model_provider_tools_unverified");
+  return profile;
+}
+
 /** Exact field semantics are pinned to n8n 86dff76e10efba250a4d3e57760e4eb5d2bbea25. */
 function sendProfile(node: NormalizedNode): Profile | undefined {
+  const additional = additionalProfile(node);
+  if (additional) return additional;
   const p = node.parameters;
   const type = node.type.slice(base.length);
   if (
@@ -271,6 +526,14 @@ function sendProfile(node: NormalizedNode): Profile | undefined {
   if (type === "gmail") {
     if (![2, 2.1, 2.2].includes(node.typeVersion))
       return unsupported(profile, "unsupported_node_version");
+    if (
+      (p.resource ?? "message") === "message" &&
+      ["get", "getAll"].includes(String(p.operation))
+    ) {
+      profile.readOnly = true;
+      profile.diagnostics.push("read_response_classification_unverified");
+      return profile;
+    }
     if (
       (p.resource ?? "message") !== "message" ||
       (p.operation ?? "send") !== "send"
@@ -535,6 +798,12 @@ function destinations(sink: SinkKind, value: unknown): (string | null)[] {
       return [null];
     }
   }
+  if (sink === "whatsapp") return /^\+?\d{7,15}$/.test(text) ? [text] : [null];
+  if (sink === "google_docs" && /^https?:/i.test(text)) {
+    // Avoid claiming a URL is an opaque approved document ID. URL-to-ID parsing
+    // is left to a later profile; the actual JSON transfer remains visible.
+    return [null];
+  }
   return [text];
 }
 
@@ -582,16 +851,22 @@ function outgoing(
       continue;
     }
     scope.finding(
-      profile.diagnostics.some(
-        (code) =>
-          code === "unsupported_send_operation" ||
-          code === "unsupported_node_version",
-      )
-        ? "external_connector_declared"
-        : "outbound_send_capability",
+      profile.readOnly
+        ? "external_read_capability"
+        : profile.diagnostics.some(
+              (code) =>
+                code === "unsupported_send_operation" ||
+                code === "unsupported_node_version",
+            )
+          ? "external_connector_declared"
+          : "outbound_send_capability",
       "/type",
     );
     profile.diagnostics.forEach((code) => scope.diagnostic(code));
+    if (profile.readOnly) {
+      scope.finish();
+      continue;
+    }
     const allClasses = new Set<DataClass>();
     for (const field of profile.content) {
       const value = flow.resolve(node.key, field.value, {

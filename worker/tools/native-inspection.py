@@ -62,12 +62,63 @@ def run(mode, fields):
                 continue
             if re.search(r"[\u0400-\u052f\u0600-\u06ff\u0900-\u097f\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]", text):
                 diagnostic("nlp_language_outside_profile", index)
-            if len(text.strip()) < 3:
+            if not text.strip():
                 continue
             try:
-                for match in analyzer.analyze(text=text, language="en", entities=list(entities), score_threshold=0.5):
+                # Format scanning covers every original field, including metadata,
+                # code, expressions and keys. Named entities have a separate scope.
+                formats = [name for name in entities if name not in ("PERSON", "LOCATION")]
+                for match in analyzer.analyze(text=text, language="en", entities=formats, score_threshold=0.5):
                     if match.entity_type in entities:
                         finding(index, entities[match.entity_type], match.start, match.end)
+                scope = field["namedEntities"]
+                if scope in ("metadata", "program"):
+                    diagnostic("nlp_metadata_formats_only" if scope == "metadata" else "nlp_program_formats_only")
+                    continue
+                if re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", text.strip()):
+                    diagnostic("nlp_metadata_formats_only")
+                    continue
+                candidates = [(text, False)]
+                if scope == "template":
+                    diagnostic("nlp_template_literal_text_only")
+                    # Preserve offsets while excluding expression syntax. An
+                    # unterminated interpolation has no proven literal suffix.
+                    masked = re.sub(r"\{\{[\s\S]*?(?:\}\}|$)", lambda m: " " * len(m.group()), text)
+                    if masked.lstrip().startswith("="):
+                        pos = len(masked) - len(masked.lstrip())
+                        masked = masked[:pos] + " " + masked[pos + 1:]
+                    candidates = [(masked, False)]
+                elif scope == "json":
+                    diagnostic("nlp_json_string_values_only")
+                    try:
+                        decoded = json.loads(text)
+                        pending, candidates = [decoded], []
+                        count = 0
+                        while pending and count < 2048:
+                            value = pending.pop()
+                            count += 1
+                            if isinstance(value, str):
+                                candidates.append((value, True))
+                            elif isinstance(value, dict):
+                                pending.extend(value.values())
+                            elif isinstance(value, list):
+                                pending.extend(value)
+                        if pending:
+                            diagnostic("native_input_scope_limit", index)
+                    except (ValueError, RecursionError):
+                        diagnostic("nlp_json_text_unresolved", index)
+                        candidates = []
+                for candidate, decoded_json in candidates:
+                    if not candidate.strip():
+                        continue
+                    for match in analyzer.analyze(text=candidate, language="en", entities=["PERSON", "LOCATION"], score_threshold=0.5):
+                        span = candidate[match.start:match.end]
+                        # Exact unambiguous syntax/product tokens in prose are not
+                        # a person/location. Do not suppress names inside data.
+                        if scope not in ("data", "json") and re.fullmatch(r"(?:JSON|Gmail|PostgreSQL|n8n|HTTP|HTTPS|API|OAuth2?|JavaScript|TypeScript|Slack)", span, re.IGNORECASE):
+                            diagnostic("nlp_technical_entity_filtered")
+                            continue
+                        finding(index, entities[match.entity_type], 0 if decoded_json else match.start, len(text) if decoded_json else match.end)
             except Exception:
                 diagnostic("nlp_field_analysis_failed", index)
     else:
@@ -177,8 +228,11 @@ def main():
             raise ValueError("fields")
         seen = set()
         for field in fields:
-            if not isinstance(field, dict) or set(field) != {"index", "value"} or type(field["index"]) is not int or field["index"] < 0 or field["index"] in seen or not isinstance(field["value"], str):
+            expected_keys = {"index", "value", "namedEntities"} if mode == "nlp" else {"index", "value"}
+            if not isinstance(field, dict) or set(field) != expected_keys or type(field["index"]) is not int or field["index"] < 0 or field["index"] in seen or not isinstance(field["value"], str):
                 raise ValueError("field")
+            if mode == "nlp" and field["namedEntities"] not in ("metadata", "program", "prose", "data", "template", "json"):
+                raise ValueError("scope")
             seen.add(field["index"])
         result = run(mode, fields)
     except Exception:

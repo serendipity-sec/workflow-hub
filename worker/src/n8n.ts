@@ -20,6 +20,7 @@ export type Reference =
 
 export interface NormalizedNode {
   id: string;
+  identity: "explicit_id" | "name_derived";
   name: string;
   key: string;
   type: string;
@@ -225,7 +226,14 @@ function normalizeNodes(entries: unknown[]): NormalizedNode[] {
   return entries.map((entry, index) => {
     const pointer = `/nodes/${index}`;
     if (!isObject(entry)) throw new WorkflowError("invalid_workflow", pointer);
-    const { id, name, type, typeVersion, parameters, disabled } = entry;
+    const { name, type, typeVersion, parameters, disabled } = entry;
+    // n8n accepts exports without node IDs. Derive only an internal identity;
+    // never mutate the original document, bytes, or its hash. The namespace
+    // separates this from ordinary IDs; collision checks still apply below.
+    const id =
+      entry.id === undefined
+        ? `\u0000n8n-name-identity-v1\u0000${JSON.stringify([name, type])}`
+        : entry.id;
     if (
       !identified(id) ||
       /[\uD800-\uDFFF]/u.test(id) ||
@@ -246,6 +254,7 @@ function normalizeNodes(entries: unknown[]): NormalizedNode[] {
     keys.add(key);
     return {
       id,
+      identity: entry.id === undefined ? "name_derived" : "explicit_id",
       name,
       key,
       type,

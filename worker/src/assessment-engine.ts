@@ -39,6 +39,7 @@ import type { GitleaksResult } from "./gitleaks.js";
 import type { NativeInspectionResult } from "./native-inspection.js";
 import { sha256 } from "./worker-io.js";
 import { WorkflowError } from "./n8n.js";
+import { summarizeFunction, presentFindings } from "./assessment-summary.js";
 
 export interface AssessmentEngineOptions {
   evidenceBytes?: Buffer;
@@ -66,7 +67,7 @@ function flowCoverage(context: Context, flow: ValueFlow): RuleResult {
   return {
     ruleId,
     category: "egress",
-    profileVersion: "1.0.0",
+    profileVersion: "1.1.0",
     findings: [],
     diagnostics,
     coverage: diagnostics.length
@@ -189,6 +190,8 @@ export async function assessBytes(
         depth: input.depth,
         parentAnalysisKey: input.parentAnalysisKey,
         caller: input.caller,
+        functionSummary: summarizeFunction(input.context),
+        findingPresentation: presentFindings(findings),
         base,
         extensionRules,
         tools,
@@ -224,7 +227,7 @@ export async function assessBytes(
         );
     const report = {
       assessmentVersion: "1.0.0",
-      engineVersion: "0.3.0",
+      engineVersion: "0.4.0",
       inputSha256,
       execution: "not_run",
       boundary: { kind: "caller_managed", isolationVerified: false },
@@ -247,9 +250,22 @@ export async function assessBytes(
           ? error.code
           : "invalid_evidence",
       );
-    return assessmentError(
+    const failure = assessmentError(
       inputSha256,
       error instanceof WorkflowError ? "invalid_input" : "assessment_failed",
     );
+    if (error instanceof WorkflowError && failure.status === "error") {
+      failure.inputDiagnosis = {
+        code: error.code,
+        pointer:
+          error.pointer &&
+          /^\/(?:nodes(?:\/(?:0|[1-9][0-9]*))?|connections)$/.test(
+            error.pointer,
+          )
+            ? error.pointer
+            : null,
+      };
+    }
+    return failure;
   }
 }

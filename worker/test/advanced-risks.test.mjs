@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import sqlParser from "node-sql-parser";
 import { createContext } from "../dist/static-context.js";
 import { ruleResultSchema } from "../dist/static-contract.js";
 import {
@@ -65,6 +66,7 @@ test("SQL AST describes actual operations without issuing SQL and keeps raw name
 
 test("Postgres, MySQL and MSSQL templates report input paths with node-specific operation defaults", () => {
   for (const [type, version] of [
+    ["postgres", 2.4],
     ["postgres", 2.5],
     ["postgres", 2.8],
     ["mySql", 2.5],
@@ -83,6 +85,245 @@ test("Postgres, MySQL and MSSQL templates report input paths with node-specific 
     assert.ok(
       result.diagnostics.some(
         ({ code }) => code === "database_operation_profile_unsupported",
+      ),
+    );
+  }
+});
+
+test("Postgres cast parameters retain AST structure through CTE upserts and conditional writes", () => {
+  const query =
+    "WITH changed AS (INSERT INTO records (id, label) SELECT $1::int, $2::text ON CONFLICT (id) DO UPDATE SET label=$2::text RETURNING id) SELECT * FROM changed";
+  const description = inspectSqlOperation(query);
+  assert.equal(description.status, "parsed");
+  assert.ok(description.operations.includes("select"));
+  assert.ok(description.operations.includes("insert"));
+  assert.ok(description.operations.includes("update"));
+  assert.equal(description.statementCount, 1);
+  assert.equal(description.valueParameterCount, 3);
+  const result = scan(
+    chain(
+      web(),
+      sql(query, "postgres", 2.6, {
+        queryReplacement: "={{ [$json.body.id, $json.body.label] }}",
+      }),
+    ),
+  );
+  assert.ok(codes(result).includes("sql_value_binding_configured"));
+  assert.ok(
+    !result.diagnostics.some(({ code }) => code === "sql_parse_unsupported"),
+  );
+  const conditional = scan(
+    chain(
+      web(),
+      sql(
+        "UPDATE records SET label=$1::text, changed_at=CASE WHEN $2::boolean THEN CURRENT_TIMESTAMP ELSE NULL END WHERE id=$3::int RETURNING id",
+        "postgres",
+        2.6,
+        {
+          queryReplacement:
+            "={{ [$json.body.label, $json.body.changed, $json.body.id] }}",
+        },
+      ),
+    ),
+  );
+  assert.ok(codes(conditional).includes("sql_operation_update"));
+  assert.ok(codes(conditional).includes("sql_value_binding_configured"));
+});
+
+test("cast normalization excludes quoted and commented text and never accepts raw identifier formatting", () => {
+  for (const query of [
+    "SELECT '$1::text'",
+    "SELECT 1 /* $1::text */",
+    "SELECT $$ $1::text $$",
+    "SELECT café$1::text FROM records",
+  ]) {
+    const description = inspectSqlOperation(query);
+    if (description.status === "parsed")
+      assert.equal(description.valueParameterCount, 0);
+    const result = scan(
+      chain(
+        web(),
+        sql(query, "postgres", 2.6, {
+          queryReplacement: "={{ [$json.body.id] }}",
+        }),
+      ),
+    );
+    assert.ok(!codes(result).includes("sql_value_binding_configured"));
+  }
+  const raw = scan(
+    chain(
+      web(),
+      sql("SELECT * FROM $1:name WHERE id=$2::int", "postgres", 2.6, {
+        queryReplacement: "={{ [$json.body.table, $json.body.id] }}",
+      }),
+    ),
+  );
+  assert.ok(codes(raw).includes("sql_identifier_or_raw_format_review"));
+  assert.ok(!codes(raw).includes("sql_value_binding_configured"));
+  assert.equal(
+    inspectSqlOperation("WITH broken AS (nonsense) SELECT * FROM broken")
+      .status,
+    "unsupported",
+  );
+});
+
+test("Postgres cast normalization preserves nested comments, Unicode dollar literals and identifier bytes", () => {
+  const parserInputs = [];
+  const original = sqlParser.Parser.prototype.astify;
+  sqlParser.Parser.prototype.astify = function (query, options) {
+    parserInputs.push(query);
+    return original.call(this, query, options);
+  };
+  try {
+    for (const query of [
+      "SELECT 1 /* outer /* inner */ $1::text */",
+      "SELECT $é$ $1::text $é$",
+      "SELECT $cafe\u0301$ $1::text $cafe\u0301$",
+      "SELECT cafe\u0301$1::text FROM records",
+    ]) {
+      parserInputs.length = 0;
+      const description = inspectSqlOperation(query);
+      assert.deepEqual(parserInputs, [query]);
+      if (description.status === "parsed")
+        assert.equal(description.valueParameterCount, 0);
+    }
+    const escapeString = String.raw`SELECT E'\\' AS c, '$1::text' AS literal, $2::text`;
+    parserInputs.length = 0;
+    inspectSqlOperation(escapeString);
+    assert.deepEqual(parserInputs, [
+      escapeString.replace("$2::text", "($2)::text"),
+    ]);
+    const normalString = String.raw`SELECT '\' AS c, '$1::text' AS literal`;
+    parserInputs.length = 0;
+    const ambiguous = inspectSqlOperation(normalString);
+    assert.equal(ambiguous.status, "unsupported");
+    assert.ok(
+      ambiguous.diagnosticCodes.includes(
+        "sql_string_escape_context_unverified",
+      ),
+    );
+    assert.deepEqual(parserInputs, []);
+  } finally {
+    sqlParser.Parser.prototype.astify = original;
+  }
+});
+
+test("Postgres 2.6 string replacements expose the value channel without inventing stable positions", () => {
+  for (const replacement of [
+    "={{ $json.body.id }},{{ $json.body.label }}",
+    "{{ $json.body.id }},{{ $json.body.label }}",
+    "={{ $json.body.id }}",
+  ]) {
+    const result = scan(
+      chain(
+        web(),
+        sql("SELECT * FROM records WHERE id=$1", "postgres", 2.6, {
+          queryReplacement: replacement,
+        }),
+      ),
+    );
+    assert.ok(codes(result).includes("sql_value_parameter_channel_configured"));
+    assert.ok(!codes(result).includes("sql_value_binding_configured"));
+    assert.ok(
+      result.diagnostics.some(
+        ({ code }) => code === "sql_parameter_mapping_data_dependent",
+      ),
+    );
+  }
+  const fixed = scan(
+    chain(
+      web(),
+      sql("SELECT * FROM records WHERE id=$1 AND label=$2", "postgres", 2.6, {
+        queryReplacement: "7,label",
+      }),
+    ),
+  );
+  assert.ok(codes(fixed).includes("sql_value_binding_configured"));
+  const malformed = scan(
+    chain(
+      web(),
+      sql("SELECT * FROM records WHERE id=$1", "postgres", 2.6, {
+        queryReplacement: "={{ broken( }}",
+      }),
+    ),
+  );
+  assert.ok(
+    !codes(malformed).includes("sql_value_parameter_channel_configured"),
+  );
+  assert.ok(
+    malformed.diagnostics.some(
+      ({ code }) => code === "sql_parameter_expression_unresolved",
+    ),
+  );
+});
+
+test("Postgres replacement versions do not silently equate variable arrays with one scalar", () => {
+  for (const version of [2.4, 2.8]) {
+    const result = scan(
+      chain(
+        web(),
+        sql("SELECT * FROM records WHERE id=$1", "postgres", version, {
+          queryReplacement: "={{ $json.body.value }}",
+        }),
+      ),
+    );
+    assert.ok(!codes(result).includes("sql_value_binding_configured"));
+    assert.ok(codes(result).includes("sql_value_parameter_channel_configured"));
+  }
+  const legacy = scan(
+    chain(
+      web(),
+      sql("SELECT * FROM records WHERE id=$1 AND label=$2", "postgres", 2.4, {
+        queryReplacement: "={{ $json.body.id }},{{ $json.body.label }}",
+      }),
+    ),
+  );
+  assert.ok(codes(legacy).includes("sql_value_binding_configured"));
+  const direct = scan(
+    chain(
+      web(),
+      sql(
+        "UPDATE records SET amount={{ $json.body.amount }}, label='{{ $json.body.label }}' WHERE id='{{ $json.body.id }}'",
+        "postgres",
+        2.4,
+      ),
+    ),
+  );
+  assert.ok(codes(direct).includes("sql_text_input_candidate"));
+  assert.ok(codes(direct).includes("sql_structure_or_quoted_input_candidate"));
+  assert.ok(
+    direct.findings.some((finding) => finding.claim === "supported_path"),
+  );
+});
+
+test("expression-mode fixed commands retain execution capability without dynamic input claims", () => {
+  for (const command of [
+    "=printf constant",
+    "=cd /tmp\nprintf constant\n",
+    "printf '{{literal-format}}'",
+  ]) {
+    const result = scan(
+      chain(web(), node("Command", "executeCommand", 1, { command })),
+      "code_execution",
+    );
+    assert.ok(codes(result).includes("command_execution_capability"));
+    assert.ok(!codes(result).includes("command_dynamic_value_candidate"));
+    assert.ok(!codes(result).includes("command_external_value_candidate"));
+  }
+  for (const command of [
+    "=printf {{ $json.body.value }}",
+    "=printf {{ broken(",
+  ]) {
+    const result = scan(
+      chain(web(), node("Command", "executeCommand", 1, { command })),
+      "code_execution",
+    );
+    assert.ok(
+      codes(result).some((code) =>
+        [
+          "command_dynamic_value_candidate",
+          "command_external_value_candidate",
+        ].includes(code),
       ),
     );
   }

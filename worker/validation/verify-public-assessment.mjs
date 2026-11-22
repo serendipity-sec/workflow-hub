@@ -105,6 +105,7 @@ for (const sample of manifest.samples) {
     originalRedistributed: false,
     license: "not_verified",
     status: report.status,
+    engineVersion: report.engineVersion,
     elapsedMs: Math.round(performance.now() - startedAt),
     decision: report.status === "error" ? "inconclusive" : report.decision,
     categories: [],
@@ -209,7 +210,9 @@ for (const [path, digest] of Object.entries(artifactHashes))
 const output = {
   schemaVersion: "1.0.0",
   generatedAt: new Date().toISOString(),
-  engineVersion: "0.3.0",
+  engineVersion: [
+    ...new Set(results.map((result) => result.engineVersion)),
+  ].join(","),
   image,
   workflowExecution: "not_run",
   datasetKind: "purposive_public_compatibility_and_service_fit_sample",

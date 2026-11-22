@@ -1,0 +1,93 @@
+{
+  "outcome": "passed",
+  "fixtureType": "synthetic_only",
+  "inputSha256": "37e67b4754b7a1a79e25ff3770dc6b0633c62e7e2b80a5a04c4ed69adce6288e",
+  "image": "sha256:5ff8aa6989f172f8c2a5f97e8db51a228463f4a4f2bddd8381fbfbb431df9c30",
+  "engineVersion": "0.4.0",
+  "workflowExecution": "not_run",
+  "versions": {
+    "python": "3.11.2",
+    "presidio": "2.2.366",
+    "spacy": "3.8.18",
+    "model": "en_core_web_sm@3.8.0"
+  },
+  "assertions": 18,
+  "contextSensitiveShortNameObserved": false,
+  "limitations": [
+    "english_model_context_sensitive",
+    "no_general_recall_claim",
+    "named_entities_in_code_not_analyzed",
+    "format_candidates_in_code_retained"
+  ],
+  "matches": [
+    {
+      "pointer": "/nodes/0/parameters/jsCode",
+      "code": "nlp_email_candidate"
+    },
+    {
+      "pointer": "/nodes/0/parameters/jsonBody",
+      "code": "nlp_location_candidate"
+    },
+    {
+      "pointer": "/nodes/0/parameters/jsonBody",
+      "code": "nlp_person_candidate"
+    },
+    {
+      "pointer": "/notes/person",
+      "code": "nlp_person_candidate"
+    },
+    {
+      "pointer": "/notes/person",
+      "code": "nlp_location_candidate"
+    },
+    {
+      "pointer": "/notes/shortPerson",
+      "code": "nlp_person_candidate"
+    },
+    {
+      "pointer": "/notes/shortPerson",
+      "code": "nlp_location_candidate"
+    },
+    {
+      "pointer": "/notes/tiny",
+      "code": "nlp_person_candidate"
+    },
+    {
+      "pointer": "/notes/bracketed",
+      "code": "nlp_person_candidate"
+    },
+    {
+      "pointer": "/notes/bracketed",
+      "code": "nlp_location_candidate"
+    },
+    {
+      "pointer": "/notes/template",
+      "code": "nlp_person_candidate"
+    },
+    {
+      "pointer": "/notes/contextSensitive",
+      "code": "nlp_location_candidate"
+    },
+    {
+      "pointer": "/pinData/source/0/json/name",
+      "code": "nlp_person_candidate"
+    },
+    {
+      "pointer": "/pinData/source/0/json/shortName",
+      "code": "nlp_person_candidate"
+    },
+    {
+      "pointer": "/pinData/source/0/json/email",
+      "code": "nlp_email_candidate"
+    }
+  ],
+  "diagnostics": [
+    "nlp_english_model_profile",
+    "nlp_metadata_formats_only",
+    "nlp_program_formats_only",
+    "nlp_json_string_values_only",
+    "nlp_technical_entity_filtered",
+    "nlp_template_literal_text_only"
+  ],
+  "verificationScriptSha256": "50100fc37a3be7b044a69ddce41d7afcb489c17888d9ab9b9bbd983490587a1c"
+}

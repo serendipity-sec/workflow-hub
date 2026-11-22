@@ -5,6 +5,7 @@ import { join, resolve, dirname } from "node:path";
 import { runAssessment } from "../dist/assessment-runner.js";
 import { compareDefinitions } from "../dist/assessment-change.js";
 import { compareStatic } from "../dist/static-compare.js";
+import { compareAssessment } from "../dist/assessment-compare.js";
 import { assessmentReportSchema } from "../dist/assessment-contract.js";
 
 assert.ok(
@@ -22,7 +23,8 @@ const manifest = JSON.parse(
 );
 const publicReceipt = JSON.parse(
   await readFile(
-    new URL("./public-assessment-results.json", import.meta.url),
+    process.env.WORKER_PUBLIC_ASSESSMENT_RECEIPT ??
+      new URL("./public-assessment-results.json", import.meta.url),
     "utf8",
   ),
 );
@@ -83,6 +85,24 @@ async function variant(id, label, edit, check) {
     before.files[0].base,
     after.files[0].base,
   );
+  const assessmentComparison = compareAssessment(before, after);
+  assert.equal(assessmentComparison.basis, "same_assessment_contract");
+  assert.equal(assessmentComparison.scope, "all_reported_static_findings");
+  const findingCount = (report) =>
+    report.files.reduce(
+      (count, file) =>
+        count +
+        [
+          ...(file.base.status === "error" ? [] : file.base.rules),
+          ...file.extensionRules,
+        ].reduce((total, rule) => total + rule.findings.length, 0),
+      0,
+    );
+  assert.equal(
+    assessmentComparison.counts.beforeFindings,
+    findingCount(before),
+  );
+  assert.equal(assessmentComparison.counts.afterFindings, findingCount(after));
   const extra = check(before, after, declarations, findingComparison);
   await writeFile(join(directory, `${id}.${label}.workflow.json`), afterBytes, {
     mode: 0o600,
@@ -120,7 +140,11 @@ async function variant(id, label, edit, check) {
       rechecks: comparisonCounts(findingComparison.rechecks),
       newFindings: comparisonCounts(findingComparison.newFindings),
     },
-    extensionFindingComparison: "not_implemented",
+    assessmentFindingComparison: {
+      basis: assessmentComparison.basis,
+      rechecks: comparisonCounts(assessmentComparison.rechecks),
+      newFindings: comparisonCounts(assessmentComparison.newFindings),
+    },
     ...extra,
   });
 }
@@ -208,13 +232,16 @@ const output = {
   image: options.image,
   purpose: "public_original_manual_revision_recheck_and_compare",
   verificationScriptSha256: hash(await readFile(new URL(import.meta.url))),
-  automaticRepairOfPublicOriginals: "none_eligible_in_sample",
+  automaticRepairOfPublicOriginals:
+    publicReceipt.summary.automaticPlans === 0
+      ? "none_eligible_in_sample"
+      : "plans_available_not_applied_in_this_test",
   results,
   limitations: [
     "controlled_edits_are_not_naturally_observed_user_uploads",
     "no_original_or_modified_workflow_execution",
     "no_general_functional_equivalence",
-    "no_integrated_extension_finding_comparison",
+    "comparison_is_observation_change_not_proof_of_security_fix",
   ],
 };
 const outputPath = resolve(

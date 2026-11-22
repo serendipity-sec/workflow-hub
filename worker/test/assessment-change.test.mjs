@@ -46,6 +46,24 @@ const sqlPlans = (bytes) => {
     createRemediationPlans(context, findings, hash(bytes)),
   );
 };
+
+test("informational protections and capabilities do not create correction plans", () => {
+  const input = encode(
+    workflow([
+      node("request", "webhook", { authentication: "headerAuth" }, 2),
+      node("command", "executeCommand", { command: "echo fixture" }, 1),
+    ]),
+  );
+  const context = createContext(input);
+  const information = analyzeSettings(context)
+    .flatMap((rule) => rule.findings)
+    .filter((finding) => finding.severity === "info");
+  assert.ok(information.length > 0);
+  assert.deepEqual(
+    createRemediationPlans(context, information, hash(input)),
+    [],
+  );
+});
 const queryWorkflow = (
   query = "=SELECT owner FROM records WHERE id = {{ $json.body.id }}",
   options,

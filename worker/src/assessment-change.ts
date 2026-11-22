@@ -273,6 +273,18 @@ export function compareDefinitions(
   if (afterEvidence) afterEvidence = parseEvidence(afterEvidence, afterSha256);
   const changes: DefinitionComparison["changes"] = [];
   const diagnostics = new Set<string>();
+  if (
+    before.nodes.some(
+      (node) =>
+        node.identity === "name_derived" && !after.nodeByKey.has(node.key),
+    ) ||
+    after.nodes.some(
+      (node) =>
+        node.identity === "name_derived" && !before.nodeByKey.has(node.key),
+    )
+  ) {
+    diagnostics.add("name_derived_identity_renames_unresolved");
+  }
   function add(
     kind: ChangeKind,
     previous?: NormalizedNode,
@@ -730,6 +742,9 @@ export function createRemediationPlans(
   hash.parse(inputSha256);
   const plans: RemediationPlan[] = [];
   for (const finding of findings) {
+    // Informational capabilities and configured protections are observations,
+    // not requests to change a legitimate workflow.
+    if (finding.severity === "info") continue;
     const node =
       finding.location.nodeKey === null
         ? undefined

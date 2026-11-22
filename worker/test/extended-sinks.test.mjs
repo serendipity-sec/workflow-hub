@@ -565,3 +565,236 @@ test("projecting only the permitted secret omits the unrelated personal field", 
     false,
   );
 });
+
+test("Notion database pages select transmitted property types and keep destination policy separate", () => {
+  const { rules } = run(
+    [
+      webhook(),
+      node("Save", "notion", 2.2, {
+        resource: "databasePage",
+        databaseId: { mode: "id", value: "synthetic-database" },
+        title: "Public heading",
+        propertiesUi: {
+          propertyValues: [
+            {
+              key: "Contact|rich_text",
+              richText: false,
+              textContent: "={{ $json.body.email }}",
+              title: "={{ $json.body.password }}",
+            },
+          ],
+        },
+        options: {},
+      }),
+    ],
+    { Source: edge("Save") },
+    (ctx, hash) =>
+      policy(ctx, hash, "notion", ["synthetic-database"], ["public"]),
+  );
+  assert.ok(codes(rules).includes("personal_data_candidate_transferred"));
+  assert.ok(codes(rules).includes("data_class_not_allowed"));
+  assert.equal(codes(rules).includes("secret_candidate_transferred"), false);
+  assert.ok(diagnostics(rules).includes("destination_access_unverified"));
+  assert.equal(JSON.stringify(rules).includes("synthetic-database"), false);
+});
+
+test("Notion unknown property selection and URL locators retain uncertainty", () => {
+  const { rules } = run([
+    node("Save", "notion", 2.1, {
+      resource: "databasePage",
+      operation: "update",
+      pageId: { mode: "url", value: "https://www.notion.so/synthetic" },
+      propertiesUi: {
+        propertyValues: [
+          { key: "={{ $json.property }}", textContent: "private" },
+        ],
+      },
+    }),
+  ]);
+  assert.ok(diagnostics(rules).includes("notion_property_type_unresolved"));
+  assert.ok(diagnostics(rules).includes("destination_locator_unresolved"));
+  assert.ok(diagnostics(rules).includes("trusted_policy_transfer_unresolved"));
+});
+
+test("Google Docs creation and text updates identify the transmitted title and active action fields", () => {
+  const create = run(
+    [
+      webhook(),
+      node("Save", "googleDocs", 2, {
+        title: "={{ $json.body.email }}",
+        folderId: "synthetic-folder",
+      }),
+    ],
+    { Source: edge("Save") },
+  );
+  assert.ok(
+    codes(create.rules).includes("personal_data_candidate_transferred"),
+  );
+  const update = run(
+    [
+      webhook(),
+      node("Save", "googleDocs", 2, {
+        operation: "update",
+        documentURL: "synthetic-document",
+        actionsUi: {
+          actionFields: [
+            {
+              object: "text",
+              action: "insert",
+              text: "={{ $json.body.email }}",
+              replaceText: "={{ $json.body.password }}",
+            },
+            {
+              object: "text",
+              action: "replaceAll",
+              text: "Public token",
+              replaceText: "={{ $json.body.password }}",
+            },
+          ],
+        },
+      }),
+    ],
+    { Source: edge("Save") },
+  );
+  assert.ok(
+    codes(update.rules).includes("personal_data_candidate_transferred"),
+  );
+  const secrets = update.rules
+    .flatMap((r) => r.findings)
+    .filter((f) => f.evidence[0].code === "secret_candidate_transferred");
+  assert.equal(secrets.length, 1);
+  assert.ok(
+    secrets[0].location.pointer.includes("/actionFields/1/replaceText"),
+  );
+});
+
+test("Google Docs unsupported actions and unknown operations do not silently become covered sends", () => {
+  const action = run([
+    node("Save", "googleDocs", 1, {
+      operation: "update",
+      documentURL: "https://docs.google.com/document/d/synthetic/edit",
+      actionsUi: { actionFields: [{ object: "image", action: "insert" }] },
+    }),
+  ]);
+  assert.ok(diagnostics(action.rules).includes("document_action_unsupported"));
+  assert.ok(
+    diagnostics(action.rules).includes("trusted_policy_transfer_unresolved"),
+  );
+  for (const version of [2, 99]) {
+    const unknown = run([
+      node("Save", "googleDocs", version, { operation: "invented" }),
+    ]);
+    assert.ok(codes(unknown.rules).includes("external_connector_declared"));
+    assert.equal(
+      codes(unknown.rules).includes("outbound_send_capability"),
+      false,
+    );
+  }
+});
+
+test("WhatsApp text sends enforce exact recipient and data policy without treating a send as malicious", () => {
+  const { rules } = run(
+    [
+      webhook(),
+      node("Send", "whatsApp", 1.1, {
+        operation: "send",
+        recipientPhoneNumber: "+15550100100",
+        textBody: "={{ $json.body.email }}",
+        additionalFields: { previewUrl: false },
+      }),
+    ],
+    { Source: edge("Send") },
+    (ctx, hash) => policy(ctx, hash, "whatsapp", ["+15550100100"], ["public"]),
+  );
+  assert.ok(codes(rules).includes("outbound_send_capability"));
+  assert.ok(codes(rules).includes("personal_data_candidate_transferred"));
+  assert.ok(codes(rules).includes("data_class_not_allowed"));
+  const unknown = run([
+    node("Send", "whatsApp", 1.1, {
+      recipientPhoneNumber: "+15550100100",
+      textBody: "Public",
+    }),
+  ]);
+  assert.ok(diagnostics(unknown.rules).includes("unsupported_send_operation"));
+  assert.equal(
+    codes(unknown.rules).includes("outbound_send_capability"),
+    false,
+  );
+});
+
+test("direct Gemini profiles actual messages and system prompt while credential endpoint stays unknown", () => {
+  const model = {
+    ...node("Model", "ignored", 1.1, {
+      messages: {
+        values: [{ content: "={{ $json.body.email }}", role: "user" }],
+      },
+      options: { systemMessage: "={{ $json.body.password }}" },
+      builtInTools: {},
+    }),
+    type: "@n8n/n8n-nodes-langchain.googleGemini",
+  };
+  const { rules } = run(
+    [webhook(), model],
+    { Source: edge("Model") },
+    (ctx, hash) =>
+      policy(
+        ctx,
+        hash,
+        "gemini",
+        ["https://generativelanguage.googleapis.com"],
+        ["public", "personal", "secret"],
+      ),
+  );
+  assert.ok(codes(rules).includes("personal_data_candidate_transferred"));
+  assert.ok(codes(rules).includes("secret_candidate_transferred"));
+  assert.ok(
+    diagnostics(rules).includes(
+      "provider_endpoint_from_credentials_unverified",
+    ),
+  );
+  assert.ok(diagnostics(rules).includes("trusted_policy_transfer_unresolved"));
+  assert.equal(
+    diagnostics(rules).includes("model_provider_tools_unverified"),
+    false,
+  );
+  model.parameters.builtInTools = { codeExecution: true };
+  assert.ok(
+    diagnostics(
+      run([webhook(), model], { Source: edge("Model") }).rules,
+    ).includes("model_provider_tools_unverified"),
+  );
+});
+
+test("known Gmail reads have a read capability and no unsupported send warning", () => {
+  for (const operation of ["get", "getAll"]) {
+    const { rules } = run([node("Read", "gmail", 2.1, { operation })]);
+    assert.ok(codes(rules).includes("external_read_capability"));
+    assert.equal(codes(rules).includes("outbound_send_capability"), false);
+    assert.equal(
+      diagnostics(rules).includes("unsupported_send_operation"),
+      false,
+    );
+    assert.ok(
+      diagnostics(rules).includes("read_response_classification_unverified"),
+    );
+  }
+});
+
+test("untrusted connector and property identifiers cannot address prototype members", () => {
+  const inherited = run([
+    { ...node("Unknown", "ignored", 1), type: "toString" },
+  ]);
+  assert.equal(inherited.rules.flatMap((rule) => rule.findings).length, 0);
+  const property = run([
+    node("Save", "notion", 2.2, {
+      resource: "databasePage",
+      databaseId: { mode: "id", value: "synthetic" },
+      propertiesUi: {
+        propertyValues: [{ key: "x|constructor", textContent: "ignored" }],
+      },
+    }),
+  ]);
+  assert.ok(
+    diagnostics(property.rules).includes("notion_property_type_unresolved"),
+  );
+});

@@ -238,7 +238,7 @@ test("named source without a declared path is unresolved and expressions are nev
 });
 
 test("SQL interpolation recognizes omitted database resource on supported older versions, not omitted operation", () => {
-  for (const version of [2.5, 2.6, 2.8]) {
+  for (const version of [2.4, 2.5, 2.6, 2.8]) {
     const sql = node("SQL", "postgres", version, {
       operation: "executeQuery",
       query: "SELECT label FROM items WHERE id = {{ $json.body.id }}",

@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   analyzeNativeInspection,
   nativeInspectionResultSchema,
+  nativeNlpScope,
   runNativeInspection,
 } from "../dist/native-inspection.js";
 import { createContext } from "../dist/static-context.js";
@@ -46,6 +47,125 @@ const result = (mode, fields = [], diagnostics = []) => ({
       },
     },
   ],
+});
+
+test("NER scope separates schema metadata and programs while preserving literal data and notes", () => {
+  const ctx = createContext(
+    Buffer.from(
+      JSON.stringify({
+        name: "Synthetic workflow label",
+        nodes: [
+          {
+            id: "00000000-0000-4000-8000-000000000001",
+            name: "Gmail",
+            type: "n8n-nodes-base.code",
+            typeVersion: 2,
+            parameters: {
+              jsCode: "const label = 'John Smith';",
+              operation: "json",
+              body: { id: "Li" },
+              jsonBody: JSON.stringify({ name: "John Smith", city: "London" }),
+              message: "Contact John Smith {{ $json.id }}",
+              assignments: {
+                assignments: [
+                  {
+                    id: "schema-id",
+                    type: "string",
+                    name: "customer",
+                    value: "Li",
+                  },
+                ],
+              },
+            },
+          },
+        ],
+        connections: {},
+        notes: "[John Smith lives in London]",
+        pinData: { source: [{ json: { name: "Li", type: "John Smith" } }] },
+      }),
+    ),
+  );
+  const scope = (pointer, kind = "value") =>
+    nativeNlpScope(
+      ctx.fields.find(
+        (field) => field.pointer === pointer && field.kind === kind,
+      ),
+    );
+  for (const pointer of [
+    "/name",
+    "/nodes/0/id",
+    "/nodes/0/type",
+    "/nodes/0/parameters/operation",
+    "/nodes/0/parameters/assignments/assignments/0/id",
+  ])
+    assert.equal(scope(pointer), "metadata");
+  assert.equal(scope("/nodes/0/parameters/jsCode"), "program");
+  assert.equal(scope("/nodes/0/parameters/jsonBody"), "json");
+  assert.equal(scope("/nodes/0/parameters/message"), "template");
+  assert.equal(scope("/nodes/0/parameters/body/id"), "prose");
+  assert.equal(
+    scope("/nodes/0/parameters/assignments/assignments/0/value"),
+    "prose",
+  );
+  assert.equal(scope("/notes"), "prose");
+  assert.equal(scope("/pinData/source/0/json/name"), "data");
+  assert.equal(scope("/pinData/source/0/json/type"), "data");
+  assert.equal(scope("/pinData/source/0/json/name", "key"), "metadata");
+});
+
+test("metadata NER rejection preserves format results and short names in real data slots", () => {
+  const ctx = createContext(
+    Buffer.from(
+      JSON.stringify({
+        nodes: [
+          {
+            id: "fixture",
+            name: "Code",
+            type: "n8n-nodes-base.code",
+            typeVersion: 2,
+            parameters: {},
+          },
+        ],
+        connections: {},
+        notes: "Li",
+        pinData: { source: [{ json: { name: "Li" } }] },
+      }),
+    ),
+  );
+  const fields = ["/nodes/0/type", "/notes", "/pinData/source/0/json/name"].map(
+    (pointer) =>
+      ctx.fields.find(
+        (field) => field.kind === "value" && field.pointer === pointer,
+      ),
+  );
+  const scan = result(
+    "nlp",
+    fields.map((field) => ({
+      fieldIndex: field.index,
+      code: "nlp_person_candidate",
+      start: 0,
+      end: 2,
+      line: null,
+    })),
+  );
+  const rules = analyzeNativeInspection(ctx, scan).map((rule) =>
+    ruleResultSchema.parse(rule),
+  );
+  assert.equal(rules[0].findings.length, 2);
+  assert.equal(rules[0].profileVersion, "1.1.0");
+  assert.ok(
+    rules[0].diagnostics.some((d) => d.code === "nlp_metadata_formats_only"),
+  );
+  const format = result("nlp", [
+    {
+      fieldIndex: fields[0].index,
+      code: "nlp_email_candidate",
+      start: 0,
+      end: 2,
+      line: null,
+    },
+  ]);
+  assert.equal(analyzeNativeInspection(ctx, format)[0].findings.length, 1);
 });
 
 test("native helper absence relative paths and cancellation never become clean", async () => {

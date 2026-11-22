@@ -12,6 +12,36 @@ const read = (id) => JSON.parse(fixture(id));
 const normalize = (workflow) => parseWorkflow(encode(workflow));
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
+test("ID-less imports derive stable internal namespaced identities without modifying raw exports", () => {
+  const document = read("interpolated");
+  for (const node of document.nodes) delete node.id;
+  const input = encode(document);
+  const before = parseWorkflow(input);
+  const keys = new Map(before.nodes.map((node) => [node.name, node.key]));
+  for (const node of before.nodes) {
+    assert.equal(node.identity, "name_derived");
+    assert.equal(Object.hasOwn(node.raw, "id"), false);
+  }
+  document.nodes.reverse();
+  document.nodes[0].parameters.query = "SELECT 1";
+  const after = normalize(document);
+  assert.ok(after.nodes.every((node) => node.key === keys.get(node.name)));
+  assert.deepEqual(
+    JSON.parse(input).nodes.map((node) => Object.hasOwn(node, "id")),
+    [false, false],
+  );
+  assert.notEqual(before.nodes[0].key, hash(before.nodes[0].name));
+  // A provided empty/null ID is malformed, not a missing-ID import.
+  for (const value of [null, "", 123]) {
+    const invalid = JSON.parse(input);
+    invalid.nodes[0].id = value;
+    rejects(encode(invalid), "invalid_workflow", "/nodes/0");
+  }
+  const duplicate = JSON.parse(input);
+  duplicate.nodes[1].name = duplicate.nodes[0].name;
+  rejects(encode(duplicate), "identity_collision", "/nodes/1");
+});
+
 function rejects(bytes, code, pointer) {
   assert.throws(
     () => parseWorkflow(bytes),

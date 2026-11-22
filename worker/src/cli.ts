@@ -2,6 +2,7 @@ import { WorkerApiClient } from "./api-client.js";
 import { runLocal, runRemoteOnce } from "./runner.js";
 import { runStaticFile } from "./static-runner.js";
 import { compareStatic } from "./static-compare.js";
+import { compareAssessment } from "./assessment-compare.js";
 import { limits } from "./contract.js";
 import { writeFile } from "node:fs/promises";
 import { runAssessment, runAssessmentFile } from "./assessment-runner.js";
@@ -106,9 +107,32 @@ async function main(args: string[], signal: AbortSignal): Promise<void> {
         afterSha256: sha256(revised),
         originalModified: false,
         behaviorPreserved: "not_verified",
+        comparison: compareAssessment(report, recheck),
+        definitionChanges: compareDefinitions(bytes, revised),
         recheck,
       }) + "\n",
     );
+    return;
+  }
+  if (
+    args[0] === "compare-assessment" &&
+    args.length === 3 &&
+    args[1] &&
+    args[2]
+  ) {
+    const before = JSON.parse(
+      (await readLocalFile(args[1], assessmentLimits.resultBytes)).toString(
+        "utf8",
+      ),
+    );
+    const after = JSON.parse(
+      (await readLocalFile(args[2], assessmentLimits.resultBytes)).toString(
+        "utf8",
+      ),
+    );
+    const comparison = compareAssessment(before, after);
+    process.stdout.write(JSON.stringify(comparison) + "\n");
+    if (comparison.basis === "incompatible_or_failed") process.exitCode = 1;
     return;
   }
   if (args[0] === "compare-static" && args.length === 3 && args[1] && args[2]) {

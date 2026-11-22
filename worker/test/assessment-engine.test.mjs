@@ -60,6 +60,65 @@ const tools = async () => ({
   },
 });
 
+test("ID-less workflow summaries preserve bytes and expose only structural facts", async () => {
+  const start = node("SYNTHETIC_PRIVATE_TITLE", "manualTrigger");
+  const sink = node("SYNTHETIC_PRIVATE_RECIPIENT", "slack", 2.3, {});
+  delete start.id;
+  delete sink.id;
+  sink.disabled = true;
+  const input = bytes({
+    nodes: [start, sink],
+    connections: {
+      [start.name]: { main: [[{ node: sink.name, type: "main", index: 0 }]] },
+    },
+  });
+  const report = await assessBytes(input, { collectTools: tools, now });
+  assert.notEqual(report.status, "error", JSON.stringify(report));
+  assert.equal(report.engineVersion, "0.4.0");
+  assert.equal(report.inputSha256, hash(input));
+  const summary = report.files[0].functionSummary;
+  assert.deepEqual(
+    summary.nodes.map((node) => node.identity),
+    ["name_derived", "name_derived"],
+  );
+  assert.equal(summary.nodes[1].disabled, true);
+  assert.equal(summary.edges[0].from, summary.nodes[0].nodeKey);
+  assert.equal(summary.edges[0].to, summary.nodes[1].nodeKey);
+  assert.ok(summary.limitations.includes("name_derived_identity"));
+  assert.equal(summary.meaning, "declared_structure_only");
+  assert.ok(!JSON.stringify(report).includes("SYNTHETIC_PRIVATE"));
+  const presentation = report.files[0].findingPresentation;
+  assert.equal(presentation.vulnerabilityCount, "not_established");
+  const infoIds = new Set(presentation.observations);
+  assert.ok(
+    report.files[0].remediation.every((plan) =>
+      plan.findingIds.every((id) => !infoIds.has(id)),
+    ),
+  );
+  const tampered = structuredClone(report);
+  tampered.files[0].findingPresentation.observations.push("0".repeat(64));
+  assert.equal(assessmentReportSchema.safeParse(tampered).success, false);
+});
+
+test("input failures provide safe parser codes and locations before collecting tools", async () => {
+  let calls = 0;
+  const collectTools = async () => {
+    calls++;
+    return tools();
+  };
+  const invalid = document(node("PRIVATE_NAME", "manualTrigger"));
+  invalid.nodes[0].id = null;
+  const report = await assessBytes(bytes(invalid), { collectTools, now });
+  assert.equal(report.code, "invalid_input");
+  assert.deepEqual(report.inputDiagnosis, {
+    code: "invalid_workflow",
+    pointer: "/nodes/0",
+  });
+  assert.equal(assessmentReportSchema.safeParse(report).success, true);
+  assert.equal(calls, 0);
+  assert.ok(!JSON.stringify(report).includes("PRIVATE_NAME"));
+});
+
 test("integrated assessment keeps ten base categories and real extension outputs without a safety verdict", async () => {
   const input = bytes(
     document(
