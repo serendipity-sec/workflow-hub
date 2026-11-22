@@ -9,10 +9,30 @@ spring:
     password: ${DATABASE_PASSWORD}
   flyway:
     default-schema: workflow_hub
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+springdoc:
+  api-docs:
+    enabled: ${app.docs.enabled}
+  swagger-ui:
+    enabled: ${app.docs.enabled}
+    tags-sorter: alpha
+logging:
+  pattern:
+    correlation: '[%X{requestId:-}] '
 app:
+  docs:
+    enabled: ${API_DOCS_ENABLED:false}
   auth:
     issuer: ${SUPABASE_JWT_ISSUER:http://localhost:54321/auth/v1}
     jwk-set-uri: ${SUPABASE_JWKS_URI:http://localhost:54321/auth/v1/.well-known/jwks.json}
     audience: authenticated
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  storage:
+    region: ${AWS_REGION:ap-northeast-2}
+    bucket: ${WORKFLOW_BUCKET:}
+    attempt-timeout: ${S3_ATTEMPT_TIMEOUT:20s}
+    call-timeout: ${S3_CALL_TIMEOUT:60s}

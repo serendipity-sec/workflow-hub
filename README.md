@@ -21,17 +21,17 @@ n8n의 템플릿 심사·보안 감사·버전 리뷰, 제3자 공유 경로, �
 
 ## 현재 구현 상태
 
-저장소의 코드와 [OpenAPI 계약](contracts/openapi.yaml) 기준입니다. 외부 서비스는 배포 환경에서 연결을 검증해야 합니다.
+저장소의 코드와 백엔드의 OpenAPI 문서(Swagger UI) 기준입니다. 외부 서비스는 배포 환경에서 연결을 검증해야 합니다.
 
-| 영역                           | 상태                                                              |
-| ------------------------------ | ----------------------------------------------------------------- |
-| 프론트·백엔드 기반             | 실행 구조, 로그인 연결 코드, JWT 검증, 개발 도구·검사 설정이 있음 |
-| 구현된 HTTP API                | 상태 확인과 인증된 사용자 확인. 정확한 계약은 OpenAPI 참조        |
-| 워크플로·버전 DB 기반          | PostgreSQL 연결·Flyway 및 소유자/버전 메타데이터 스키마·제약 구현 |
-| 워크플로 서비스·S3 저장        | CRUD·업로드·조회·다운로드·번호 발급·파일 불변성 강제는 후속 구현  |
-| 저장소 비밀정보 검사           | GitHub Actions에서 Gitleaks로 Git 커밋 이력 검사                  |
-| 사용자 업로드 파일의 보안 검사 | 설계 제안, 미구현                                                 |
-| 보안 변화 비교·수정·공개       | 설계 제안, 미구현                                                 |
+| 영역                           | 상태                                                                                                             |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| 프론트·백엔드 기반             | 실행 구조, 로그인 연결 코드, JWT 검증, 개발 도구·검사 설정이 있음                                                |
+| 구현된 HTTP API                | 상태 확인과 인증된 사용자 확인. 정확한 계약은 OpenAPI 참조                                                       |
+| 워크플로·버전 DB 기반          | PostgreSQL 연결·Flyway 및 소유자/버전 메타데이터 스키마·제약 구현                                                |
+| 워크플로 서비스·S3 저장        | 최초 업로드와 S3 저장 코드는 구현(실제 S3 연동 미검증). 조회·다운로드·버전 업데이트·파일 불변성 강제는 후속 구현 |
+| 저장소 비밀정보 검사           | GitHub Actions에서 Gitleaks로 Git 커밋 이력 검사                                                                 |
+| 사용자 업로드 파일의 보안 검사 | 설계 제안, 미구현                                                                                                |
+| 보안 변화 비교·수정·공개       | 설계 제안, 미구현                                                                                                |
 
 제품 범위·우선순위·결정 상태는 [개발 계획](docs/PLAN.md), 검사 방식과 지원 범위는 [보안 설계안](docs/SECURITY_DESIGN.md)에서 관리합니다.
 
@@ -108,7 +108,7 @@ cd backend
 .\gradlew.bat bootRun
 ```
 
-실행 전에 `backend/.env.example`을 참고해 `DATABASE_URL`(JDBC URL), `DATABASE_USERNAME`, `DATABASE_PASSWORD`를 터미널이나 IDE의 프로세스 환경변수로 지정합니다. Supabase JWT issuer, JWKS 등 인증 설정도 환경변수로 전달합니다. Spring Boot는 `.env` 파일을 자동으로 읽지 않습니다.
+실행 전에 `backend/.env.example`을 참고해 `DATABASE_URL`(JDBC URL), `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `WORKFLOW_BUCKET`(S3 없이 실행할 때는 아무 이름)을 터미널이나 IDE의 프로세스 환경변수로 지정합니다. Supabase JWT issuer, JWKS 등 인증 설정도 환경변수로 전달합니다. Spring Boot는 `.env` 파일을 자동으로 읽지 않습니다.
 
 백엔드는 시작 시 Flyway로 `backend/src/main/resources/db/migration/`의 마이그레이션을 적용합니다. 초기 연결 계정은 `workflow_hub` 스키마와 테이블·마이그레이션 이력을 관리할 권한이 필요합니다. Supabase에서는 이 스키마를 Data API의 exposed schemas에 추가하지 않습니다. 현재 하나의 datasource로 마이그레이션도 실행하므로 운영 역할 분리는 별도 보강 대상입니다.
 
@@ -140,8 +140,8 @@ npm run build
 - [보안 검사 설계안](docs/SECURITY_DESIGN.md)
 - [차별화 근거와 검증 계획](docs/DIFFERENTIATION.md)
 - [외부 연동과 배포 준비](docs/SETUP.md)
-- [구현된 API 명세](contracts/openapi.yaml)
-- [합성 워크플로 샘플](contracts/examples/minimal-workflow.json)
+- API 명세: 백엔드를 `API_DOCS_ENABLED=true`로 실행하고 `/swagger-ui.html` 확인 ([설정](docs/SETUP.md))
+- [합성 워크플로 샘플](backend/src/test/resources/samples/minimal-workflow.json)
 
 ## 기여하기
 
@@ -154,7 +154,7 @@ npm run build
 
 ## 데이터 처리 원칙
 
-- 워크플로·버전 메타데이터의 PostgreSQL 스키마가 구현되어 있습니다. 서비스 API, 실제 비공개 S3 저장, 파일 해시·검사 기록은 후속 구현 대상입니다.
+- 워크플로·버전 메타데이터의 PostgreSQL 스키마와 최초 업로드 API(`POST /api/workflows`, S3 저장 코드 포함)가 구현되어 있습니다. 실제 S3 연동은 검증하지 않았고, 조회·다운로드·버전 업데이트, 파일 해시·검사 기록은 후속 구현 대상입니다.
 - 업로드한 워크플로·Code 노드·표현식을 서버에서 실행하지 않습니다.
 - 검사 결과에도 비밀정보가 포함될 수 있으므로, 결과 마스킹과 접근 권한을 함께 설계합니다.
 - 공개 기능은 특정 버전과 공개용 결과를 대상으로 하며, 다른 비공개 버전·원본·상세 결과를 자동 공개하지 않는 방향으로 검토합니다.

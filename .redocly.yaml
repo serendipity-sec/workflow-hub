@@ -1,7 +1,0 @@
-extends:
-  - recommended
-rules:
-  info-license: off
-  # TODO: 운영 서버 주소와 업로드·리비전 API가 정해지면 아래 두 규칙을 다시 켠다.
-  no-server-example.com: off
-  operation-4xx-response: off

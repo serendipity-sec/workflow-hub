@@ -1,4 +1,4 @@
-package dev.workflowhub.auth;
+package dev.workflowhub.auth.config;
 
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2Error;

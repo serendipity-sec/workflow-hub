@@ -1,4 +1,4 @@
-package dev.workflowhub.auth;
+package dev.workflowhub.auth.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
