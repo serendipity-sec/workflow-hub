@@ -34,6 +34,7 @@ class TokenValidatorsTests {
         List.of(
             token().issuer("https://other.example").build(),
             token().audience(List.of("other")).build(),
+            token().claims(claims -> claims.remove("sub")).build(),
             token().subject(" ").build(),
             token().claim("role", "service_role").build(),
             token().claim("role", "anon").build(),
