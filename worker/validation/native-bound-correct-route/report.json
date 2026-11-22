@@ -1,0 +1,60 @@
+{
+  "outcome": "passed",
+  "route": "/webhook/W18BoundFixture1/webhook/synthetic-lookup",
+  "probes": [
+    {
+      "exit": 2,
+      "stdout": "",
+      "stderr": "ECONNREFUSED"
+    },
+    {
+      "exit": 1,
+      "stdout": "{\"status\":503,\"body\":\"{\\\"status\\\":\\\"error\\\"}\"}",
+      "stderr": ""
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"status\":200,\"body\":\"{\\\"status\\\":\\\"ok\\\"}\"}",
+      "stderr": ""
+    }
+  ],
+  "responses": [
+    {
+      "id": 7,
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "body": "{\"label\":\"book\"}"
+    },
+    {
+      "id": 9,
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "body": "{\"label\":\"pen\"}"
+    },
+    {
+      "id": 13,
+      "status": 500,
+      "contentType": "application/json; charset=utf-8",
+      "body": "{\"code\":0,\"message\":\"No item to return was found\"}"
+    }
+  ],
+  "postgresDataMount": {
+    "target": "/var/lib/postgresql",
+    "type": "tmpfs",
+    "attachedVolumes": 0
+  },
+  "before": "ce1f5ab123910deaff3a9ea80cf1cb9845481493fde507fd5ad9952a75f9445c",
+  "after": "ce1f5ab123910deaff3a9ea80cf1cb9845481493fde507fd5ad9952a75f9445c",
+  "cleanup": {
+    "containers": 0,
+    "network": 0,
+    "verifiedRemoved": true,
+    "postgresDataRemoved": true
+  },
+  "container": {
+    "status": "running",
+    "exit": 0,
+    "oomKilled": false,
+    "error": ""
+  }
+}

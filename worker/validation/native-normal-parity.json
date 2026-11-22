@@ -1,0 +1,129 @@
+{
+  "outcome": "passed",
+  "fixtures": [
+    {
+      "role": "original",
+      "inputSha256": "fc5b6f72454ccd175bb629fffe445273c9e7a440ab0128ea65f4d675fc4d64b8",
+      "caseId": "interpolated",
+      "workflowId": "W18OrigFixture01",
+      "route": "/webhook/W18OrigFixture01/webhook/synthetic-lookup"
+    },
+    {
+      "role": "repaired",
+      "inputSha256": "e2118900c9f4eef2c17fbc69f9e59941b5e424df10a29b0d8b68e7d45f6e454e",
+      "caseId": "bound",
+      "workflowId": "W18BoundFixture1",
+      "route": "/webhook/W18BoundFixture1/webhook/synthetic-lookup"
+    }
+  ],
+  "probes": [
+    {
+      "exit": 2,
+      "stdout": "",
+      "stderr": "ECONNREFUSED"
+    },
+    {
+      "exit": 2,
+      "stdout": "",
+      "stderr": "ECONNREFUSED"
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"status\":200,\"body\":\"{\\\"status\\\":\\\"ok\\\"}\"}",
+      "stderr": ""
+    }
+  ],
+  "responses": {
+    "original": [
+      {
+        "id": 7,
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "body": "{\"label\":\"book\"}"
+      },
+      {
+        "id": 9,
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "body": "{\"label\":\"pen\"}"
+      },
+      {
+        "id": 13,
+        "status": 500,
+        "contentType": "application/json; charset=utf-8",
+        "body": "{\"code\":0,\"message\":\"No item to return was found\"}"
+      }
+    ],
+    "repaired": [
+      {
+        "id": 7,
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "body": "{\"label\":\"book\"}"
+      },
+      {
+        "id": 9,
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "body": "{\"label\":\"pen\"}"
+      },
+      {
+        "id": 13,
+        "status": 500,
+        "contentType": "application/json; charset=utf-8",
+        "body": "{\"code\":0,\"message\":\"No item to return was found\"}"
+      }
+    ]
+  },
+  "postgresDataMount": {
+    "target": "/var/lib/postgresql",
+    "type": "tmpfs",
+    "attachedVolumes": 0
+  },
+  "reader": {
+    "transactionReadOnly": true,
+    "select": true,
+    "writes": false
+  },
+  "versions": {
+    "postgres": "18.7",
+    "n8n": "2.48.7"
+  },
+  "isolation": {
+    "databaseNetwork": "none",
+    "sharedNamespace": true,
+    "addresses": ["127.0.0.1", "::1"],
+    "publishedPorts": 0
+  },
+  "publication": {
+    "original": [
+      "BOOTSTRAP import-original exit=0",
+      "BOOTSTRAP publish-original exit=0",
+      "BOOTSTRAP export-original exit=0",
+      "BOOTSTRAP inspect-original exit=0"
+    ],
+    "repaired": [
+      "BOOTSTRAP import-repaired exit=0",
+      "BOOTSTRAP publish-repaired exit=0",
+      "BOOTSTRAP export-repaired exit=0",
+      "BOOTSTRAP inspect-repaired exit=0"
+    ]
+  },
+  "digests": {
+    "before": "ce1f5ab123910deaff3a9ea80cf1cb9845481493fde507fd5ad9952a75f9445c",
+    "original": "ce1f5ab123910deaff3a9ea80cf1cb9845481493fde507fd5ad9952a75f9445c",
+    "repaired": "ce1f5ab123910deaff3a9ea80cf1cb9845481493fde507fd5ad9952a75f9445c"
+  },
+  "cleanup": {
+    "n8n": 0,
+    "postgres": 0,
+    "verifiedRemoved": true,
+    "postgresDataRemoved": true
+  },
+  "container": {
+    "status": "running",
+    "exit": 0,
+    "oomKilled": false,
+    "error": ""
+  }
+}

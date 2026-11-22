@@ -1,0 +1,10 @@
+18.7
+before=ce1f5ab123910deaff3a9ea80cf1cb9845481493fde507fd5ad9952a75f9445c
+constant_id_7
+book
+normal_id_7
+book
+other_id_9
+pen
+absent_id_13
+after=ce1f5ab123910deaff3a9ea80cf1cb9845481493fde507fd5ad9952a75f9445c

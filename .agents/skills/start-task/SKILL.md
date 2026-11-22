@@ -42,7 +42,7 @@ git fetch origin main
 
 ## 4. 문서 읽기
 
-루트 `AGENTS.md`, 작업 영역의 `frontend/AGENTS.md` 또는 `backend/AGENTS.md`, `docs/PLAN.md`, `docs/ARCHITECTURE.md`, 관련 `contracts/` 파일을 읽는다.
+루트 `AGENTS.md`, 작업 영역의 `frontend/AGENTS.md`, `backend/AGENTS.md` 또는 `worker/AGENTS.md`, `docs/PLAN.md`, `docs/ARCHITECTURE.md`, 관련 `contracts/` 파일을 읽는다.
 이슈 내용이 이 문서들과 충돌하면 구현 전에 사람에게 보고한다.
 
 ## 5. 작업 계획 보고

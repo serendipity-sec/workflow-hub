@@ -1,0 +1,150 @@
+{
+  "corpus": {
+    "workflows": 12,
+    "excludedFromBinaryScore": [
+      "code-on-path",
+      "subworkflow-missing",
+      "unsupported-version",
+      "removed-sink"
+    ]
+  },
+  "n8nPositiveControl": {
+    "caseId": "direct-origin",
+    "passed": true
+  },
+  "n8nQueryExpression": {
+    "observations": {
+      "interpolated": "negative",
+      "unrelated-if": "negative",
+      "direct-origin": "positive",
+      "reject-branch": "negative",
+      "type-constrained-false": "negative",
+      "guarded": "negative",
+      "bound": "negative",
+      "constant": "negative",
+      "code-on-path": "negative",
+      "subworkflow-missing": "negative",
+      "unsupported-version": "negative",
+      "removed-sink": "negative"
+    },
+    "metrics": {
+      "all": {
+        "positive": 4,
+        "negative": 4,
+        "tp": 1,
+        "fp": 0,
+        "fn": 3,
+        "tn": 4,
+        "failed": 0,
+        "unsupported": 0
+      },
+      "validation": {
+        "positive": 3,
+        "negative": 2,
+        "tp": 1,
+        "fp": 0,
+        "fn": 2,
+        "tn": 2,
+        "failed": 0,
+        "unsupported": 0
+      }
+    }
+  },
+  "n8nUnusedParametersProxy": {
+    "observations": {
+      "interpolated": "positive",
+      "unrelated-if": "positive",
+      "direct-origin": "positive",
+      "reject-branch": "positive",
+      "type-constrained-false": "positive",
+      "guarded": "positive",
+      "bound": "positive",
+      "constant": "positive",
+      "code-on-path": "positive",
+      "subworkflow-missing": "positive",
+      "unsupported-version": "positive",
+      "removed-sink": "negative"
+    },
+    "metrics": {
+      "all": {
+        "positive": 4,
+        "negative": 4,
+        "tp": 4,
+        "fp": 4,
+        "fn": 0,
+        "tn": 0,
+        "failed": 0,
+        "unsupported": 0
+      },
+      "validation": {
+        "positive": 3,
+        "negative": 2,
+        "tp": 3,
+        "fp": 2,
+        "fn": 0,
+        "tn": 0,
+        "failed": 0,
+        "unsupported": 0
+      }
+    }
+  },
+  "flowguardPostgresInputValidationProxy": {
+    "observations": {
+      "interpolated": "positive",
+      "unrelated-if": "negative",
+      "direct-origin": "negative",
+      "reject-branch": "negative",
+      "type-constrained-false": "negative",
+      "guarded": "negative",
+      "bound": "positive",
+      "constant": "positive",
+      "code-on-path": "negative",
+      "subworkflow-missing": "positive",
+      "unsupported-version": "positive",
+      "removed-sink": "negative"
+    },
+    "metrics": {
+      "all": {
+        "positive": 4,
+        "negative": 4,
+        "tp": 1,
+        "fp": 2,
+        "fn": 3,
+        "tn": 2,
+        "failed": 0,
+        "unsupported": 0
+      },
+      "validation": {
+        "positive": 3,
+        "negative": 2,
+        "tp": 0,
+        "fp": 1,
+        "fn": 3,
+        "tn": 1,
+        "failed": 0,
+        "unsupported": 0
+      }
+    }
+  },
+  "postgresControl": {
+    "passed": true,
+    "serverVersion": "18.7",
+    "expectedRows": [
+      {
+        "label": "book"
+      }
+    ],
+    "constantControlRows": [
+      {
+        "label": "book"
+      }
+    ],
+    "observedRows": [
+      {
+        "label": "book"
+      }
+    ],
+    "before": "ce1f5ab123910deaff3a9ea80cf1cb9845481493fde507fd5ad9952a75f9445c",
+    "after": "ce1f5ab123910deaff3a9ea80cf1cb9845481493fde507fd5ad9952a75f9445c"
+  }
+}

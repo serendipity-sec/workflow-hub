@@ -1,0 +1,70 @@
+{
+  "flowguard-version": {
+    "exit": 0,
+    "error": null
+  },
+  "node-version": {
+    "exit": 0,
+    "error": null
+  },
+  "flowguard-interpolated": {
+    "exit": 0,
+    "error": null
+  },
+  "flowguard-unrelated-if": {
+    "exit": 0,
+    "error": null
+  },
+  "flowguard-direct-origin": {
+    "exit": 0,
+    "error": null
+  },
+  "flowguard-reject-branch": {
+    "exit": 0,
+    "error": null
+  },
+  "flowguard-type-constrained-false": {
+    "exit": 0,
+    "error": null
+  },
+  "flowguard-guarded": {
+    "exit": 0,
+    "error": null
+  },
+  "flowguard-bound": {
+    "exit": 0,
+    "error": null
+  },
+  "flowguard-constant": {
+    "exit": 0,
+    "error": null
+  },
+  "flowguard-code-on-path": {
+    "exit": 0,
+    "error": null
+  },
+  "flowguard-subworkflow-missing": {
+    "exit": 0,
+    "error": null
+  },
+  "flowguard-unsupported-version": {
+    "exit": 0,
+    "error": null
+  },
+  "flowguard-removed-sink": {
+    "exit": 0,
+    "error": null
+  },
+  "n8n-version": {
+    "exit": 0,
+    "error": null
+  },
+  "n8n": {
+    "exit": 0,
+    "error": null
+  },
+  "postgres": {
+    "exit": 0,
+    "error": null
+  }
+}

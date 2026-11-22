@@ -1,0 +1,12 @@
+{
+  "taskId": "synthetic-task",
+  "attemptId": "synthetic-attempt",
+  "workflowVersionId": "synthetic-version",
+  "inputSha256": "fc5b6f72454ccd175bb629fffe445273c9e7a440ab0128ea65f4d675fc4d64b8",
+  "contractVersion": "1.0.0",
+  "leaseExpiresAt": "2030-01-01T00:00:00.000Z",
+  "file": {
+    "kind": "local",
+    "path": "fixtures/workflows/interpolated.json"
+  }
+}

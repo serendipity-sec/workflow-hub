@@ -1,0 +1,4 @@
+* text=auto eol=lf
+
+# Captured n8n logs retain the whitespace emitted by the process.
+validation/**/n8n.stdout.txt whitespace=-blank-at-eol,-blank-at-eof

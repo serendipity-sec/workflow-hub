@@ -30,6 +30,10 @@ reviews:
         VITE_ 값에 secret/service-role 키나 서버 자격 증명이 들어가면 지적한다.
         any 사용, dangerouslySetInnerHTML, 토큰·워크플로 원문 로그 출력을 지적한다.
         UI의 권한 판단이 서버 인가를 대체하는 구조인지 확인한다.
+    - path: 'worker/**'
+      instructions: |
+        업로드한 workflow·Code 노드·표현식을 실행하지 않는 정적 분석 워커다.
+        파일 접근 제한과 무결성 확인, 불완전한 분석 범위 표시, 토큰·워크플로 원문 로깅을 검토한다.
     - path: 'contracts/**'
       instructions: |
         OpenAPI 계약이다. 구현되지 않은 엔드포인트를 구현된 것처럼 기술하지 않았는지, 오류 응답이 ApiError 형식인지 확인한다.
@@ -43,6 +47,7 @@ knowledge_base:
       - 'AGENTS.md'
       - 'frontend/AGENTS.md'
       - 'backend/AGENTS.md'
+      - 'worker/AGENTS.md'
       - 'CONTRIBUTING.md'
 chat:
   auto_reply: true

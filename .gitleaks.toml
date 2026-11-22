@@ -1,0 +1,34 @@
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+# These exact SHA-256 identifiers are reproduced by the synthetic worker cases.
+
+[[rules.allowlists]]
+condition = "AND"
+paths = ['''^worker/fixtures/result\.json$''']
+regexTarget = "line"
+regexes = [
+  '''^\s*"inputKey": "bc36fa6bfae2844fe417601edf84796d15c7305c105cf2e99d6c887db45c243b",?\s*$''',
+  '''^\s*"nodeKey": "2e2c9540ec00acc8271a2db4e376c5d34b350edd4bbb340107fdb96a8bf3d53d",?\s*$''',
+  '''^\s*"nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",?\s*$''',
+  '''^\s*"shapeKey": "143c5d9f4e200b6e36ebf16e7573698e68c79b1ab0bf5b9300ffa696f253e1d1",?\s*$''',
+]
+
+[[rules.allowlists]]
+condition = "AND"
+paths = ['''^worker/validation/worker\-results\.json$''']
+regexTarget = "line"
+regexes = [
+  '''^\s*"inputKey": "bc36fa6bfae2844fe417601edf84796d15c7305c105cf2e99d6c887db45c243b",?\s*$''',
+  '''^\s*"nodeKey": "2e2c9540ec00acc8271a2db4e376c5d34b350edd4bbb340107fdb96a8bf3d53d",?\s*$''',
+  '''^\s*"nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",?\s*$''',
+  '''^\s*"nodeKey": "603472f87138f5963cb7348e515c176267f3e6704f578e352cd43683dc92d653",?\s*$''',
+  '''^\s*"shapeKey": "143c5d9f4e200b6e36ebf16e7573698e68c79b1ab0bf5b9300ffa696f253e1d1",?\s*$''',
+  '''^\s*"shapeKey": "3e7512aeb47783e74cab099e7d180fff1da74a9cf2d920e3c405d7fffd189481",?\s*$''',
+  '''^\s*"shapeKey": "54f2af18e398f0a71b929ca0e21745975a8766aee0f9ff6b0e07a67051cf44a6",?\s*$''',
+  '''^\s*"shapeKey": "62c84498b6df54812fc931fdc97c23ec921dca3a3b1a8558711df3006ca511e2",?\s*$''',
+  '''^\s*"shapeKey": "fa64e59a878ad38732304f8406cb7c0b892b750b2f28399c402f7f8eaf40de36",?\s*$''',
+]

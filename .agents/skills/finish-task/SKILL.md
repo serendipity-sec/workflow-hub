@@ -31,6 +31,7 @@ git diff --cached --stat
 | 루트     | `npm ci` 후 `npm run check`, `npm run test:tooling`                             |
 | frontend | `cd frontend && npm ci && npm run verify`                                       |
 | backend  | `cd backend && ./gradlew spotlessCheck test bootJar` (Windows: `.\gradlew.bat`) |
+| worker   | `npm --prefix worker ci` 후 `npm --prefix worker run verify`                    |
 
 - 검사·설정·테스트를 약하게 바꾸거나 skip해서 통과시키지 않는다.
 - 필수 로컬 검사를 실행할 수 없거나 실패하면 이유를 기록하고 커밋·완료 보고를 하지 않는다. 문제를 해결하고 재검증한다.
@@ -81,7 +82,7 @@ type(scope): description (영어)
 ```
 
 ## 라벨
-frontend / backend / infra / docs 중 해당 항목 (자동 라벨을 확인하고 필요하면 수정)
+frontend / backend / infra / docs 중 해당 항목 (워커에는 backend, 자동 라벨을 확인하고 필요하면 수정)
 
 ## PR 본문
 (.github/pull_request_template.md 형식으로 작성. `Closes #<번호>` 포함)
