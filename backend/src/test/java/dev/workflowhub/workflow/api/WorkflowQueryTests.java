@@ -1,6 +1,7 @@
 package dev.workflowhub.workflow.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.aMapWithSize;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
@@ -26,6 +27,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.json.JsonCompareMode;
@@ -143,7 +145,7 @@ class WorkflowQueryTests {
 
     String latestVersion =
         """
-        {"versionId":"%s","versionLabel":"v1.10","createdAt":"2026-10-03T00:00:00.123456Z","downloadEnabled":true}
+        {"versionId":"%s","versionLabel":"v1.10","createdAt":"2026-10-03T00:00:00.123456Z","downloadEnabled":true,"sha256":null,"sizeBytes":null}
         """
             .formatted(latest);
     mvc.perform(get(MY_WORKFLOWS).with(user(OWNER)))
@@ -172,8 +174,61 @@ class WorkflowQueryTests {
         .andExpect(jsonPath("$.data.items[0].versionLabel").value("v1.10"))
         .andExpect(jsonPath("$.data.items[0].createdAt").value("2026-10-03T00:00:00.123456Z"))
         .andExpect(jsonPath("$.data.items[0].downloadEnabled").value(true))
-        .andExpect(jsonPath("$.data.items[0]", aMapWithSize(4)))
+        .andExpect(jsonPath("$.data.items[0].sha256").value(nullValue()))
+        .andExpect(jsonPath("$.data.items[0].sizeBytes").value(nullValue()))
+        .andExpect(jsonPath("$.data.items[0]", aMapWithSize(6)))
         .andExpect(jsonPath("$.data.nextCursor").isNotEmpty());
+  }
+
+  @Test
+  void exposesTheRecordedHashAndSizeInListDetailAndVersionQueries() throws Exception {
+    insertWorkflow(WORKFLOW_ID, OWNER, "Synthetic workflow", FIRST);
+    UUID version = UUID.fromString("80000000-0000-0000-0000-000000000002");
+    insertVersion(version, WORKFLOW_ID, "v1", FIRST);
+    String sha256 = "a".repeat(64);
+    jdbc.sql(
+            "UPDATE workflow_hub.workflow_versions SET content_sha256 = :sha, size_bytes = 0 WHERE id = :id")
+        .param("sha", sha256)
+        .param("id", version)
+        .update();
+
+    // 크기 0은 미확인(null)과 구분되어 0으로 나온다.
+    mvc.perform(get(MY_WORKFLOWS).with(user(OWNER)))
+        .andExpect(jsonPath("$.data.items[0].latestVersion.sha256").value(sha256))
+        .andExpect(jsonPath("$.data.items[0].latestVersion.sizeBytes").value(0));
+    mvc.perform(get(WORKFLOW, WORKFLOW_ID).with(user(OWNER)))
+        .andExpect(jsonPath("$.data.latestVersion.sha256").value(sha256))
+        .andExpect(jsonPath("$.data.latestVersion.sizeBytes").value(0));
+    mvc.perform(get(VERSIONS, WORKFLOW_ID).with(user(OWNER)))
+        .andExpect(jsonPath("$.data.items[0].sha256").value(sha256))
+        .andExpect(jsonPath("$.data.items[0].sizeBytes").value(0));
+  }
+
+  @Test
+  void rejectsIncompleteOrMalformedFileIdentityAtTheDatabase() {
+    insertWorkflow(WORKFLOW_ID, OWNER, "Synthetic workflow", FIRST);
+    UUID version = UUID.fromString("80000000-0000-0000-0000-000000000003");
+    insertVersion(version, WORKFLOW_ID, "v1", FIRST);
+
+    for (String assignment :
+        new String[] {
+          "content_sha256 = '" + "a".repeat(64) + "'", // 크기 없이 해시만
+          "size_bytes = 1", // 해시 없이 크기만
+          "content_sha256 = '" + "A".repeat(64) + "', size_bytes = 1", // 대문자
+          "content_sha256 = 'abc', size_bytes = 1", // 길이 부족
+          "content_sha256 = '" + "a".repeat(64) + "', size_bytes = -1"
+        }) {
+      assertThatThrownBy(
+              () ->
+                  jdbc.sql(
+                          "UPDATE workflow_hub.workflow_versions SET "
+                              + assignment
+                              + " WHERE id = :id")
+                      .param("id", version)
+                      .update())
+          .as(assignment)
+          .isInstanceOf(DataIntegrityViolationException.class);
+    }
   }
 
   @Test

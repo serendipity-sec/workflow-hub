@@ -38,7 +38,7 @@ class WorkflowCreatedAtMigrationTests {
           .update();
 
       var current = flyway(postgres, null);
-      assertThat(current.migrate().migrationsExecuted).isEqualTo(3);
+      assertThat(current.migrate().migrationsExecuted).isEqualTo(4);
       assertThat(
               jdbc.sql("SELECT created_at FROM workflow_hub.workflows WHERE id = :id")
                   .param("id", workflowId)
@@ -46,7 +46,22 @@ class WorkflowCreatedAtMigrationTests {
                   .single())
           .isEqualTo(OffsetDateTime.parse("2026-10-20T01:00:00Z"));
       assertThat(current.info().current().getScript())
-          .isEqualTo("V5__create_workflow_comparisons.sql");
+          .isEqualTo("V6__add_workflow_version_file_identity.sql");
+      // 기존 버전의 해시·크기는 알 수 없으므로 미확인(NULL)으로 남고 기존 행은 그대로 유지된다.
+      assertThat(
+              jdbc.sql(
+                      """
+                      SELECT version, s3_object_key, content_sha256, size_bytes
+                      FROM workflow_hub.workflow_versions
+                      WHERE workflow_id = :id ORDER BY version
+                      """)
+                  .param("id", workflowId)
+                  .query()
+                  .listOfRows())
+          .extracting("version", "s3_object_key", "content_sha256", "size_bytes")
+          .containsExactly(
+              org.assertj.core.groups.Tuple.tuple("v1", "fixtures/first.json", null, null),
+              org.assertj.core.groups.Tuple.tuple("v1.1", "fixtures/second.json", null, null));
       assertThat(
               jdbc.sql(
                       """
