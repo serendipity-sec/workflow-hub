@@ -1,7 +1,8 @@
 # 보안 검사 워커 작업 지침
 
 - 워커는 Workflow Hub의 `worker/`에서 관리한다. Node.js 버전은 이 디렉터리의 `.node-version`을 사용하며 의존성은 워커에서 설치한다.
-- 정적 분석과 팀 연동 계약은 [지원 범위](docs/contract.md), [실행기](docs/runner.md), [보안 설계](../docs/SECURITY_DESIGN.md)를 기준으로 한다. 팀 HTTP API의 구현 범위는 [공개 OpenAPI](../contracts/openapi.yaml)와 백엔드 코드를 확인한다.
+- 10개 정적 검사의 구현 기준은 [구현 명세와 작업 분할](docs/implementation-plan.md), [흐름 프로파일](docs/flow-profiles.md), [도구 선택](docs/oss-decisions.md), [보안 설계](../docs/SECURITY_DESIGN.md)다. [이전 SQL 계약](docs/contract.md)과 [기존 실행기](docs/runner.md)의 검증 근거를 보존한다. 실제 팀 API는 프론트·백엔드 구현 후 확인하여 워커를 맞춘다. 현재 로컬 보고서·모의 API를 팀의 확정 계약으로 표현하지 않는다.
+- #14는 2026-11-22 사용자 지시에 따라 기존 워커 브랜치에서 단독 커밋으로 진행하며 PR 생성·타인 승인을 요구하지 않는다. 이 예외가 검사·코드 리뷰 절차를 생략하는 것은 아니다. 각 구현 담당자는 파일 소유권을 지키고 통합 담당자가 전체 검증 후 커밋한다.
 - 작업은 루트 지침에 따라 Workflow Hub 이슈로 추적한다. 업로드된 워크플로의 노드·표현식·Code를 실행하지 않는다. 테스트는 합성 JSON과 계약 모의 서버를 사용한다.
 - 루트에서 `npm --prefix worker ci`와 `npm --prefix worker run verify`를 실행한다. CLI의 상대 입력 경로는 현재 작업 디렉터리를 기준으로 해석한다. 워커 검증 명령과 기존 실행 근거는 [검증 문서](docs/validation.md)에 있다.
 - 합성 코퍼스와 저장된 실행 기록은 실측 근거다. 해시를 고정한 입력과 원본 출력을 갱신할 때는 관련 검증을 다시 수행하고 결과를 함께 기록한다.

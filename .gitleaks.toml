@@ -4,6 +4,16 @@ useDefault = true
 [[rules]]
 id = "generic-api-key"
 
+# Verified SHA-256 of worker/dist/api-client.js in the public scan receipt.
+# Match only this exact evidence line; credential detection stays enabled.
+[[rules.allowlists]]
+condition = "AND"
+paths = ['''^worker/validation/public-static-results\.json$''']
+regexTarget = "line"
+regexes = [
+  '''^\s*"dist/api-client\.js": "9437cf41dd1c6150d7f07f0da7da5a7cb8032ed4ee49056d0fa0db57083a4bf9",?\s*$''',
+]
+
 # These exact SHA-256 identifiers are reproduced by the synthetic worker cases.
 
 [[rules.allowlists]]

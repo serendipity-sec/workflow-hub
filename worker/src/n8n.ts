@@ -262,7 +262,15 @@ function mainOutputCount(node: NormalizedNode): number {
   if (supportedVersions.get(node.type) !== node.typeVersion) return Infinity;
   const methods = node.parameters.httpMethod;
   let count = node.type === ifNode ? 2 : 1;
-  if (node.type === webhook && Array.isArray(methods)) count = methods.length;
+  if (node.type === webhook && node.parameters.multipleMethods === true) {
+    // n8n's multi-method field defaults to GET and POST when it is omitted.
+    count =
+      methods === undefined
+        ? 2
+        : Array.isArray(methods)
+          ? methods.length
+          : Infinity;
+  }
   return count + (node.raw.onError === "continueErrorOutput" ? 1 : 0);
 }
 
@@ -363,6 +371,9 @@ function unsupportedNodeConfiguration(
     return "";
   if (node.type === webhook && Array.isArray(node.parameters.httpMethod)) {
     return "/parameters/httpMethod";
+  }
+  if (node.type === webhook && node.parameters.multipleMethods === true) {
+    return "/parameters/multipleMethods";
   }
   if (node.type === postgres) {
     if (node.parameters.resource !== "database") return "/parameters/resource";

@@ -260,6 +260,7 @@ test("diagnoses unsupported or malformed templates at the exact carrier fields",
 
 test("preserves additional ports in recognized but unsupported routing modes", () => {
   const multipleMethods = read("interpolated");
+  multipleMethods.nodes[0].parameters.multipleMethods = true;
   multipleMethods.nodes[0].parameters.httpMethod = ["GET", "POST"];
   multipleMethods.connections.Webhook.main.unshift(null);
   const graph = normalize(multipleMethods);
