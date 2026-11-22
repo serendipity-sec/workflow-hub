@@ -252,7 +252,7 @@ public class WorkflowUploadService {
     }
   }
 
-  private static void requireValidKey(String key) {
+  static void requireValidKey(String key) {
     if (key == null || key.isBlank()) {
       throw new WorkflowUploadException(
           HttpStatus.BAD_REQUEST, "IDEMPOTENCY_KEY_REQUIRED", "Idempotency-Key header is required");

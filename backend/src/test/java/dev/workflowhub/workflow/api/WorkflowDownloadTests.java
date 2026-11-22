@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -20,6 +21,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -31,6 +34,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 @SpringBootTest(properties = "app.docs.enabled=true")
@@ -39,6 +43,8 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 class WorkflowDownloadTests {
   private static final String DOWNLOAD =
       "/api/workflows/{workflowId}/versions/{versionId}/download";
+  private static final String AVAILABILITY =
+      "/api/workflows/{workflowId}/versions/{versionId}/download-availability";
   private static final String OWNER = "user-a";
   private static final String OTHER_USER = "user-b";
   private static final UUID WORKFLOW_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
@@ -96,6 +102,99 @@ class WorkflowDownloadTests {
     mvc.perform(get(DOWNLOAD, workflowId, versionId).with(user(OWNER)))
         .andExpect(status().isOk())
         .andExpect(content().bytes(uploaded));
+  }
+
+  @Test
+  void disablingAVersionBlocksStorageReadsAndReenablingRestoresTheOriginalBytes() throws Exception {
+    insertWorkflow(WORKFLOW_ID, "Private workflow");
+    insertVersion(OTHER_VERSION_ID, WORKFLOW_ID, "v1", "test-fixtures/older-version.json");
+    insertVersion(VERSION_ID, WORKFLOW_ID, "v2", OBJECT_KEY);
+    byte[] older = "{}".getBytes(StandardCharsets.UTF_8);
+    store.put("test-fixtures/older-version.json", older);
+    store.put(OBJECT_KEY, ORIGINAL);
+    clearInvocations(store);
+
+    mvc.perform(
+            availability(WORKFLOW_ID, VERSION_ID, "{\"downloadEnabled\":false}").with(user(OWNER)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.workflowId").value(WORKFLOW_ID.toString()))
+        .andExpect(jsonPath("$.data.versionId").value(VERSION_ID.toString()))
+        .andExpect(jsonPath("$.data.downloadEnabled").value(false));
+    mvc.perform(get(DOWNLOAD, WORKFLOW_ID, VERSION_ID).with(user(OWNER)))
+        .andExpect(status().isForbidden())
+        .andExpect(header().doesNotExist(HttpHeaders.CONTENT_DISPOSITION))
+        .andExpect(jsonPath("$.code").value("VERSION_DOWNLOAD_DISABLED"));
+    mvc.perform(get("/api/workflows/{workflowId}/versions", WORKFLOW_ID).with(user(OWNER)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.items[0].versionId").value(VERSION_ID.toString()))
+        .andExpect(jsonPath("$.data.items[0].downloadEnabled").value(false))
+        .andExpect(jsonPath("$.data.items[1].downloadEnabled").value(true));
+    verifyNoInteractions(store);
+
+    mvc.perform(get(DOWNLOAD, WORKFLOW_ID, OTHER_VERSION_ID).with(user(OWNER)))
+        .andExpect(status().isOk())
+        .andExpect(content().bytes(older));
+    mvc.perform(
+            availability(WORKFLOW_ID, VERSION_ID, "{\"downloadEnabled\":true}").with(user(OWNER)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.downloadEnabled").value(true));
+    mvc.perform(get(DOWNLOAD, WORKFLOW_ID, VERSION_ID).with(user(OWNER)))
+        .andExpect(status().isOk())
+        .andExpect(content().bytes(ORIGINAL));
+  }
+
+  @Test
+  void onlyTheOwnerCanSetAvailabilityForAVersionOfTheRequestedWorkflow() throws Exception {
+    insertWorkflow(WORKFLOW_ID, "First workflow");
+    insertVersion(VERSION_ID, WORKFLOW_ID, "v1", OBJECT_KEY);
+    insertWorkflow(OTHER_WORKFLOW_ID, "Second workflow");
+    insertVersion(OTHER_VERSION_ID, OTHER_WORKFLOW_ID, "v1", "test-fixtures/other.json");
+    String disabled = "{\"downloadEnabled\":false}";
+
+    mvc.perform(availability(WORKFLOW_ID, VERSION_ID, disabled))
+        .andExpect(status().isUnauthorized());
+    mvc.perform(availability(WORKFLOW_ID, VERSION_ID, disabled).with(user(OTHER_USER)))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value("WORKFLOW_VERSION_NOT_FOUND"));
+    mvc.perform(availability(WORKFLOW_ID, OTHER_VERSION_ID, disabled).with(user(OWNER)))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value("WORKFLOW_VERSION_NOT_FOUND"));
+    mvc.perform(availability(WORKFLOW_ID, "0-0-0-0-2", disabled).with(user(OWNER)))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value("WORKFLOW_VERSION_NOT_FOUND"));
+    verifyNoInteractions(store);
+
+    mvc.perform(get("/api/workflows/{workflowId}/versions", WORKFLOW_ID).with(user(OWNER)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.items[0].downloadEnabled").value(true));
+    mvc.perform(get("/api/workflows/{workflowId}/versions", OTHER_WORKFLOW_ID).with(user(OWNER)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.items[0].downloadEnabled").value(true));
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "",
+        "null",
+        "{}",
+        "{\"downloadEnabled\":null}",
+        "{\"downloadEnabled\":\"false\"}",
+        "{\"downloadEnabled\":0}",
+        "{\"downloadEnabled\":[]}",
+        "{\"downloadEnabled\":{}}"
+      })
+  void rejectsABodyWithoutAJsonBoolean(String body) throws Exception {
+    insertWorkflow(WORKFLOW_ID, "Private workflow");
+    insertVersion(VERSION_ID, WORKFLOW_ID, "v1", OBJECT_KEY);
+
+    mvc.perform(availability(WORKFLOW_ID, VERSION_ID, body).with(user(OWNER)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+    mvc.perform(get("/api/workflows/{workflowId}/versions", WORKFLOW_ID).with(user(OWNER)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.items[0].downloadEnabled").value(true));
+    verifyNoInteractions(store);
   }
 
   @Test
@@ -210,10 +309,17 @@ class WorkflowDownloadTests {
           .andExpect(jsonPath(path + ".schema.format").value("uuid"));
     }
 
-    for (String code : new String[] {"401", "404", "500", "503"}) {
+    for (String code : new String[] {"401", "403", "404", "500", "503"}) {
       docs.andExpect(
           jsonPath(operation + ".responses['" + code + "'].content['application/json']").exists());
     }
+  }
+
+  private static MockHttpServletRequestBuilder availability(
+      Object workflowId, Object versionId, String body) {
+    return patch(AVAILABILITY, workflowId, versionId)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(body);
   }
 
   private void insertWorkflow(UUID id, String title) {

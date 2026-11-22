@@ -143,7 +143,7 @@ class WorkflowQueryTests {
 
     String latestVersion =
         """
-        {"versionId":"%s","versionLabel":"v1.10","createdAt":"2026-10-03T00:00:00.123456Z"}
+        {"versionId":"%s","versionLabel":"v1.10","createdAt":"2026-10-03T00:00:00.123456Z","downloadEnabled":true}
         """
             .formatted(latest);
     mvc.perform(get(MY_WORKFLOWS).with(user(OWNER)))
@@ -171,7 +171,8 @@ class WorkflowQueryTests {
         .andExpect(jsonPath("$.data.items[0].versionId").value(latest.toString()))
         .andExpect(jsonPath("$.data.items[0].versionLabel").value("v1.10"))
         .andExpect(jsonPath("$.data.items[0].createdAt").value("2026-10-03T00:00:00.123456Z"))
-        .andExpect(jsonPath("$.data.items[0]", aMapWithSize(3)))
+        .andExpect(jsonPath("$.data.items[0].downloadEnabled").value(true))
+        .andExpect(jsonPath("$.data.items[0]", aMapWithSize(4)))
         .andExpect(jsonPath("$.data.nextCursor").isNotEmpty());
   }
 

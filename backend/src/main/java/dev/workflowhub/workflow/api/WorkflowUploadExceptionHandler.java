@@ -13,7 +13,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 /** 업로드 거절은 클라이언트 오류이므로 WARN으로 사유 코드만 남긴다. */
-@RestControllerAdvice(assignableTypes = WorkflowUploadController.class)
+@RestControllerAdvice(
+    assignableTypes = {WorkflowUploadController.class, WorkflowVersionController.class})
 @Order(Ordered.HIGHEST_PRECEDENCE)
 class WorkflowUploadExceptionHandler {
   private static final Logger log = LoggerFactory.getLogger(WorkflowUploadExceptionHandler.class);
