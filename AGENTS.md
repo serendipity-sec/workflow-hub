@@ -36,14 +36,14 @@ Claude Code는 `/start-task <이슈 번호>`, `/finish-task`로 실행한다. �
 
 1. `git status --short --branch`와 현재 경로를 확인한다. 기존 변경을 보존한다.
 2. `README.md`, `docs/PLAN.md`, `docs/ARCHITECTURE.md`를 읽는다.
-3. 작업 영역의 `AGENTS.md`와 `contracts/openapi.yaml`을 확인한다.
+3. 작업 영역의 `AGENTS.md`와 관련 API 컨트롤러의 OpenAPI 어노테이션을 확인한다.
 4. 이슈의 목적, 수정 범위, 완료 조건, 결정 사항을 기준으로 작은 단위로 구현한다.
 
 ## 기준 문서
 
 - 제품 범위와 결정 상태: `docs/PLAN.md`
 - 구조와 인증·데이터 경계: `docs/ARCHITECTURE.md`
-- 구현된 HTTP API: `contracts/openapi.yaml`
+- 구현된 HTTP API: 백엔드 컨트롤러의 OpenAPI 어노테이션(Swagger UI `/swagger-ui.html`, `/v3/api-docs`)
 - DB 구조: 향후 추가되는 백엔드 마이그레이션. 설계 문서는 실행된 스키마가 아니다.
 - 스타일: 포매터와 린터 설정. 명세와 구현이 충돌하면 보고하고 함께 정정한다.
 - 작업 단위의 목적과 결정: 해당 GitHub 이슈

@@ -61,9 +61,19 @@ await (async () => {
 
 `workflow_hub`는 백엔드 전용 스키마로 두고, Supabase Data API의 exposed schemas에 추가하지 않는다. 실제 Supabase 프로젝트의 연결·권한·노출 설정은 별도 검증한다. 백엔드 테스트는 Docker에서 일회용 PostgreSQL을 실행하며 운영 자격 증명을 사용하지 않는다.
 
-## S3: 업로드 기능 구현 시 연결
+## S3: 업로드 저장소
 
 S3는 Block Public Access를 활성화하고 개발/운영 리소스를 구분한다. 런타임 IAM 역할을 우선 사용하며 장기 AWS 키를 저장소에 넣지 않는다. 업로드 기능에서 객체 크기 제한, 비밀정보 로그 제외, DB 실패 시 객체 정리, 삭제 정책을 함께 구현한다.
+
+백엔드는 `AWS_REGION`(기본 `ap-northeast-2`)과 `WORKFLOW_BUCKET`을 읽고, 자격 증명은 AWS 기본 공급자 체인(환경 변수, 프로필, 역할)에서 가져온다. `WORKFLOW_BUCKET`은 필수이며 비어 있으면 앱이 시작되지 않는다. S3는 업로드할 때만 호출하므로 S3 없이 실행할 때는 아무 이름이나 지정한다. S3 요청 시간 제한은 `S3_ATTEMPT_TIMEOUT`(기본 20s)과 `S3_CALL_TIMEOUT`(기본 60s)로 바꾼다. 런타임 역할에는 해당 버킷의 `s3:PutObject`와 `s3:DeleteObject`가 필요하다. 삭제는 DB 기록 실패 후 참조 없는 객체를 지울 때만 쓴다. 버킷 versioning을 켜면 삭제가 삭제 마커가 되므로 이전 버전 만료 lifecycle 규칙을 함께 둔다. 실제 개발용 S3 연동은 이 저장소의 자동 테스트로 검증되지 않는다(테스트는 요청 형태를 mock 클라이언트로만 확인한다).
+
+## 로컬에서 API 문서와 로그 확인
+
+`.env.example`의 기본값은 `false`다. 로컬에서 `API_DOCS_ENABLED=true`로 백엔드를 실행하면 `http://localhost:8080/swagger-ui.html`에서 Swagger UI를, `/v3/api-docs`에서 OpenAPI JSON을 볼 수 있다. 운영 환경에서는 설정하지 않아 노출되지 않는다. API 명세의 기준은 컨트롤러의 OpenAPI 어노테이션이며, 업로드 호출 예시는 UI의 `POST /api/workflows`에 있다.
+
+모든 응답에는 `X-Request-Id` 헤더가 있고 오류 본문에는 같은 값이 `requestId`로 들어간다. 로그는 `[requestId] event=workflow.upload.committed ...`처럼 `event=` 키로 검색한다. 문제가 생기면 응답의 `requestId`로 `grep`해서 해당 요청의 전체 경로를 본다. 업로드 후 DB 기록이 실패해 남은 S3 객체는 `event=workflow.upload.orphan_delete_failed`의 `objectKey`로 찾는다. 파일 내용, 제목, 토큰은 로그에 남지 않는다.
+
+SQL 로그가 필요하면 `LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_JDBC_CORE=DEBUG`를 임시로 설정한다. 바인딩 값이 보일 수 있으니 운영에서는 쓰지 않는다.
 
 ## GitHub 최초 설정
 

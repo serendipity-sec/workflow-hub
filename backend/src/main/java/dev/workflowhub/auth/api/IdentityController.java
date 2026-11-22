@@ -1,4 +1,4 @@
-package dev.workflowhub.auth;
+package dev.workflowhub.auth.api;
 
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;

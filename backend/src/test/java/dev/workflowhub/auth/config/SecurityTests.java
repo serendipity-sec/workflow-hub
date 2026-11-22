@@ -1,4 +1,4 @@
-package dev.workflowhub.auth;
+package dev.workflowhub.auth.config;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -56,6 +56,17 @@ class SecurityTests {
                 .header("Origin", "http://localhost:5173")
                 .header("Access-Control-Request-Method", "GET")
                 .header("Access-Control-Request-Headers", "Authorization"))
+        .andExpect(status().isOk())
+        .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"));
+  }
+
+  @Test
+  void configuredOriginCanSendIdempotencyKeyOnWorkflowUpload() throws Exception {
+    mvc.perform(
+            options("/api/workflows")
+                .header("Origin", "http://localhost:5173")
+                .header("Access-Control-Request-Method", "POST")
+                .header("Access-Control-Request-Headers", "Authorization, Idempotency-Key"))
         .andExpect(status().isOk())
         .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"));
   }

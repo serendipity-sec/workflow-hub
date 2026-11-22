@@ -1,8 +1,8 @@
 # Backend harness
 
-Read root AGENTS.md and contracts/openapi.yaml first. Work inside backend unless a contract change is coordinated.
+Read root AGENTS.md first. Work inside backend unless an API change affects the frontend, then say so in the task report.
 
-- Java 25, Spring Boot 4.0.10, Gradle wrapper only. Package by domain (`auth`, `health`, future `workflow`, `revision`), not global controller/service folders.
+- Java 25, Spring Boot 4.0.10, Gradle wrapper only. Package by domain (`auth`, `health`, `workflow`, future `revision`), not global controller/service folders. Inside a domain use the same sub-packages everywhere: `api` (controllers, exception handlers, request/response records), `service` (business rules, validators, domain exceptions), `storage` (external storage ports and adapters such as S3), `config` (framework wiring). `common` holds cross-domain code with the same sub-packages (`common/api` error body and global handler, `common/config` OpenAPI, `common/logging` request-id filter); a domain must not depend on another domain's internals. Create a sub-package only when it has a class; do not add a repository layer until persistence outgrows `JdbcClient` in services. Test packages mirror the class under test, and the Postgres-backed migration test stays at the domain root.
 - Windows: `./gradlew.bat bootRun`; Linux/macOS: `./gradlew bootRun`.
 - Verify: `./gradlew spotlessCheck test bootJar` (use gradlew.bat on Windows). Format: `./gradlew spotlessApply`.
 - Google Java Format is authoritative. No hand-maintained conflicting Java style rules.
@@ -10,7 +10,11 @@ Read root AGENTS.md and contracts/openapi.yaml first. Work inside backend unless
 - No server login sessions or authentication cookies. CSRF is disabled only because this API accepts bearer headers; revisit if cookies become credentials.
 - CORS origins are explicit. Do not use wildcard origins for convenience.
 - Identity comes from verified subject, never a client-supplied owner ID. Future workflow queries must enforce owner/shared visibility and revision ownership.
-- Flyway manages workflow and version metadata tables in the backend-only `workflow_hub` PostgreSQL schema. Keep this schema out of Supabase Data API exposure. Workflow persistence APIs and S3 integration are future work. Original JSON must never be executed or logged.
+- Flyway manages workflow and version metadata tables in the backend-only `workflow_hub` PostgreSQL schema. Keep this schema out of Supabase Data API exposure. `POST /api/workflows` stores the original file in private S3 (`WORKFLOW_BUCKET` is required at startup; default AWS credential chain) and creates workflow `v1` plus an idempotency record in one transaction. Listing, download and version update are future work. Original JSON must never be executed, modified or logged.
 - Full backend verification requires Docker for PostgreSQL Testcontainers. The test database is disposable and independent of runtime database configuration.
 - No production credentials needed for tests. MockMvc JWT tests cover endpoint behavior; validator unit tests cover claims. Real Google callback/JWKS/RTR integration needs an actual configured Supabase project.
-- Update API contract with endpoint changes, add meaningful authorization/error tests, report exact checks and limitations.
+- SQL access uses Spring JDBC (`JdbcClient`, explicit `spring-boot-starter-jdbc`) with Flyway-owned schema. JPA/Hibernate is deliberately not used: the schema is a few tables written by explicit transactions, idempotency depends on exact SQL and unique constraints, and entity mapping would add lazy-loading and dirty-checking behavior without removing code. Revisit JPA when listing/detail queries need relations or paging across many entities.
+- Logging: every line is `event=<domain.action> key=value`; `requestId` comes from the MDC (`X-Request-Id` filter, also in the response header and `ApiError.requestId`). Log IDs, object keys, sizes, durations and exception stack traces; never log file content, titles, tokens, auth headers, presigned URLs or query strings. Expected client errors are WARN, unexpected failures ERROR with the exception. Add an `event=` line when you add a step that can fail or that you would want to find at 3 a.m.
+- Swagger UI (`/swagger-ui.html`) and `/v3/api-docs` exist only when `API_DOCS_ENABLED=true` (off by default, including in `.env.example`; set it to true only locally). The OpenAPI annotations on controllers are the single API reference (there is no separate contract file): keep summaries, request/response examples and every status code up to date with the behavior.
+- Code comments are Korean and only where the reason is not obvious from the code.
+- Update the OpenAPI annotations with endpoint changes, add meaningful authorization/error tests, report exact checks and limitations.
