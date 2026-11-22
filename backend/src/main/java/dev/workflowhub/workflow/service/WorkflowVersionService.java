@@ -131,7 +131,14 @@ public class WorkflowVersionService {
       if (wroteRows.get()) {
         // 커밋 응답이 유실되었을 수 있으므로 이 단계에서는 등록 파일을 보존한다.
         log.error("event=workflow.version.commit_unknown objectKey={}", objectKey, e);
-        var committed = confirmCommit(owner, key, fingerprint);
+        Optional<UploadResult> committed;
+        try {
+          committed = confirmCommit(owner, key, fingerprint);
+        } catch (WorkflowUploadException conflict) {
+          // 같은 키가 다른 입력으로 이미 커밋되어 있으면 이 요청의 행은 남지 않았다.
+          discardVersionObject(objectKey);
+          throw conflict;
+        }
         if (committed.isPresent()) {
           if (!committed.get().versionId().equals(versionId)) {
             // 같은 키의 다른 요청이 먼저 커밋했으므로 이 요청의 객체는 어떤 행도 가리키지 않는다.
@@ -286,6 +293,9 @@ public class WorkflowVersionService {
   private Optional<UploadResult> confirmCommit(String owner, String key, String fingerprint) {
     try {
       return replay(owner, key, fingerprint);
+    } catch (WorkflowUploadException e) {
+      // 확인된 키 충돌은 확인 불가가 아니므로 호출자가 응답으로 전달한다.
+      throw e;
     } catch (RuntimeException e) {
       log.error("event=workflow.version.commit_check_failed", e);
       return Optional.empty();

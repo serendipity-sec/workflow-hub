@@ -203,6 +203,69 @@ class WorkflowUploadAmbiguousCommitTests {
         .containsKeys(versionKeys.toArray(String[]::new));
   }
 
+  @Test
+  void reportsAKeyConflictAndDiscardsTheObjectWhenAnotherRequestWonTheSameKeyWithDifferentInput()
+      throws Exception {
+    var initial =
+        mvc.perform(upload("initial")).andExpect(status().isCreated()).andReturn().getResponse();
+    String workflowId = JsonPath.read(initial.getContentAsString(), "$.data.workflowId");
+    String versionId = JsonPath.read(initial.getContentAsString(), "$.data.versionId");
+    var comparison =
+        mvc.perform(
+                multipart(
+                        "/api/workflows/{workflowId}/versions/{versionId}/comparisons",
+                        workflowId,
+                        versionId)
+                    .file(workflowFile())
+                    .with(jwt().jwt(token -> token.subject("u"))))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse();
+    UUID comparisonId =
+        UUID.fromString(JsonPath.read(comparison.getContentAsString(), "$.data.comparisonId"));
+    String key = "conflicting-version-key";
+    var winner = new AtomicReference<UploadResult>();
+
+    doAnswer(
+            invocation -> {
+              TransactionCallback<?> body = invocation.getArgument(0);
+              new TransactionTemplate(transactionManager)
+                  .executeWithoutResult(
+                      status -> {
+                        body.doInTransaction(status);
+                        status.setRollbackOnly();
+                      });
+              winner.set(versions.register("u", workflowId, key, comparisonId, UpdateType.MAJOR));
+              throw new IllegalStateException("simulated commit failure after another request won");
+            })
+        .doCallRealMethod()
+        .when(transactions)
+        .execute(any());
+
+    mvc.perform(
+            post("/api/workflows/{workflowId}/versions", workflowId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"comparisonId":"%s","updateType":"MINOR"}
+                    """
+                        .formatted(comparisonId))
+                .header("Idempotency-Key", key)
+                .with(jwt().jwt(token -> token.subject("u"))))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("IDEMPOTENCY_KEY_REUSED"));
+
+    var versionKeys =
+        jdbc.sql("SELECT s3_object_key FROM workflow_hub.workflow_versions")
+            .query(String.class)
+            .list();
+    assertThat(versionKeys).hasSize(2);
+    assertThat(store.objects())
+        .hasSize(3)
+        .containsKey("workflows/comparisons/" + comparisonId + ".json")
+        .containsKeys(versionKeys.toArray(String[]::new));
+  }
+
   private MockMultipartHttpServletRequestBuilder upload(String key) {
     return multipart("/api/workflows")
         .file(workflowFile())
