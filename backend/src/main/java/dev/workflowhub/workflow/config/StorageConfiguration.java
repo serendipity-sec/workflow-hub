@@ -1,5 +1,7 @@
-package dev.workflowhub.workflow.storage;
+package dev.workflowhub.workflow.config;
 
+import dev.workflowhub.workflow.storage.S3WorkflowObjectStore;
+import dev.workflowhub.workflow.storage.WorkflowObjectStore;
 import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;

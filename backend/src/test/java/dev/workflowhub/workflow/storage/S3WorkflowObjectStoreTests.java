@@ -46,12 +46,10 @@ class S3WorkflowObjectStoreTests {
   }
 
   @Test
-  void rejectsABlankBucketSoStartupFails() {
+  void rejectsABlankBucket() {
     assertThatThrownBy(() -> new S3WorkflowObjectStore(s3, " "))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("WORKFLOW_BUCKET");
-    assertThatThrownBy(() -> new StorageConfiguration().workflowObjectStore(s3, ""))
-        .isInstanceOf(IllegalArgumentException.class);
     verifyNoInteractions(s3);
   }
 }

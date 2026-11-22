@@ -66,7 +66,9 @@ class GlobalExceptionHandler {
           HttpStatus.resolve(status.value()) != null
               ? HttpStatus.resolve(status.value()).name()
               : "ERROR";
+      // 405의 Allow 같은 표준 헤더를 보존한다.
       return ResponseEntity.status(status)
+          .headers(errorResponse.getHeaders())
           .body(ApiError.of(reason, errorResponse.getBody().getDetail()));
     }
     log.error("event=http.unhandled", e);

@@ -80,6 +80,14 @@ class RequestIdFilterTests {
   }
 
   @Test
+  void methodNotAllowedKeepsTheAllowHeader() throws Exception {
+    mvc.perform(get("/api/workflows").with(jwt().jwt(t -> t.subject("user-1"))))
+        .andExpect(status().isMethodNotAllowed())
+        .andExpect(header().string("Allow", org.hamcrest.Matchers.containsString("POST")))
+        .andExpect(jsonPath("$.requestId").isNotEmpty());
+  }
+
+  @Test
   void unknownPathKeepsItsStatusInsteadOfBecoming500() throws Exception {
     mvc.perform(get("/api/does-not-exist").with(jwt().jwt(t -> t.subject("user-1"))))
         .andExpect(status().isNotFound())
