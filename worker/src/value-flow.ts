@@ -79,6 +79,8 @@ export interface ValueFlow {
     value: unknown,
     options?: ResolveOptions,
   ): AbstractValue;
+  /** Internal Code AST text: parsed as one expression, never as an n8n template. */
+  resolveExpression(nodeKey: string, expression: string): AbstractValue;
   output(nodeKey: string, fieldPath: string, port?: number): AbstractValue;
   readonly diagnostics: FlowDiagnostic[];
 }
@@ -87,6 +89,7 @@ export const valueFlowLimits = {
   recursion: 64,
   requests: 4096,
   astNodes: 2048,
+  expressionCharacters: 65536,
   fields: 128,
   alternatives: 64,
   annotations: 256,
@@ -225,6 +228,14 @@ function join(
     guards: limited ? [] : commonGuards,
     paths: paths.slice(0, valueFlowLimits.alternatives),
     fullObject: values.some((value) => value.fullObject),
+    // Joining mapped alternatives does not preserve a field map. Their
+    // origins describe the mapped values, not an object on which new path
+    // components can be appended. Keep that structural uncertainty explicit.
+    fieldsComplete: values.some(
+      (value) => value.fields !== undefined || value.fieldsComplete === false,
+    )
+      ? false
+      : undefined,
     diagnosticCodes: diagnostics,
     valueId: ids.length === 1 ? ids[0]! : hash(ids.sort()),
   };
@@ -241,6 +252,8 @@ class ValueFlowAnalyzer implements ValueFlow {
   readonly diagnostics: FlowDiagnostic[] = [];
   private readonly active = new Set<string>();
   private readonly cache = new Map<string, AbstractValue>();
+  private readonly codeOutputs = new Map<string, AbstractValue>();
+  private readonly resolvedInputs = new Map<string, AbstractValue>();
   private requests = 0;
   constructor(
     private readonly context: Context,
@@ -252,11 +265,31 @@ class ValueFlowAnalyzer implements ValueFlow {
     value: unknown,
     options: ResolveOptions = {},
   ): AbstractValue {
-    return this.resolveValue(nodeKey, value, options, 0);
+    const key = hash([nodeKey, value, options]);
+    const cached = this.resolvedInputs.get(key);
+    if (cached) return structuredClone(cached);
+    const result = this.resolveValue(nodeKey, value, options, 0);
+    if (this.resolvedInputs.size < valueFlowLimits.requests)
+      this.resolvedInputs.set(key, structuredClone(result));
+    return result;
   }
 
   output(nodeKey: string, fieldPath: string, port = 0): AbstractValue {
     return this.nodeValue(nodeKey, parts(fieldPath), port, 0);
+  }
+
+  resolveExpression(nodeKey: string, expression: string): AbstractValue {
+    if (expression.length > valueFlowLimits.expressionCharacters)
+      return this.unknown(nodeKey, "expression_size_limit");
+    const key = hash(["code_expression", nodeKey, expression]);
+    const cached = this.resolvedInputs.get(key);
+    if (cached) return structuredClone(cached);
+    if (!this.bounded(nodeKey, 0))
+      return this.unknown(nodeKey, "flow_budget_exceeded");
+    const result = this.expression(nodeKey, expression, 1);
+    if (this.resolvedInputs.size < valueFlowLimits.requests)
+      this.resolvedInputs.set(key, structuredClone(result));
+    return result;
   }
 
   private note(nodeKey: string, code: string): void {
@@ -503,6 +536,7 @@ class ValueFlowAnalyzer implements ValueFlow {
     try {
       const ast = parseExpressionAt(text, 0, {
         ecmaVersion: "latest",
+        preserveParens: true,
       }) as unknown;
       if (
         !isObject(ast) ||
@@ -553,6 +587,8 @@ class ValueFlowAnalyzer implements ValueFlow {
   ): AbstractValue {
     if (!this.bounded(nodeKey, depth))
       return this.unknown(nodeKey, "flow_budget_exceeded");
+    if (ast.type === "ParenthesizedExpression" && isObject(ast.expression))
+      return this.astValue(nodeKey, ast.expression, depth + 1);
     if (ast.type === "Literal") {
       const value = this.literal(nodeKey, ast.value, "", depth + 1);
       if (ast.boundedClock === true) {
@@ -567,6 +603,42 @@ class ValueFlowAnalyzer implements ValueFlow {
         return { ...join([value, ...arguments_], nodeKey), fullObject: false };
       }
       return value;
+    }
+    if (ast.type === "ChainExpression" && isObject(ast.expression)) {
+      const value = this.astValue(nodeKey, ast.expression, depth + 1);
+      // Optional access may produce undefined. It never establishes a
+      // present value or inherits a guard for the non-optional expression.
+      return {
+        ...value,
+        presence: value.presence === "absent" ? "absent" : "unknown",
+        guards: [],
+        valueId: hash(["optional_access", value.valueId]),
+      };
+    }
+    if (
+      ast.type === "LogicalExpression" &&
+      ["||", "??"].includes(String(ast.operator)) &&
+      isObject(ast.left) &&
+      isObject(ast.right)
+    ) {
+      // Both alternatives are possible; do not execute truthiness/nullish
+      // checks or turn a fallback into sanitization of the original value.
+      const values = [
+        this.astValue(nodeKey, ast.left, depth + 1),
+        this.astValue(nodeKey, ast.right, depth + 1),
+      ];
+      return {
+        ...join(values, nodeKey),
+        // A logical selection is not a direct source reference, even when
+        // both alternatives are scalar or their object shape is unknown.
+        fieldsComplete: false,
+        guards: [],
+        valueId: hash([
+          "logical_selection",
+          ast.operator,
+          values.map((v) => v.valueId),
+        ]),
+      };
     }
     if (
       ast.type === "CallExpression" &&
@@ -601,6 +673,28 @@ class ValueFlowAnalyzer implements ValueFlow {
       if (!source || !this.connected(source.key, nodeKey))
         return this.unknown(nodeKey, "direct_reference_unconnected");
       return this.nodeValue(source.key, ref.path, 0, depth + 1);
+    }
+    if (
+      ast.type === "MemberExpression" &&
+      isObject(ast.object) &&
+      isObject(ast.property)
+    ) {
+      const key =
+        ast.computed === true
+          ? ast.property.type === "Literal"
+            ? ast.property.value
+            : undefined
+          : ast.property.name;
+      if (
+        (typeof key === "string" || typeof key === "number") &&
+        safeParts([String(key)])
+      )
+        return this.project(
+          this.astValue(nodeKey, ast.object, depth + 1),
+          [String(key)],
+          nodeKey,
+          depth + 1,
+        );
     }
     if (
       ast.type === "CallExpression" &&
@@ -791,11 +885,20 @@ class ValueFlowAnalyzer implements ValueFlow {
     | undefined {
     const suffix: string[] = [];
     let current = ast;
-    while (
-      current.type === "MemberExpression" &&
-      isObject(current.object) &&
-      isObject(current.property)
-    ) {
+    while (true) {
+      if (
+        current.type === "ParenthesizedExpression" &&
+        isObject(current.expression)
+      ) {
+        current = current.expression;
+        continue;
+      }
+      if (!(
+        current.type === "MemberExpression" &&
+        isObject(current.object) &&
+        isObject(current.property)
+      ))
+        break;
       const key =
         current.computed === true
           ? current.property.type === "Literal"
@@ -927,13 +1030,13 @@ class ValueFlowAnalyzer implements ValueFlow {
     port: number,
     depth: number,
   ): AbstractValue {
-    if (!this.bounded(nodeKey, depth))
-      return this.unknown(nodeKey, "flow_budget_exceeded");
     if (!safeParts(path))
       return this.unknown(nodeKey, "unsafe_field_reference");
     const cacheKey = JSON.stringify([nodeKey, path, port]);
     const cached = this.cache.get(cacheKey);
     if (cached) return structuredClone(cached);
+    if (!this.bounded(nodeKey, depth))
+      return this.unknown(nodeKey, "flow_budget_exceeded");
     if (this.active.has(cacheKey))
       return this.unknown(nodeKey, "cyclic_dataflow");
     const node = this.context.nodeByKey.get(nodeKey);
@@ -1024,7 +1127,7 @@ class ValueFlowAnalyzer implements ValueFlow {
         result = this.setValue(node, path, depth + 1);
       else if (
         (node.type === prefix + "if" &&
-          [2, 2.1, 2.2].includes(node.typeVersion)) ||
+          [2, 2.1, 2.2, 2.3].includes(node.typeVersion)) ||
         (node.type === prefix + "switch" &&
           [3, 3.1, 3.2, 3.3, 3.4, 3.5].includes(node.typeVersion))
       )
@@ -1367,6 +1470,17 @@ class ValueFlowAnalyzer implements ValueFlow {
       if (port > 1) return this.unknown(node.key, "branch_output_unavailable");
       filter = node.parameters.conditions;
     } else {
+      const unresolvedRoute = (code: string): AbstractValue => ({
+        ...this.unknown(node.key, code, [
+          this.input(node.key, path, depth + 1),
+        ]),
+        guards: [],
+      });
+      if (
+        node.parameters.options !== undefined &&
+        !isObject(node.parameters.options)
+      )
+        return unresolvedRoute("switch_options_unresolved");
       if ((node.parameters.mode ?? "rules") !== "rules")
         return this.unknown(node.key, "switch_expression_mode_unresolved", [
           this.input(node.key, path, depth + 1),
@@ -1376,23 +1490,37 @@ class ValueFlowAnalyzer implements ValueFlow {
         : undefined;
       if (!Array.isArray(rules))
         return this.unknown(node.key, "switch_rules_unavailable");
-      if (port === rules.length && options.fallbackOutput === "extra")
+      const fallback = options.fallbackOutput;
+      const fallbackIndex =
+        typeof fallback === "number"
+          ? fallback
+          : typeof fallback === "string" && /^(?:0|[1-9]\d*)$/.test(fallback)
+            ? Number(fallback)
+            : undefined;
+      const staticOutput =
+        fallbackIndex !== undefined &&
+        Number.isSafeInteger(fallbackIndex) &&
+        fallbackIndex >= 0 &&
+        fallbackIndex < rules.length;
+      if (
+        fallback !== undefined &&
+        fallback !== "none" &&
+        fallback !== "extra" &&
+        !staticOutput
+      )
+        return unresolvedRoute("switch_fallback_selector_unresolved");
+      if (port === rules.length && fallback === "extra")
         return this.input(node.key, path, depth + 1);
       if (port >= rules.length)
         return this.unknown(node.key, "branch_output_unavailable");
-      if (
-        options.fallbackOutput === port ||
-        options.fallbackOutput === String(port)
-      )
-        return this.unknown(node.key, "switch_fallback_reuses_output", [
-          this.input(node.key, path, depth + 1),
-        ]);
+      if (fallbackIndex === port)
+        return unresolvedRoute("switch_fallback_reuses_output");
       filter = isObject(rules[port]) ? rules[port].conditions : undefined;
       passed = true;
     }
     const result = this.input(node.key, path, depth + 1);
     const loose =
-      node.type === prefix + "if"
+      node.typeVersion >= (node.type === prefix + "if" ? 2.1 : 3.1)
         ? node.parameters.looseTypeValidation
         : options.looseTypeValidation;
     if (loose !== undefined && loose !== false)
@@ -1404,7 +1532,9 @@ class ValueFlowAnalyzer implements ValueFlow {
       !Array.isArray(filter.conditions) ||
       !isObject(filter.options) ||
       filter.options.typeValidation !== "strict" ||
-      filter.options.version !== 2
+      ![1, 2, 3].includes(Number(filter.options.version ?? 1)) ||
+      (filter.options.version !== undefined &&
+        typeof filter.options.version !== "number")
     )
       return this.unknown(node.key, "branch_guard_semantics_unresolved", [
         result,
@@ -1436,11 +1566,18 @@ class ValueFlowAnalyzer implements ValueFlow {
       const type = condition.operator.type,
         operation = condition.operator.operation;
       if (typeof operation !== "string") continue;
+      // Every filter version accepts null/undefined before strict type
+      // validation; v3 additionally normalizes empty strings/arrays to null.
+      // Only finite-number equality excludes all these non-number inputs.
+      const finiteNumberProof =
+        (operation === "equals" && passed) ||
+        (operation === "notEquals" && !passed);
       if (
         type === "number" &&
         ["equals", "notEquals", "gt", "gte", "lt", "lte"].includes(operation) &&
         typeof condition.rightValue === "number" &&
-        Number.isFinite(condition.rightValue)
+        Number.isFinite(condition.rightValue) &&
+        finiteNumberProof
       )
         result.guards.push({
           nodeKey: node.key,
@@ -1551,6 +1688,7 @@ class ValueFlowAnalyzer implements ValueFlow {
       guards: [],
       valueId: hash(["unresolved_projection", value.valueId, path]),
     });
+    if (value.fieldsComplete === false && !value.fields) return unresolved();
     if (value.fields) {
       // A bounded prefix does not establish absence, and a later expression
       // property may overwrite an earlier key. Preserve the aggregate's known
@@ -1614,6 +1752,9 @@ class ValueFlowAnalyzer implements ValueFlow {
     path: string[],
     depth: number,
   ): AbstractValue {
+    const cached = this.codeOutputs.get(node.key);
+    if (cached)
+      return this.project(structuredClone(cached), path, node.key, depth + 1);
     if (
       (node.typeVersion >= 2 &&
         (node.parameters.language ?? "javaScript") !== "javaScript") ||
@@ -1683,6 +1824,20 @@ class ValueFlowAnalyzer implements ValueFlow {
       ): Record<string, unknown> | undefined => {
         if (!this.bounded(node.key, level)) return;
         if (item.type === "Literal") return item;
+        if (item.type === "ChainExpression" && isObject(item.expression)) {
+          const expression = expand(item.expression, level + 1);
+          return expression ? { ...item, expression } : undefined;
+        }
+        if (
+          item.type === "LogicalExpression" &&
+          ["||", "??"].includes(String(item.operator)) &&
+          isObject(item.left) &&
+          isObject(item.right)
+        ) {
+          const left = expand(item.left, level + 1);
+          const right = expand(item.right, level + 1);
+          return left && right ? { ...item, left, right } : undefined;
+        }
         if (item.type === "Identifier") {
           if (typeof item.name !== "string") return;
           return (
@@ -1932,12 +2087,9 @@ class ValueFlowAnalyzer implements ValueFlow {
         !isObject(property.value)
       )
         return this.unknown(node.key, "code_mapping_unsupported");
-      return this.project(
-        this.astValue(node.key, property.value, depth + 1),
-        path,
-        node.key,
-        depth + 1,
-      );
+      const output = this.astValue(node.key, property.value, depth + 1);
+      this.codeOutputs.set(node.key, structuredClone(output));
+      return this.project(output, path, node.key, depth + 1);
     } catch {
       return this.unknown(node.key, "code_parse_unavailable");
     }

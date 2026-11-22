@@ -59,7 +59,11 @@ regexes = [
 
 [[rules.allowlists]]
 condition = "AND"
-paths = ['''^worker/validation/worker\-results\.json$''']
+# The current legacy verifier reproduces these same synthetic identity hashes.
+paths = [
+  '''^worker/validation/worker\-results\.json$''',
+  '''^worker/validation/legacy-0\.1\.2-results\.json$''',
+]
 regexTarget = "line"
 regexes = [
   '''^\s*"inputKey": "bc36fa6bfae2844fe417601edf84796d15c7305c105cf2e99d6c887db45c243b",?\s*$''',

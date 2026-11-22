@@ -8,7 +8,7 @@ import { limits, resultSchema, versions } from "../dist/contract.js";
 
 const fixtures = new URL("../fixtures/", import.meta.url);
 const load = (name) => readFile(new URL(name, fixtures));
-const manifest = JSON.parse(await load("cases.json"));
+const manifest = JSON.parse(await load("cases-0.1.2.json"));
 const samples = new Map(
   await Promise.all(
     manifest.cases.map(async (entry) => [entry.id, await load(entry.file)]),

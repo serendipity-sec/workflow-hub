@@ -22,15 +22,11 @@ const httpVersions = new Set([3, 4, 4.1, 4.2, 4.3, 4.4, 4.5]);
 const pgVersions = new Set([2.4, 2.5, 2.6, 2.8]);
 const webhookVersions = new Set([2, 2.1, 2.2]);
 const responseVersions = new Set([1, 1.1, 1.2, 1.3, 1.4, 1.5]);
-const transparentTypes = new Set([
-  webhook,
-  conditional,
-  noop,
-  http,
-  pg,
-  respond,
-  prefix + "stickyNote",
-]);
+const ifVersions = new Set([2, 2.1, 2.2, 2.3]);
+const scheduleVersions = new Set([1, 1.1, 1.2, 1.3, 1.4]);
+// These types have explicit sink/source profile checks below. This set does
+// not declare their outputs to preserve the current input item.
+const inspectedTypes = new Set([webhook, http, pg, respond]);
 const rootLocation: StaticLocation = { nodeKey: null, pointer: "/nodes" };
 
 type Ref = { kind: "current" | "direct"; path: string; name?: string };
@@ -81,7 +77,7 @@ function controlEdge(context: Context, edge: MainEdge): boolean {
     );
   }
   if (node.type === conditional)
-    return [2, 2.1, 2.2].includes(node.typeVersion) && edge.output < 2;
+    return ifVersions.has(node.typeVersion) && edge.output < 2;
   if (node.type === noop) return node.typeVersion === 1 && edge.output === 0;
   if (node.type === http)
     return httpVersions.has(node.typeVersion) && edge.output === 0;
@@ -189,7 +185,7 @@ function trace(
     if (
       !(
         previous.type === conditional &&
-        [2, 2.1, 2.2].includes(previous.typeVersion) &&
+        ifVersions.has(previous.typeVersion) &&
         edge.output <= 1
       ) &&
       !(
@@ -218,7 +214,7 @@ function narrowNumericGuard(
   )
     return false;
   const incoming = context.edges.filter((edge) => edge.to === sink.key);
-  if (incoming.length !== 1) return false;
+  if (incoming.length !== 1 || incoming[0]!.output !== 0) return false;
   const guard = context.nodeByKey.get(incoming[0]!.from);
   if (
     !guard ||
@@ -228,7 +224,8 @@ function narrowNumericGuard(
   )
     return false;
   if (
-    guard.parameters.looseTypeValidation === true ||
+    (guard.parameters.looseTypeValidation !== undefined &&
+      guard.parameters.looseTypeValidation !== false) ||
     !isObject(guard.parameters.conditions)
   )
     return false;
@@ -273,7 +270,7 @@ function rule(ruleId: string, category: Category): RuleResult {
   return {
     ruleId,
     category,
-    profileVersion: "1.1.0",
+    profileVersion: "1.2.0",
     findings: [],
     diagnostics: [],
     coverage: [],
@@ -816,11 +813,44 @@ function outputRule(context: Context, result: RuleResult): void {
   }
 }
 
+function reviewedBasicEffect(context: Context, node: NormalizedNode): boolean {
+  const edges = [...context.edges, ...context.unsupportedEdges];
+  const incoming = edges.filter((edge) => edge.to === node.key);
+  const outgoing = edges.filter((edge) => edge.from === node.key);
+  if (node.type === prefix + "stickyNote") {
+    // Sticky Note 1 declares no input or output ports. Text remains subject to
+    // content scanning; this does not permit a fabricated data-flow bridge.
+    return node.typeVersion === 1 && !incoming.length && !outgoing.length;
+  }
+  const noOp = node.type === noop && node.typeVersion === 1;
+  const conditionalNode =
+    node.type === conditional && ifVersions.has(node.typeVersion);
+  const trigger =
+    (node.type === prefix + "manualTrigger" && node.typeVersion === 1) ||
+    (node.type === prefix + "scheduleTrigger" &&
+      scheduleVersions.has(node.typeVersion));
+  if (!noOp && !conditionalNode && !trigger) return false;
+  if (
+    !safeExecution(node) ||
+    context.unsupportedEdges.some(
+      (edge) => edge.from === node.key || edge.to === node.key,
+    )
+  )
+    return false;
+  // Manual emits an empty item; Schedule emits clock metadata. Neither is an
+  // incoming Webhook value carrier. Their downstream data stays unproven.
+  return (
+    incoming.every((edge) => !trigger && edge.input === 0) &&
+    outgoing.every((edge) => edge.output < (conditionalNode ? 2 : 1))
+  );
+}
+
 function addUnknownCoverage(context: Context, results: RuleResult[]): void {
   for (const result of results) {
     for (const node of context.nodes.filter(
       (item) =>
-        !transparentTypes.has(item.type) &&
+        !inspectedTypes.has(item.type) &&
+        !reviewedBasicEffect(context, item) &&
         !(result.category === "output" && item.type === codeNode),
     )) {
       const location = locationFor(node);

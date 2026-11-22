@@ -12,7 +12,7 @@
 | `n8n-nodes-base.if`       | 2.2  | 단일 엄격 숫자 동등 조건, `and`, 정수 리터럴 비교, 전달 데이터 유지. true 출력 0, false 출력 1                                                                                                                                                  |
 | `n8n-nodes-base.postgres` | 2.8  | database의 executeQuery. 기본 options 또는 `queryReplacement` 하나. SQL은 `SELECT column FROM table WHERE column = operand` 형태의 단일 값 조회. 식별자는 따옴표 없는 ASCII 식별자, operand는 정수 리터럴, 표현식 한 개 또는 인용되지 않은 `$1` |
 
-표현식은 앞뒤 공백을 허용하는 `$json.body.field` 또는 연결된 동일 Webhook의 `$('Webhook').first().json.body.field`입니다. 노드 이름은 인용부호가 없는 ASCII 이름 범위만 지원합니다. SQL 필드 안의 보간은 `SELECT … {{ … }}`와 식 모드 `=SELECT … {{ … }}`를 지원합니다. `$1`에는 `={{ [ $json.body.field ] }}`처럼 지원 참조 한 개를 원소로 갖는 배열식을 요구합니다. 이를 n8n pg-promise 경로의 값 파라미터 처리로 기록합니다. 동적 값이 SQL 필드에 직접 들어가는 경우 options의 존재만으로 보호된 것으로 판단하지 않습니다. 동일 출처와 동일 필드를 엄격 숫자 조건으로 검증하고 그 IF가 유일한 경로를 지배하면, 해당 값은 참·거짓 출력 모두에서 임의 SQL 문자열이 될 수 없어 `guarded`로 분류합니다. 참 출력에서만 리터럴과 동등합니다. 다른 필드에 대한 검증과 같은 Webhook의 미검증 다른 필드 직접 참조는 대상 값을 제한하지 않습니다.
+표현식은 앞뒤 공백을 허용하는 `$json.body.field` 또는 연결된 동일 Webhook의 `$('Webhook').first().json.body.field`입니다. 노드 이름은 인용부호가 없는 ASCII 이름 범위만 지원합니다. SQL 필드 안의 보간은 `SELECT … {{ … }}`와 식 모드 `=SELECT … {{ … }}`를 지원합니다. `$1`에는 `={{ [ $json.body.field ] }}`처럼 지원 참조 한 개를 원소로 갖는 배열식을 요구합니다. 이를 n8n pg-promise 경로의 값 파라미터 처리로 기록합니다. 동적 값이 SQL 필드에 직접 들어가는 경우 options의 존재만으로 보호된 것으로 판단하지 않습니다. 동일 출처와 동일 필드를 유한한 숫자 리터럴과 엄격 동등 비교하고 그 IF가 유일한 경로를 지배하는 **참 출력 0**만 `guarded`로 분류합니다. 공식 filter는 null/undefined를 타입 검사 전에 허용하므로 거짓 출력 1을 숫자 타입 검증의 증거로 취급하지 않습니다. 엔진 0.1.2에서 이전의 잘못된 양쪽 분기 가정을 정정했습니다. 다른 필드에 대한 검증과 같은 Webhook의 미검증 다른 필드 직접 참조는 대상 값을 제한하지 않습니다.
 
 부분 분석에는 분석 범위와 누락 영향이 포함됩니다. 위 표 밖의 버전·노드·옵션과 표현식, Code, 하위 워크플로, Merge, AI 연결, 복수 입력·분기·경로, 순환, 비활성 노드, 핀 데이터, 오류 계속 실행, SQL 주석·다중문·인용된 자리표시자·일반 SQL을 미지원으로 반환합니다. 미지원 또는 불완전한 결과를 안전 판정으로 사용할 수 없습니다. JSON이 유효하지 않거나 연결에 존재하지 않는 노드를 가리키는 경우는 오류입니다.
 
@@ -43,6 +43,8 @@ API 요청은 서비스 Bearer를 사용합니다. 결과의 `Idempotency-Key`�
 
 ## 로컬 사례와 대조 도구
 
-저장소 루트에서 `npm --prefix worker ci`와 `npm --prefix worker run verify`로 fixture와 스키마를 검증합니다. `worker/`에서 실행기는 `node dist/cli.js local <task.json>`과 계약 모의 서버용 `node dist/cli.js mock-once`를 제공합니다. `fixtures/task.json`의 고정 시각은 계약 검증용입니다. 실제 실행 때 새 lease가 있는 작업을 사용합니다. [선행 정답](../fixtures/cases.json)은 개발용과 검증용을 나누고 사례별로 상태, 판정과 근거를 지정합니다. 수정 전후 정상 입력은 숫자 ID 7, 업무 출력은 label이 book인 한 행이고 쓰기는 0건입니다. `direct-origin`은 n8n 비교에서 직접 SQL 경고가 수집되는지 확인하는 양성 대조 사례입니다.
+저장소 루트에서 `npm --prefix worker ci`와 `npm --prefix worker run verify`로 fixture와 스키마를 검증합니다. `worker/`에서 실행기는 `node dist/cli.js local <task.json>`과 계약 모의 서버용 `node dist/cli.js mock-once`를 제공합니다. `fixtures/task.json`의 고정 시각은 계약 검증용입니다. 실제 실행 때 새 lease가 있는 작업을 사용합니다. [현재 정답](../fixtures/cases-0.1.2.json)은 개발용과 검증용을 나누고 사례별로 상태, 판정과 근거를 지정합니다. 수정 전후 정상 입력은 숫자 ID 7, 업무 출력은 label이 book인 한 행이고 쓰기는 0건입니다. `direct-origin`은 n8n 비교에서 직접 SQL 경고가 수집되는지 확인하는 양성 대조 사례입니다.
 
 비교의 단위는 해당 경로가 있는 워크플로 파일 한 개입니다. [n8n 2.48.7 database audit](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/cli/src/security-audit/risk-reporters/database-risk-reporter.ts)와 [FlowGuard](https://github.com/MohibShaikh/FlowGuard/tree/03b348d008eaafdebc3650973561d8091af1d8c8)를 기준선으로 사용합니다. SQL에 대한 직접 탐지와 일반 입력 검증 경고를 구분하고, 지원 여부와 실패를 측정합니다. 이 도구들은 워커 런타임 의존성이 아닙니다. 로컬 fixture와 모의 서버는 개발 경로이며 실제 팀 API 및 운영 격리는 팀 환경에서 검증합니다.
+
+이전 `fixtures/cases.json`과 과거 실행·비교 기록은 당시 기대의 증거로 보존합니다. 그 안의 `type-constrained-false` 음성 표지는 현재 기준으로 정정되었으므로 현재 정확도의 근거로 재사용하지 않습니다. 현재 정답은 같은 원본 바이트에 SQL 검토 후보를 요구합니다. null의 실제 SQL 악용이나 업무 실행 결과를 실증했다는 의미는 아닙니다.

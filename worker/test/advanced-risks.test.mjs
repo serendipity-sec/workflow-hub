@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import sqlParser from "node-sql-parser";
 import { createContext } from "../dist/static-context.js";
+import { buildValueFlow } from "../dist/value-flow.js";
 import { ruleResultSchema } from "../dist/static-contract.js";
 import {
   analyzeAdvancedRisks,
@@ -499,6 +500,116 @@ test("JavaScript module and variable aliases reach process execution candidates 
       ({ code }) => code === "javascript_semantics_partially_analyzed",
     ),
   );
+});
+
+test("AST value inspection does not parse object properties or template fragments as n8n templates", () => {
+  const source = [
+    "const cp = require('child_process');",
+    "const payload = {fixed: {suffix: '}}'}, value: $json.body.command};",
+    "const message = `prefix ${$json.body.command} }} suffix`;",
+    "cp.exec(message); fetch(JSON.stringify(payload));",
+  ].join("\n");
+  const context = createContext(
+    Buffer.from(JSON.stringify(chain(web(), code(source)))),
+  );
+  const flow = buildValueFlow(context);
+  const result = analyzeAdvancedRisks(context, flow).find(
+    (rule) => rule.category === "code_execution",
+  );
+  assert.ok(codes(result).includes("javascript_shell_input_candidate"));
+  assert.ok(codes(result).includes("javascript_dynamic_network_input"));
+  assert.ok(
+    !flow.diagnostics.some(({ code }) =>
+      [
+        "expression_syntax_unsupported",
+        "expression_parse_unavailable",
+        "flow_budget_exceeded",
+      ].includes(code),
+    ),
+  );
+});
+
+test("fixed property names do not inherit unrelated local bindings but computed keys do", () => {
+  for (const computed of [false, true]) {
+    const source = [
+      "const cp = require('child_process');",
+      "const command = $json.body.command;",
+      `const payload = {${computed ? "[command]" : "command"}: 'fixed'};`,
+      "cp.exec(JSON.stringify(payload));",
+    ].join("\n");
+    const result = scan(chain(web(), code(source)), "code_execution");
+    assert.equal(
+      codes(result).includes("javascript_shell_input_candidate"),
+      computed,
+    );
+    assert.ok(
+      codes(result).includes("javascript_process_execution_capability"),
+    );
+  }
+});
+
+test("method and function bodies retain execution candidates while syntax containers stay partial", () => {
+  const source =
+    "const payload = { run() { eval($json.body.code); } }; return [];";
+  const result = scan(chain(web(), code(source)), "code_execution");
+  assert.ok(codes(result).includes("javascript_external_evaluation_input"));
+  assert.ok(
+    result.diagnostics.some(
+      ({ code }) => code === "javascript_semantics_partially_analyzed",
+    ),
+  );
+});
+
+test("bounded constant declarations do not consume the budget needed for a later external sink", () => {
+  const declarations = Array.from(
+    { length: 180 },
+    (_, i) => `const fixed${i} = {outer: {value: ${i}}};`,
+  ).join("\n");
+  const context = createContext(
+    Buffer.from(
+      JSON.stringify(
+        chain(
+          web(),
+          code(
+            declarations + "\nconst input = $json.body.command; eval(input);",
+          ),
+        ),
+      ),
+    ),
+  );
+  const flow = buildValueFlow(context);
+  const result = analyzeAdvancedRisks(context, flow).find(
+    (rule) => rule.category === "code_execution",
+  );
+  assert.ok(codes(result).includes("javascript_external_evaluation_input"));
+  assert.ok(
+    !flow.diagnostics.some(({ code }) => code === "flow_budget_exceeded"),
+  );
+});
+
+test("JavaScript string literals containing n8n delimiters remain fixed strings", () => {
+  for (const source of [
+    "const cp=require('child_process'); cp.exec('={{ $json.body.command }}');",
+    "const cp=require('child_process'); const fixed='={{ $json.body.command }}'; cp.exec(fixed);",
+    "const cp=require('child_process'); cp.exec('=fixed {{ broken(');",
+  ]) {
+    const context = createContext(
+      Buffer.from(JSON.stringify(chain(web(), code(source)))),
+    );
+    const flow = buildValueFlow(context);
+    const result = analyzeAdvancedRisks(context, flow).find(
+      (rule) => rule.category === "code_execution",
+    );
+    assert.ok(
+      codes(result).includes("javascript_process_execution_capability"),
+    );
+    assert.ok(!codes(result).includes("javascript_shell_input_candidate"));
+    assert.ok(
+      !flow.diagnostics.some(
+        ({ code }) => code === "expression_syntax_unsupported",
+      ),
+    );
+  }
 });
 
 test("shell false with argv reports option-input uncertainty rather than declaring safe execution", () => {

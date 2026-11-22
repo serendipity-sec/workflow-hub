@@ -362,3 +362,71 @@ test("AI tool channels and future builtin nodes stay explicit unknown scopes", (
   assert.ok(rule.coverage.some(({ status }) => status === "unsupported"));
   assert.ok(rule.coverage.some(({ status }) => status === "partial"));
 });
+
+test("reviewed capability inventory recognizes exact basic-node and aligned builtin versions without a safety claim", () => {
+  const profiles = [
+    ["stickyNote", [1], "workflow_annotation_declared"],
+    ["manualTrigger", [1], "manual_trigger_capability"],
+    [
+      "scheduleTrigger",
+      [1, 1.1, 1.2, 1.3, 1.4],
+      "scheduled_trigger_capability",
+    ],
+    ["errorTrigger", [1], "error_event_trigger_capability"],
+    ["noOp", [1], "pass_through_capability"],
+    ["postgres", [2.4, 2.5, 2.6, 2.8], "database_access_capability"],
+    ["if", [1, 2, 2.1, 2.2, 2.3, 2.4], "conditional_routing_capability"],
+    [
+      "respondToWebhook",
+      [1, 1.1, 1.2, 1.3, 1.4, 1.5],
+      "webhook_response_capability",
+    ],
+  ];
+  for (const [kind, versions, code] of profiles) {
+    for (const typeVersion of versions) {
+      const rule = analyze([node(kind, {}, { typeVersion })]).category(
+        "dependencies",
+      );
+      assert.equal(rule.profileVersion, "1.1.0");
+      assert.deepEqual(diagnosticCodes(rule), [], `${kind}@${typeVersion}`);
+      assert.deepEqual(codes(rule), [code]);
+      assert.equal(rule.coverage[0].status, "checked");
+      assert.equal(rule.findings[0].severity, "info");
+      assert.equal(rule.findings[0].claim, "configuration");
+      assert.ok(
+        rule.findings[0].assumptions.includes("capability_inventory_only"),
+      );
+      assert.ok(
+        rule.findings[0].assumptions.includes(
+          "operation_and_dataflow_not_established_by_inventory",
+        ),
+      );
+    }
+    const future = analyze([node(kind, {}, { typeVersion: 99 })]).category(
+      "dependencies",
+    );
+    assert.deepEqual(diagnosticCodes(future), ["unsupported_node_version"]);
+    assert.equal(future.coverage[0].status, "unsupported");
+    assert.equal(future.findings.length, 0);
+  }
+});
+
+test("an annotation's text remains data, and inventory does not execute its expressions", () => {
+  delete globalThis.__inventoryExecuted;
+  const result = analyze([
+    node("stickyNote", {
+      content: "={{ globalThis.__inventoryExecuted = true }}",
+    }),
+  ]);
+  assert.ok(
+    result.context.fields.some((field) =>
+      field.value.includes("__inventoryExecuted"),
+    ),
+  );
+  assert.equal(globalThis.__inventoryExecuted, undefined);
+  assert.equal(
+    JSON.stringify(result.rules).includes("__inventoryExecuted"),
+    false,
+  );
+  assert.deepEqual(diagnosticCodes(result.category("dependencies")), []);
+});

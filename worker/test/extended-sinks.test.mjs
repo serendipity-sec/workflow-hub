@@ -144,6 +144,236 @@ test("Gmail transmitted message tracks sensitive source fields without exporting
   assert.ok(diagnostics(rules).includes("trusted_policy_transfer_unresolved"));
 });
 
+test("EmailSend v1 scans both bodies and top-level CC/BCC without treating V2 options as active", () => {
+  const mail = node("Mail", "emailSend", 1, {
+    toEmail: "approved@example.invalid",
+    ccEmail: "approved@example.invalid",
+    bccEmail: "other@example.invalid",
+    text: "={{ $json.body.password }}",
+    html: "={{ $json.body.email }}",
+    emailFormat: "text",
+    attachments: "syntheticBinary",
+    options: { bccEmail: "ignored@example.invalid" },
+  });
+  const { rules } = run(
+    [webhook(), mail],
+    { Source: edge("Mail") },
+    (ctx, hash) => policy(ctx, hash, "email", ["approved@example.invalid"]),
+  );
+  assert.equal(diagnostics(rules).includes("unsupported_node_version"), false);
+  assert.ok(codes(rules).includes("secret_candidate_transferred"));
+  assert.ok(codes(rules).includes("personal_data_candidate_transferred"));
+  assert.ok(codes(rules).includes("destination_not_allowlisted"));
+  assert.ok(diagnostics(rules).includes("binary_payload_unavailable"));
+  assert.equal(
+    rules[0].findings.some((f) =>
+      f.location.pointer.includes("options/bccEmail"),
+    ),
+    false,
+  );
+  assert.equal(JSON.stringify(rules).includes("other@example.invalid"), false);
+  assert.equal(rules[0].profileVersion, "1.2.0");
+});
+
+test("Telegram documents retain recipient and caption facts while binary content stays unknown", () => {
+  const document = node("Message", "telegram", 1.2, {
+    operation: "sendDocument",
+    chatId: "12345678",
+    binaryData: true,
+    binaryPropertyName: "payload",
+    file: "={{ $json.body.password }}",
+    text: "={{ $json.body.password }}",
+    additionalFields: {
+      caption: "={{ $json.body.email }}",
+      fileName: "report.txt",
+    },
+  });
+  const { rules } = run(
+    [webhook(), document],
+    { Source: edge("Message") },
+    (ctx, hash) =>
+      policy(ctx, hash, "telegram", ["12345678"], ["public", "personal"]),
+  );
+  assert.ok(codes(rules).includes("outbound_send_capability"));
+  assert.ok(codes(rules).includes("personal_data_candidate_transferred"));
+  assert.equal(codes(rules).includes("secret_candidate_transferred"), false);
+  assert.equal(
+    diagnostics(rules).includes("unsupported_send_operation"),
+    false,
+  );
+  assert.ok(diagnostics(rules).includes("binary_payload_unavailable"));
+  assert.ok(diagnostics(rules).includes("trusted_policy_transfer_unresolved"));
+  assert.equal(rules[0].coverage[0].status, "partial");
+});
+
+test("Telegram remote file references and unknown binary mode do not certify file contents", () => {
+  for (const binaryData of [false, "={{ $json.mode }}"]) {
+    const { rules } = run(
+      [
+        webhook(),
+        node("Message", "telegram", 1.2, {
+          operation: "sendDocument",
+          chatId: "12345678",
+          binaryData,
+          file: "={{ $json.body.email }}",
+          additionalFields: {},
+        }),
+      ],
+      { Source: edge("Message") },
+    );
+    if (binaryData === false) {
+      assert.ok(codes(rules).includes("personal_data_candidate_transferred"));
+      assert.ok(
+        diagnostics(rules).includes("remote_attachment_content_unavailable"),
+      );
+    } else {
+      assert.equal(
+        codes(rules).includes("personal_data_candidate_transferred"),
+        false,
+      );
+      assert.ok(diagnostics(rules).includes("binary_payload_mode_unresolved"));
+    }
+  }
+  const unsupported = run([
+    node("Message", "telegram", 1.2, { operation: "sendAnimation" }),
+  ]);
+  assert.ok(
+    diagnostics(unsupported.rules).includes("unsupported_send_operation"),
+  );
+});
+
+test("Telegram optional keyboards preserve defaults, content candidates and missing recipients", () => {
+  for (const replyMarkup of ["replyKeyboard", "inlineKeyboard"]) {
+    for (const keyboard of [undefined, {}, { rows: [] }]) {
+      const { rules } = run([
+        node("Message", "telegram", 1.2, {
+          chatId: "12345678",
+          text: "A public update",
+          replyMarkup,
+          [replyMarkup]: keyboard,
+        }),
+      ]);
+      assert.equal(
+        diagnostics(rules).includes("required_send_field_missing"),
+        false,
+      );
+      assert.ok(diagnostics(rules).includes("message_reply_markup_unverified"));
+    }
+    const { rules } = run(
+      [
+        webhook(),
+        node("Message", "telegram", 1.2, {
+          chatId: "12345678",
+          text: "A public update",
+          replyMarkup,
+          [replyMarkup]: {
+            rows: [{ row: { buttons: [{ text: "={{ $json.body.email }}" }] } }],
+          },
+        }),
+      ],
+      { Source: edge("Message") },
+    );
+    assert.ok(codes(rules).includes("personal_data_candidate_transferred"));
+    assert.ok(diagnostics(rules).includes("message_reply_markup_unverified"));
+  }
+  const missingRecipient = run([
+    node("Message", "telegram", 1.2, {
+      text: "A public update",
+      replyMarkup: "replyKeyboard",
+    }),
+  ]);
+  assert.ok(
+    diagnostics(missingRecipient.rules).includes("required_send_field_missing"),
+  );
+});
+
+test("Telegram keyboard web apps, unsupported shapes and limits retain data uncertainty", () => {
+  const keyboard = (buttons) => ({ rows: [{ row: { buttons } }] });
+  const cases = [
+    {
+      value: keyboard([
+        {
+          text: "Open",
+          additionalFields: { web_app: { url: "={{ $json.body.email }}" } },
+        },
+      ]),
+      personal: true,
+    },
+    {
+      value: keyboard([
+        {
+          text: "Open",
+          additionalFields: { "private-field-name": "={{ $json.body.email }}" },
+        },
+      ]),
+      personal: true,
+      gap: "message_keyboard_shape_unresolved",
+    },
+    {
+      value: { rows: "={{ $json.rows }}" },
+      gap: "message_keyboard_shape_unresolved",
+    },
+    {
+      value: keyboard([
+        {
+          text: "Public",
+          additionalFields: {
+            web_app: { url: { nested: "={{ $json.body.email }}" } },
+          },
+        },
+      ]),
+      gap: "message_keyboard_shape_unresolved",
+    },
+    {
+      value: {
+        rows: Array.from({ length: 129 }, () => ({
+          row: { buttons: [{ text: "Public" }] },
+        })),
+      },
+      gap: "message_keyboard_limit",
+    },
+    {
+      value: keyboard(Array.from({ length: 129 }, () => ({ text: "Public" }))),
+      gap: "message_keyboard_limit",
+    },
+    {
+      value: keyboard(
+        Array.from({ length: 128 }, () => ({
+          text: "Public",
+          additionalFields: {
+            url: "https://example.invalid",
+            callback_data: "public",
+          },
+        })),
+      ),
+      gap: "message_keyboard_limit",
+    },
+  ];
+  for (const entry of cases) {
+    const { rules } = run(
+      [
+        webhook(),
+        node("Message", "telegram", 1.2, {
+          chatId: "12345678",
+          text: "Public",
+          replyMarkup: "inlineKeyboard",
+          inlineKeyboard: entry.value,
+        }),
+      ],
+      { Source: edge("Message") },
+      (ctx, hash) =>
+        policy(ctx, hash, "telegram", ["12345678"], ["public", "personal"]),
+    );
+    if (entry.personal)
+      assert.ok(codes(rules).includes("personal_data_candidate_transferred"));
+    if (entry.gap) assert.ok(diagnostics(rules).includes(entry.gap));
+    assert.ok(
+      diagnostics(rules).includes("trusted_policy_transfer_unresolved"),
+    );
+    assert.equal(JSON.stringify(rules).includes("private-field-name"), false);
+  }
+});
+
 test("Slack direct channel and Telegram dynamic recipient are distinguished", () => {
   const slack = run(
     [

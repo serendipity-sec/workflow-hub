@@ -262,20 +262,20 @@ test("SQL retains the pinned dangerous, numeric-guarded, bound and unrelated-IF 
     "unrelated-if",
     "direct-origin",
     "reject-branch",
+    "type-constrained-false",
   ]) {
     assert.equal(category(await fixture(name), "sql").findings.length, 1, name);
   }
-  for (const name of [
-    "guarded",
-    "type-constrained-false",
-    "bound",
-    "constant",
-  ]) {
+  for (const name of ["guarded", "bound", "constant"]) {
     assert.equal(category(await fixture(name), "sql").findings.length, 0, name);
   }
   const invalidGuard = await fixture("guarded");
   invalidGuard.nodes[1].parameters.looseTypeValidation = true;
   assert.equal(category(invalidGuard, "sql").findings.length, 1);
+  for (const loose of ["={{ $json.body.loose }}", "true", 0, null]) {
+    invalidGuard.nodes[1].parameters.looseTypeValidation = loose;
+    assert.equal(category(invalidGuard, "sql").findings.length, 1);
+  }
 });
 
 test("binding options do not sanitize SQL text and arbitrary SQL expressions remain qualified", async () => {
@@ -487,6 +487,145 @@ test("unsupported versions, cycles, and merges never become proven current-input
     main: [[{ node: "Pass", type: "main", index: 0 }]],
   };
   assert.equal(category(cyclic, "ssrf").findings[0].claim, "candidate");
+});
+
+test("reviewed annotation and elementary trigger versions do not invent opaque side effects", () => {
+  for (const [type, versions] of [
+    ["stickyNote", [1]],
+    ["manualTrigger", [1]],
+    ["scheduleTrigger", [1, 1.1, 1.2, 1.3, 1.4]],
+    ["noOp", [1]],
+  ]) {
+    for (const version of versions) {
+      const result = scan({
+        nodes: [node("Basic", type, version)],
+        connections: {},
+      });
+      assert.ok(result.every((rule) => rule.profileVersion === "1.2.0"));
+      assert.ok(
+        result.every((rule) => rule.diagnostics.length === 0),
+        `${type}@${version}`,
+      );
+      assert.ok(
+        result.every((rule) =>
+          rule.coverage.every((scope) => scope.status === "not_applicable"),
+        ),
+      );
+    }
+    const future = scan({ nodes: [node("Future", type, 99)], connections: {} });
+    assert.ok(
+      future.every((rule) =>
+        rule.diagnostics.some((item) => item.code === "opaque_node_effects"),
+      ),
+    );
+  }
+  for (const type of [
+    "futureBuiltin",
+    "errorTrigger",
+    "set",
+    "merge",
+    "executeCommand",
+  ]) {
+    const result = scan({ nodes: [node("Effect", type, 1)], connections: {} });
+    assert.ok(
+      result.every((rule) =>
+        rule.diagnostics.some((item) => item.code === "opaque_node_effects"),
+      ),
+      type,
+    );
+  }
+});
+
+test("basic-node exclusions neither accept fabricated ports nor make trigger output a Webhook carrier", () => {
+  const sink = request("={{ $json.body.url }}");
+  for (const type of ["stickyNote", "manualTrigger", "scheduleTrigger"]) {
+    const basic = node("Basic", type, type === "scheduleTrigger" ? 1.2 : 1);
+    const connected = workflow([web(), basic, sink]);
+    const result = category(connected, "ssrf");
+    assert.equal(result.findings[0].claim, "candidate");
+    assert.ok(
+      result.diagnostics.some((item) => item.code === "opaque_node_effects"),
+    );
+  }
+  for (const type of ["manualTrigger", "scheduleTrigger"]) {
+    const result = category(workflow([node("Trigger", type, 1), sink]), "ssrf");
+    assert.equal(result.findings[0].claim, "candidate");
+    assert.ok(
+      result.diagnostics.some(
+        (item) => item.code === "input_provenance_unresolved",
+      ),
+    );
+    assert.equal(
+      result.diagnostics.some((item) => item.code === "opaque_node_effects"),
+      false,
+    );
+  }
+  const nonstandard = node("NoOp", "noOp", 1);
+  nonstandard.alwaysOutputData = true;
+  assert.ok(
+    category(workflow([web(), nonstandard, sink]), "ssrf").diagnostics.some(
+      (item) => item.code === "opaque_node_effects",
+    ),
+  );
+});
+
+test("IF 2.3 preserves declared item paths on either output without inheriting filter-2 numeric guards", async () => {
+  for (const output of [0, 1]) {
+    const gate = node("Gate", "if", 2.3);
+    const document = workflow([web(), gate, request("={{ $json.body.url }}")]);
+    document.connections.Gate.main = Array.from(
+      { length: output + 1 },
+      (_, index) =>
+        index === output ? [{ node: "Request", type: "main", index: 0 }] : [],
+    );
+    assert.equal(
+      category(document, "ssrf").findings[0].claim,
+      "supported_path",
+    );
+    gate.typeVersion = 99;
+    const future = category(document, "ssrf");
+    assert.equal(future.findings[0].claim, "candidate");
+    assert.ok(
+      future.diagnostics.some((item) => item.code === "opaque_node_effects"),
+    );
+  }
+  const guarded = await fixture("guarded");
+  guarded.nodes[1].typeVersion = 2.3;
+  guarded.nodes[1].parameters.conditions.options.version = 3;
+  const result = category(guarded, "sql");
+  assert.equal(result.findings.length, 1);
+  assert.equal(result.findings[0].claim, "supported_path");
+  const malformed = workflow([
+    web(),
+    node("Gate", "if", 2.3),
+    request("={{ $json.body.url }}"),
+  ]);
+  malformed.connections.Gate.main = [
+    [],
+    [],
+    [{ node: "Request", type: "main", index: 0 }],
+  ];
+  assert.equal(category(malformed, "ssrf").findings[0].claim, "candidate");
+  assert.ok(
+    category(malformed, "ssrf").diagnostics.some(
+      (item) => item.code === "opaque_node_effects",
+    ),
+  );
+});
+
+test("Respond to Webhook 1.5 keeps whole-input exposure and future versions stay unsupported", () => {
+  const response = node("Response", "respondToWebhook", 1.5, {
+    respondWith: "allIncomingItems",
+  });
+  const document = workflow([web(), response]);
+  const result = category(document, "output");
+  assert.equal(result.findings[0].claim, "supported_path");
+  response.typeVersion = 99;
+  const future = category(document, "output");
+  assert.equal(future.findings.length, 0);
+  assert.ok(
+    future.diagnostics.some((item) => item.code === "unsupported_node_version"),
+  );
 });
 
 test("rule identities survive node ordering and supported output size stays bounded", () => {

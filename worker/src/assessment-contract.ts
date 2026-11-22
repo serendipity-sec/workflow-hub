@@ -184,7 +184,7 @@ export const fileAssessmentSchema = z
   });
 const header = {
   assessmentVersion: z.literal("1.0.0"),
-  engineVersion: z.enum(["0.3.0", "0.4.0"]),
+  engineVersion: z.enum(["0.3.0", "0.4.0", "0.5.0"]),
   inputSha256: hash,
   execution: z.literal("not_run"),
   boundary: assessmentBoundarySchema,
@@ -227,7 +227,7 @@ export const assessmentReportSchema = z
     if (report.status === "error")
       return !report.inputDiagnosis || report.code === "invalid_input";
     if (
-      report.engineVersion === "0.4.0" &&
+      report.engineVersion !== "0.3.0" &&
       report.files.some(
         (file) => !file.functionSummary || !file.findingPresentation,
       )
@@ -307,7 +307,7 @@ export function assessmentError(
 ): AssessmentReport {
   return {
     assessmentVersion: "1.0.0",
-    engineVersion: "0.4.0",
+    engineVersion: "0.5.0",
     inputSha256,
     execution: "not_run",
     boundary,

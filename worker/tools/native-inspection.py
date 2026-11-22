@@ -13,6 +13,23 @@ VERSIONS = {"python": sys.version.split()[0], "presidio": None, "spacy": None, "
 logging.disable(logging.CRITICAL)
 
 
+def text_chunks(text):
+    """Bound each NLP call, preserve offsets and overlap boundary context."""
+    size, overlap, start = 16384, 256, 0
+    while start < len(text):
+        end = min(start + size, len(text))
+        if end < len(text):
+            # Prefer a whitespace boundary near the end; still make progress
+            # for long unbroken tokens. Such context is explicitly partial.
+            boundary = max(text.rfind(char, end - overlap, end) for char in " \t\r\n")
+            if boundary >= end - overlap:
+                end = boundary + 1
+        yield start, text[start:end]
+        if end == len(text):
+            break
+        start = end - overlap
+
+
 def run(mode, fields):
     result = {"mode": mode, "status": "completed", "findings": [], "diagnostics": [], "versions": dict(VERSIONS)}
 
@@ -58,8 +75,7 @@ def run(mode, fields):
                 break
             chars += len(text)
             if len(text) > 16384:
-                diagnostic("native_field_size_limit", index)
-                continue
+                diagnostic("nlp_chunked_text_profile", index)
             if re.search(r"[\u0400-\u052f\u0600-\u06ff\u0900-\u097f\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]", text):
                 diagnostic("nlp_language_outside_profile", index)
             if not text.strip():
@@ -68,9 +84,10 @@ def run(mode, fields):
                 # Format scanning covers every original field, including metadata,
                 # code, expressions and keys. Named entities have a separate scope.
                 formats = [name for name in entities if name not in ("PERSON", "LOCATION")]
-                for match in analyzer.analyze(text=text, language="en", entities=formats, score_threshold=0.5):
-                    if match.entity_type in entities:
-                        finding(index, entities[match.entity_type], match.start, match.end)
+                for chunk_start, chunk in text_chunks(text):
+                    for match in analyzer.analyze(text=chunk, language="en", entities=formats, score_threshold=0.5):
+                        if match.entity_type in entities:
+                            finding(index, entities[match.entity_type], chunk_start + match.start, chunk_start + match.end)
                 scope = field["namedEntities"]
                 if scope in ("metadata", "program"):
                     diagnostic("nlp_metadata_formats_only" if scope == "metadata" else "nlp_program_formats_only")
@@ -111,14 +128,15 @@ def run(mode, fields):
                 for candidate, decoded_json in candidates:
                     if not candidate.strip():
                         continue
-                    for match in analyzer.analyze(text=candidate, language="en", entities=["PERSON", "LOCATION"], score_threshold=0.5):
-                        span = candidate[match.start:match.end]
-                        # Exact unambiguous syntax/product tokens in prose are not
-                        # a person/location. Do not suppress names inside data.
-                        if scope not in ("data", "json") and re.fullmatch(r"(?:JSON|Gmail|PostgreSQL|n8n|HTTP|HTTPS|API|OAuth2?|JavaScript|TypeScript|Slack)", span, re.IGNORECASE):
-                            diagnostic("nlp_technical_entity_filtered")
-                            continue
-                        finding(index, entities[match.entity_type], 0 if decoded_json else match.start, len(text) if decoded_json else match.end)
+                    for chunk_start, chunk in text_chunks(candidate):
+                        for match in analyzer.analyze(text=chunk, language="en", entities=["PERSON", "LOCATION"], score_threshold=0.5):
+                            span = chunk[match.start:match.end]
+                            # Exact unambiguous syntax/product tokens in prose are not
+                            # a person/location. Do not suppress names inside data.
+                            if scope not in ("data", "json") and re.fullmatch(r"(?:JSON|Gmail|PostgreSQL|n8n|HTTP|HTTPS|API|OAuth2?|JavaScript|TypeScript|Slack)", span, re.IGNORECASE):
+                                diagnostic("nlp_technical_entity_filtered")
+                                continue
+                            finding(index, entities[match.entity_type], 0 if decoded_json else chunk_start + match.start, len(text) if decoded_json else chunk_start + match.end)
             except Exception:
                 diagnostic("nlp_field_analysis_failed", index)
     else:

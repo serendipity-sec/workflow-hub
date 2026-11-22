@@ -10,7 +10,7 @@
 
 ## SQL 프로필
 
-프로필 **1.1.0**의 지원 범위는 Postgres 2.4/2.5/2.6/2.8, MySQL 2–2.5, Microsoft SQL 1/1.1/1.2의 `executeQuery`다. Postgres·MySQL resource 생략은 database, 세 노드의 operation 생략은 insert로 취급하여 SQL 실행으로 추정하지 않는다.
+프로필 **1.2.0**의 지원 범위는 Postgres 2.4/2.5/2.6/2.8, MySQL 2–2.5, Microsoft SQL 1/1.1/1.2의 `executeQuery`다. Postgres·MySQL resource 생략은 database, 세 노드의 operation 생략은 insert로 취급하여 SQL 실행으로 추정하지 않는다.
 
 `inspectSqlOperation(query, dialect)`는 파싱 상태, 작업 종류, 최상위 문장 수, 값 매개변수 수, AST 해시를 반환한다. 원본 SQL·테이블명은 반환하지 않는다. 작업 정보는 권한·실제 영향의 증명이 아니라 재검토와 버전 비교에 쓰는 구조적 근거다.
 
@@ -40,6 +40,8 @@ Execute Command 1 및 SSH 1 command 설정에서 고정 실행 기능과 동적 
 모든 Code 호출은 실제 도달성과 실행 권한을 확인하지 않은 **후보**다. 함수·입력 이름이 가려진 경우 원래 워크플로 입력으로 단정하지 않는다. 복잡한 별칭, 동적 모듈, `.apply`·리플렉션·런타임 재정의, 라이브러리 내부와 일반적인 프로그램 제어 흐름은 완전 분석하지 않으며 `javascript_semantics_partially_analyzed`를 남긴다.
 
 `shell:false`와 argv 배열은 셸 문자열 결합과 구분하지만, 외부 값이 프로그램 옵션으로 해석될 가능성은 별도 후보로 남긴다. 이를 명령 실행 안전 판정으로 표시하지 않는다. Python Code 분석은 별도 프로필의 책임이다.
+
+JavaScript 값은 Acorn이 파싱한 표현식 원문을 내부 `resolveExpression`으로 정적 해석한다. 객체의 고정 필드명·템플릿 조각·문장 같은 구문을 별도 n8n 표현식으로 재해석하지 않는다. JavaScript 문자열 리터럴 안의 `={{ ... }}`도 고정 문자열이며 외부 입력 참조로 바꾸지 않는다. 계산된 객체 키·실제 인자·함수 내부의 실행 후보는 계속 조사한다. 완전히 해석된 출처 없는 상수 트리는 중복 순회를 줄여 예산을 보존하며 한도 자체는 늘리지 않는다.
 
 ## 고정 근거와 검증
 

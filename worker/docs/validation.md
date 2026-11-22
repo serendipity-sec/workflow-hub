@@ -1,5 +1,7 @@
 # 워커 1차 검증
 
+> 이 문서는 초기 0.1.0 실측 기록입니다. 0.1.2에서 IF 거짓 분기의 숫자 보호 가정이 정정됐으므로 당시 `type-constrained-false` 음성 표지와 집계는 현재 정확도 수치가 아닙니다. [현재 정답](../fixtures/cases-0.1.2.json)과 [후속 검증](public-partial-followup.md)을 확인합니다.
+
 [Workflow Hub #18](https://github.com/serendipity-sec/workflow-hub/issues/18)의 실험 단위는 합성 n8n 워크플로 JSON 한 파일이다. [선행 정답](../fixtures/cases.json)과 [원본 바이트 SHA-256](../validation/case-sha256.json)을 고정했다. 전체 12개 중 경로 양성 4개, 경로 음성 4개, 지원 범위 밖 4개다. 이 중 검증용 분할에는 양성 3개, 음성 2개, 지원 범위 밖 4개가 있다. 개발용 3개는 전체 분모에 표시하고 검증용 분모에서 제외한다.
 
 지원 양성을 처리하지 못하면 양성 분모에 미탐으로 남긴다. 실행 실패와 미지원 건수도 별도로 집계한다. 바이너리 정답이 정의되지 않은 네 파일은 도구별 원출력과 사례 판정을 보존하며 TP·FP·FN·TN 계산에서 제외한다. 탐지 과제는 해당 Webhook 입력이 Postgres 실행 쿼리 필드의 SQL 텍스트로 들어가는 경로다.

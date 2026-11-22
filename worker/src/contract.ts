@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const versions = {
   contract: "1.0.0",
-  engine: "0.1.1",
+  engine: "0.1.2",
   rules: "0.1.0",
   adapter: "n8n@2.48.7/workflow-json@1",
 } as const;

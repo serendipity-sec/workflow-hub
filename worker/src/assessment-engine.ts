@@ -67,7 +67,7 @@ function flowCoverage(context: Context, flow: ValueFlow): RuleResult {
   return {
     ruleId,
     category: "egress",
-    profileVersion: "1.1.0",
+    profileVersion: "1.2.0",
     findings: [],
     diagnostics,
     coverage: diagnostics.length
@@ -227,7 +227,7 @@ export async function assessBytes(
         );
     const report = {
       assessmentVersion: "1.0.0",
-      engineVersion: "0.4.0",
+      engineVersion: "0.5.0",
       inputSha256,
       execution: "not_run",
       boundary: { kind: "caller_managed", isolationVerified: false },

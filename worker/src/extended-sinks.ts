@@ -33,7 +33,7 @@ function makeRule(ruleId: string, category: "egress" | "output"): RuleResult {
   return {
     ruleId,
     category,
-    profileVersion: "1.1.0",
+    profileVersion: "1.2.0",
     coverage: [],
     findings: [],
     diagnostics: [],
@@ -68,7 +68,21 @@ class Scope {
   ): void {
     const location = locationFor(this.node, pointer);
     const id = stableId(this.rule.ruleId, location, code);
-    if (this.rule.findings.some((item) => item.id === id)) {
+    const existing = this.rule.findings.find((item) => item.id === id);
+    if (existing) {
+      // One node-level policy finding may cover To, CC and BCC. Preserve every
+      // fixed denial reason instead of losing the later destination result.
+      for (const policyCode of policyCodes)
+        if (
+          [
+            "destination_not_allowlisted",
+            "destination_denylisted",
+            "data_class_not_allowed",
+          ].includes(policyCode) &&
+          existing.evidence.length < 16 &&
+          !existing.evidence.some((item) => item.code === policyCode)
+        )
+          existing.evidence.push({ code: policyCode, location });
       this.findings.add(id);
       return;
     }
@@ -170,6 +184,96 @@ function unsupported(profile: Profile, code: string): Profile {
   profile.diagnostics.push(code);
   profile.opaqueDestination = true;
   return profile;
+}
+
+function telegramKeyboard(
+  profile: Profile,
+  kind: string,
+  value: unknown,
+): void {
+  if (value === undefined) return; // n8n fixedCollection default: {}.
+  if (!isObject(value)) {
+    if (typeof value === "string") add(profile, "content", kind, value);
+    profile.diagnostics.push("message_keyboard_shape_unresolved");
+    return;
+  }
+  if (value.rows === undefined) return;
+  if (!Array.isArray(value.rows)) {
+    profile.diagnostics.push("message_keyboard_shape_unresolved");
+    return;
+  }
+  let fields = 0;
+  const field = (path: string, item: unknown): boolean => {
+    if (++fields > 256) {
+      profile.diagnostics.push("message_keyboard_limit");
+      return false;
+    }
+    if (item !== undefined && typeof item === "object")
+      profile.diagnostics.push("message_keyboard_shape_unresolved");
+    else add(profile, "content", path, item);
+    return true;
+  };
+  if (value.rows.length > 128)
+    profile.diagnostics.push("message_keyboard_limit");
+  for (const [rowIndex, row] of value.rows.slice(0, 128).entries()) {
+    if (
+      isObject(row) &&
+      (row.row === undefined ||
+        (isObject(row.row) && row.row.buttons === undefined))
+    )
+      continue; // n8n skips rows with no buttons.
+    if (
+      !isObject(row) ||
+      !isObject(row.row) ||
+      !Array.isArray(row.row.buttons)
+    ) {
+      profile.diagnostics.push("message_keyboard_shape_unresolved");
+      continue;
+    }
+    if (row.row.buttons.length > 128)
+      profile.diagnostics.push("message_keyboard_limit");
+    for (const [buttonIndex, button] of row.row.buttons
+      .slice(0, 128)
+      .entries()) {
+      if (!isObject(button)) {
+        profile.diagnostics.push("message_keyboard_shape_unresolved");
+        continue;
+      }
+      const path = `${kind}/rows/${rowIndex}/row/buttons/${buttonIndex}`;
+      if (!field(path + "/text", button.text)) return;
+      if (button.additionalFields === undefined) continue;
+      if (!isObject(button.additionalFields)) {
+        profile.diagnostics.push("message_keyboard_shape_unresolved");
+        continue;
+      }
+      // n8n merges these fields into the transmitted button. Inspect each
+      // scalar separately so nested n8n expressions are not treated as literals.
+      // Keep both values conservatively if malformed input overrides text.
+      for (const [key, item] of Object.entries(button.additionalFields)) {
+        if (key === "web_app" && isObject(item)) {
+          if (!field(path + "/additionalFields/web_app/url", item.url)) return;
+          if (Object.keys(item).some((name) => name !== "url"))
+            profile.diagnostics.push("message_keyboard_shape_unresolved");
+        } else {
+          const known = [
+            "text",
+            "callback_data",
+            "pay",
+            "switch_inline_query_current_chat",
+            "switch_inline_query",
+            "url",
+            "request_contact",
+            "request_location",
+          ].includes(key);
+          if (!known)
+            profile.diagnostics.push("message_keyboard_shape_unresolved");
+          // Untrusted property names may contain secrets. Use their container.
+          const pointer = path + "/additionalFields" + (known ? "/" + key : "");
+          if (!field(pointer, item)) return;
+        }
+      }
+    }
+  }
 }
 
 function locator(profile: Profile, key: string, value: unknown): void {
@@ -500,8 +604,21 @@ function sendProfile(node: NormalizedNode): Profile | undefined {
     return profile;
   }
   if (type === "emailSend") {
-    if (![2, 2.1].includes(node.typeVersion))
+    if (![1, 2, 2.1].includes(node.typeVersion))
       return unsupported(profile, "unsupported_node_version");
+    if (node.typeVersion === 1) {
+      // V1 has no resource/operation/format switch. Both bodies and top-level
+      // CC/BCC are passed to nodemailer, unlike V2's selected body/options.
+      const opts = options(p.options, profile);
+      add(profile, "recipients", "toEmail", p.toEmail, true);
+      for (const key of ["ccEmail", "bccEmail"])
+        add(profile, "recipients", key, p[key]);
+      for (const key of ["fromEmail", "subject", "text", "html"])
+        add(profile, "content", key, p[key]);
+      add(profile, "content", "options/replyTo", opts.replyTo);
+      if (p.attachments) profile.diagnostics.push("binary_payload_unavailable");
+      return profile;
+    }
     if (
       (p.resource ?? "email") !== "email" ||
       (p.operation ?? "send") !== "send"
@@ -620,12 +737,30 @@ function sendProfile(node: NormalizedNode): Profile | undefined {
     return unsupported(profile, "unsupported_node_version");
   if (
     (p.resource ?? "message") !== "message" ||
-    (p.operation ?? "sendMessage") !== "sendMessage"
+    !["sendMessage", "sendDocument"].includes(
+      String(p.operation ?? "sendMessage"),
+    )
   )
     return unsupported(profile, "unsupported_send_operation");
   add(profile, "recipients", "chatId", p.chatId, true);
-  add(profile, "content", "text", p.text, true);
   const extra = options(p.additionalFields, profile);
+  const document = p.operation === "sendDocument";
+  if (document) {
+    add(profile, "content", "additionalFields/caption", extra.caption);
+    if (p.binaryData === true) {
+      add(profile, "content", "additionalFields/fileName", extra.fileName);
+      profile.diagnostics.push("binary_payload_unavailable");
+    } else if (p.binaryData === false || p.binaryData === undefined) {
+      add(profile, "content", "file", p.file, true);
+      // A Telegram file ID or remote URL is a reference, not the file bytes.
+      profile.diagnostics.push("remote_attachment_content_unavailable");
+    } else {
+      profile.diagnostics.push(
+        "binary_payload_mode_unresolved",
+        "binary_payload_unavailable",
+      );
+    }
+  } else add(profile, "content", "text", p.text, true);
   const known = new Set([
     "appendAttribution",
     "disable_notification",
@@ -633,10 +768,19 @@ function sendProfile(node: NormalizedNode): Profile | undefined {
     "parse_mode",
     "reply_to_message_id",
     "message_thread_id",
+    ...(document
+      ? ["caption", "fileName", "disable_content_type_detection"]
+      : []),
   ]);
   if (Object.keys(extra).some((key) => !known.has(key))) {
     profile.diagnostics.push("message_options_overrides_unverified");
     profile.opaqueDestination = true;
+  }
+  if ((p.replyMarkup ?? "none") !== "none") {
+    const markup = p.replyMarkup;
+    if (markup === "inlineKeyboard" || markup === "replyKeyboard")
+      telegramKeyboard(profile, markup, p[markup]);
+    profile.diagnostics.push("message_reply_markup_unverified");
   }
   return profile;
 }
@@ -868,6 +1012,18 @@ function outgoing(
       continue;
     }
     const allClasses = new Set<DataClass>();
+    if (
+      profile.diagnostics.some((code) =>
+        [
+          "binary_payload_unavailable",
+          "remote_attachment_content_unavailable",
+          "message_reply_markup_unverified",
+          "message_keyboard_shape_unresolved",
+          "message_keyboard_limit",
+        ].includes(code),
+      )
+    )
+      allClasses.add("unknown");
     for (const field of profile.content) {
       const value = flow.resolve(node.key, field.value, {
         fieldName: field.name,

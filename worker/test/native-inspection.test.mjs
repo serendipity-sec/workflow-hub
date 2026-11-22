@@ -62,6 +62,16 @@ test("NER scope separates schema metadata and programs while preserving literal 
             typeVersion: 2,
             parameters: {
               jsCode: "const label = 'John Smith';",
+              command: "printf 'synthetic@example.com'",
+              options: { customEmailConfig: '["UNSEEN"]' },
+              conditions: {
+                conditions: [
+                  {
+                    operator: { type: "string", operation: "notEmpty" },
+                    rightValue: "Li",
+                  },
+                ],
+              },
               operation: "json",
               body: { id: "Li" },
               jsonBody: JSON.stringify({ name: "John Smith", city: "London" }),
@@ -97,9 +107,20 @@ test("NER scope separates schema metadata and programs while preserving literal 
     "/nodes/0/type",
     "/nodes/0/parameters/operation",
     "/nodes/0/parameters/assignments/assignments/0/id",
+    "/nodes/0/parameters/assignments/assignments/0/name",
+    "/nodes/0/parameters/conditions/conditions/0/operator/operation",
   ])
     assert.equal(scope(pointer), "metadata");
   assert.equal(scope("/nodes/0/parameters/jsCode"), "program");
+  assert.equal(scope("/nodes/0/parameters/command"), "program");
+  assert.equal(
+    scope("/nodes/0/parameters/options/customEmailConfig"),
+    "program",
+  );
+  assert.equal(
+    scope("/nodes/0/parameters/conditions/conditions/0/rightValue"),
+    "prose",
+  );
   assert.equal(scope("/nodes/0/parameters/jsonBody"), "json");
   assert.equal(scope("/nodes/0/parameters/message"), "template");
   assert.equal(scope("/nodes/0/parameters/body/id"), "prose");
@@ -152,7 +173,7 @@ test("metadata NER rejection preserves format results and short names in real da
     ruleResultSchema.parse(rule),
   );
   assert.equal(rules[0].findings.length, 2);
-  assert.equal(rules[0].profileVersion, "1.1.0");
+  assert.equal(rules[0].profileVersion, "1.2.0");
   assert.ok(
     rules[0].diagnostics.some((d) => d.code === "nlp_metadata_formats_only"),
   );
@@ -166,6 +187,33 @@ test("metadata NER rejection preserves format results and short names in real da
     },
   ]);
   assert.equal(analyzeNativeInspection(ctx, format)[0].findings.length, 1);
+});
+
+test("program format candidates remain candidates in source, not runtime output claims", () => {
+  const ctx = context();
+  const field = ctx.fields.find(
+    (item) => item.pointer.endsWith("/pythonCode") && item.kind === "value",
+  );
+  const rules = analyzeNativeInspection(
+    ctx,
+    result("nlp", [
+      {
+        fieldIndex: field.index,
+        code: "nlp_email_candidate",
+        start: 0,
+        end: 2,
+        line: null,
+      },
+    ]),
+  ).map((rule) => ruleResultSchema.parse(rule));
+  const finding = rules[0].findings[0];
+  assert.equal(finding.claim, "candidate");
+  assert.ok(
+    finding.evidence.some(
+      (item) => item.code === "format_candidate_in_program_text",
+    ),
+  );
+  assert.ok(finding.assumptions.includes("program_text_is_not_runtime_output"));
 });
 
 test("native helper absence relative paths and cancellation never become clean", async () => {

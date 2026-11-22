@@ -597,16 +597,70 @@ const privilegeProfiles = new Map<
   ],
 ]);
 
-const boundedBuiltins = new Map<string, Set<number>>([
-  ["n8n-nodes-base.webhook", webhookVersions],
-  ["n8n-nodes-base.httpRequest", httpVersions],
-  ["n8n-nodes-base.postgres", new Set([2.8])],
-  ["n8n-nodes-base.if", new Set([2.2])],
-  ["n8n-nodes-base.respondToWebhook", new Set([1, 1.1, 1.2, 1.3, 1.4, 1.5])],
+// A reviewed capability inventory is deliberately separate from expression,
+// value-flow and runtime permission profiles. Exact versions come from the
+// pinned node description/dispatch, never a range inferred from a sample.
+const builtinProfiles = new Map<
+  string,
+  { versions: Set<number>; code: string }
+>([
+  [
+    "n8n-nodes-base.webhook",
+    { versions: webhookVersions, code: "request_endpoint_capability" },
+  ],
+  [
+    "n8n-nodes-base.httpRequest",
+    { versions: httpVersions, code: "outbound_http_capability" },
+  ],
+  [
+    "n8n-nodes-base.postgres",
+    {
+      versions: new Set([2.4, 2.5, 2.6, 2.8]),
+      code: "database_access_capability",
+    },
+  ],
+  [
+    "n8n-nodes-base.if",
+    {
+      versions: new Set([1, 2, 2.1, 2.2, 2.3, 2.4]),
+      code: "conditional_routing_capability",
+    },
+  ],
+  [
+    "n8n-nodes-base.respondToWebhook",
+    {
+      versions: new Set([1, 1.1, 1.2, 1.3, 1.4, 1.5]),
+      code: "webhook_response_capability",
+    },
+  ],
+  [
+    "n8n-nodes-base.stickyNote",
+    { versions: new Set([1]), code: "workflow_annotation_declared" },
+  ],
+  [
+    "n8n-nodes-base.manualTrigger",
+    { versions: new Set([1]), code: "manual_trigger_capability" },
+  ],
+  [
+    "n8n-nodes-base.scheduleTrigger",
+    {
+      versions: new Set([1, 1.1, 1.2, 1.3, 1.4]),
+      code: "scheduled_trigger_capability",
+    },
+  ],
+  [
+    "n8n-nodes-base.errorTrigger",
+    { versions: new Set([1]), code: "error_event_trigger_capability" },
+  ],
+  [
+    "n8n-nodes-base.noOp",
+    { versions: new Set([1]), code: "pass_through_capability" },
+  ],
 ]);
 
 function dependencies(context: Context): RuleResult {
   const rule = makeRule("N8N_DEPENDENCY_CAPABILITIES", "dependencies");
+  rule.profileVersion = "1.1.0";
   for (const node of context.nodes) {
     const scope = new Scope(rule, node);
     const privilege = privilegeProfiles.get(node.type);
@@ -655,11 +709,17 @@ function dependencies(context: Context): RuleResult {
         "/type",
       );
     } else {
-      const supported = boundedBuiltins.get(node.type);
-      if (supported === undefined)
+      const profile = builtinProfiles.get(node.type);
+      if (profile === undefined)
         scope.diagnostic("builtin_capability_profile_unreviewed", "/type");
-      else if (!supported.has(node.typeVersion))
+      else if (!profile.versions.has(node.typeVersion))
         scope.diagnostic("unsupported_node_version", "/typeVersion");
+      else
+        scope.finding(profile.code, "/type", "info", "configuration", [
+          "capability_inventory_only",
+          "operation_and_dataflow_not_established_by_inventory",
+          "installed_package_version_unverified",
+        ]);
     }
     if (
       context.unsupportedEdges.some(

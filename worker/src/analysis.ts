@@ -404,7 +404,9 @@ export function analyzeWorkflow(bytes: Buffer, identity: Identity): Result {
       ? null
       : hashParts(webhook.key, "body." + value.reference.field);
   const guarded =
-    value.mode === "interpolated" && guard?.field === value.reference.field;
+    value.mode === "interpolated" &&
+    conditional?.branch === 0 &&
+    guard?.field === value.reference.field;
   const coverage: Coverage[] = [
     {
       sink,

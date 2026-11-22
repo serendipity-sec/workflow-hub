@@ -47,6 +47,7 @@ const diagnosticCode = z.enum([
   "nlp_json_string_values_only",
   "nlp_json_text_unresolved",
   "nlp_technical_entity_filtered",
+  "nlp_chunked_text_profile",
   "python_static_profile_limited",
   "python_ast_limit",
   "python_wildcard_import_unresolved",
@@ -187,7 +188,10 @@ export function nativeNlpScope(field: ScalarField): NamedEntityScope {
     /^\/nodes\/\d+\/parameters\/(?:resource|operation|mode|language|authentication|specifyBody|specifyQuery|specifyHeaders|respondWith|responseMode|contentType|httpMethod|messageType|emailFormat|select|rule)(?:\/|$)/.test(
       path,
     ) ||
-    /^\/nodes\/\d+\/parameters\/assignments\/assignments\/\d+\/(?:id|type)$/.test(
+    /^\/nodes\/\d+\/parameters\/assignments\/assignments\/\d+\/(?:id|type|name)$/.test(
+      path,
+    ) ||
+    /^\/nodes\/\d+\/parameters\/conditions\/conditions\/\d+\/operator\/(?:type|operation)$/.test(
       path,
     ) ||
     /^\/nodes\/\d+\/parameters\/[^/]+\/(?:cachedResultName|cachedResultUrl)$/.test(
@@ -195,7 +199,10 @@ export function nativeNlpScope(field: ScalarField): NamedEntityScope {
     )
   )
     return "metadata";
-  if (/\/(?:jsCode|pythonCode|query|queryReplacement)$/.test(path))
+  if (
+    /\/(?:jsCode|pythonCode|query|queryReplacement|command)$/.test(path) ||
+    /^\/nodes\/\d+\/parameters\/options\/customEmailConfig$/.test(path)
+  )
     return "program";
   if (field.value.trimStart().startsWith("=") || field.value.includes("{{"))
     return "template";
@@ -348,7 +355,7 @@ function rule(ruleId: string, category: RuleResult["category"]): RuleResult {
   return {
     ruleId,
     category,
-    profileVersion: category === "pii" ? "1.1.0" : "1.0.0",
+    profileVersion: category === "pii" ? "1.2.0" : "1.0.0",
     coverage: [],
     findings: [],
     diagnostics: [],
@@ -478,6 +485,13 @@ export function analyzeNativeInspection(
           ],
         },
       };
+      if (mode.mode === "nlp" && nativeNlpScope(field) === "program") {
+        finding.evidence.push({
+          code: "format_candidate_in_program_text",
+          location: field.location,
+        });
+        finding.assumptions.push("program_text_is_not_runtime_output");
+      }
       target.findings.push(finding);
     }
     for (const target of rules) {

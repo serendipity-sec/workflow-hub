@@ -133,7 +133,7 @@ function rule(ruleId: string, category: "sql" | "code_execution"): RuleResult {
   return {
     ruleId,
     category,
-    profileVersion: "1.1.0",
+    profileVersion: "1.2.0",
     coverage: [],
     findings: [],
     diagnostics: [],
@@ -840,6 +840,44 @@ function javascriptRules(context: Context, flow: ValueFlow): RuleResult {
         : "";
     const env = new Map<string, Binding>();
     let visited = 0;
+    const expressionKinds = new Set([
+      "Identifier",
+      "Literal",
+      "MemberExpression",
+      "CallExpression",
+      "ArrayExpression",
+      "ObjectExpression",
+      "TemplateLiteral",
+      "BinaryExpression",
+      "LogicalExpression",
+      "UnaryExpression",
+      "ConditionalExpression",
+      "ChainExpression",
+      "AwaitExpression",
+    ]);
+    const valueChildren = (
+      ast: Record<string, unknown>,
+    ): Record<string, unknown>[] => {
+      const children: Record<string, unknown>[] = [];
+      for (const [key, child] of Object.entries(ast)) {
+        // Fixed property names and template fragments are syntax, not reads
+        // of similarly named variables. Computed keys still carry input.
+        if (
+          ((ast.type === "MemberExpression" && key === "property") ||
+            (ast.type === "Property" && key === "key")) &&
+          ast.computed !== true
+        )
+          continue;
+        if (ast.type === "TemplateLiteral" && key === "quasis") continue;
+        const candidates = Array.isArray(child) ? child : [child];
+        for (const item of candidates) {
+          if (!isObject(item) || typeof item.type !== "string") continue;
+          if (item.type === "Property") children.push(...valueChildren(item));
+          else if (item.type !== "TemplateElement") children.push(item);
+        }
+      }
+      return children;
+    };
     const valueFor = (
       ast: Record<string, unknown>,
       bindings: Map<string, Binding>,
@@ -856,16 +894,8 @@ function javascriptRules(context: Context, flow: ValueFlow): RuleResult {
           bindings.get(ast.name)?.value ??
           flow.resolve(node.key, "={{ __local_binding_unresolved() }}")
         );
-      if (ast.type === "Literal") return flow.resolve(node.key, ast.value);
-      const nested: AbstractValue[] = [];
-      for (const child of Object.values(ast)) {
-        if (isObject(child) && typeof child.type === "string")
-          nested.push(valueFor(child, bindings, depth + 1));
-        else if (Array.isArray(child))
-          for (const entry of child)
-            if (isObject(entry) && typeof entry.type === "string")
-              nested.push(valueFor(entry, bindings, depth + 1));
-      }
+      if (ast.type === "Literal")
+        return flow.resolveExpression(node.key, textFor(ast));
       const pending: unknown[] = [ast];
       let shadowsGlobal = false;
       while (pending.length) {
@@ -882,11 +912,20 @@ function javascriptRules(context: Context, flow: ValueFlow): RuleResult {
           else if (Array.isArray(child)) pending.push(...child);
         }
       }
-      const direct = flow.resolve(
+      const direct = flow.resolveExpression(
         node.key,
         shadowsGlobal
-          ? "={{ __local_binding_unresolved() }}"
-          : "={{ " + textFor(ast) + " }}",
+          ? "__local_binding_unresolved()"
+          : expressionKinds.has(String(ast.type))
+            ? textFor(ast)
+            : "__javascript_syntax_container_unresolved()",
+      );
+      // A completely resolved literal already includes its nested fields and
+      // sensitivity. Rewalking that constant tree wastes the bounded flow budget.
+      if (direct.status === "resolved" && direct.origins.length === 0)
+        return direct;
+      const nested = valueChildren(ast).map((child) =>
+        valueFor(child, bindings, depth + 1),
       );
       const inherited = nested.filter(hasExternal);
       if (!inherited.length) return direct;

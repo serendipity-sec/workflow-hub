@@ -74,7 +74,7 @@ test("ID-less workflow summaries preserve bytes and expose only structural facts
   });
   const report = await assessBytes(input, { collectTools: tools, now });
   assert.notEqual(report.status, "error", JSON.stringify(report));
-  assert.equal(report.engineVersion, "0.4.0");
+  assert.equal(report.engineVersion, "0.5.0");
   assert.equal(report.inputSha256, hash(input));
   const summary = report.files[0].functionSummary;
   assert.deepEqual(

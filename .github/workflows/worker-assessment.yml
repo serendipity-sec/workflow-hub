@@ -26,14 +26,15 @@ jobs:
       - run: npm ci
       - run: npm run verify
       - run: node validation/verify-static-corpus.mjs evidence-local/ci-static-results.json
+      - run: node validation/verify-legacy-current.mjs evidence-local/ci-legacy-results.json
       - name: Build the pinned assessment runtime
         run: |
-          docker build -f Dockerfile.assessment-runtime -t workflow-worker-assessment-runtime:0.3.0 .
-          docker build -f Dockerfile.assessment -t workflow-worker-assessment:0.4.0 .
+          docker build -f Dockerfile.assessment-runtime -t workflow-worker-assessment-runtime:0.5.0 .
+          docker build -f Dockerfile.assessment -t workflow-worker-assessment:0.5.0 .
       - name: Verify actual tools and OS isolation
         run: |
           export WORKER_DOCKER_PATH="$(command -v docker)"
-          export WORKER_ASSESSMENT_IMAGE="$(docker image inspect --format '{{.Id}}' workflow-worker-assessment:0.4.0)"
+          export WORKER_ASSESSMENT_IMAGE="$(docker image inspect --format '{{.Id}}' workflow-worker-assessment:0.5.0)"
           node validation/verify-assessment-runtime.mjs
           node validation/verify-native-profile.mjs
         env:

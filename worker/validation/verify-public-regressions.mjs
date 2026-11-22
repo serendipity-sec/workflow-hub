@@ -29,7 +29,7 @@ for (const sample of manifest.samples) {
   );
   assert.notEqual(report.status, "error");
   assert.equal(report.inputSha256, sample.sha256);
-  assert.equal(report.engineVersion, "0.4.0");
+  assert.equal(report.engineVersion, "0.5.0");
   assert.equal(report.boundary.kind, "docker");
   assert.equal(
     `sha256:${report.boundary.imageSha256}`,
@@ -120,49 +120,147 @@ check(
     codes(finding).includes("command_external_value_candidate"),
   ),
 );
-// The supported empty-summary Code branch is distinct from the downstream
-// subject: a second unsupported Code branch and IF 2.3 also reach that subject.
-// Do not extend one branch's constant result into a whole-path proof.
+// Both actual title branches are statically modeled; the separately transmitted
+// body must retain its personal-data possibility and partial provenance.
 const mailContext = contexts.get(15403);
-const emptyTitle = buildValueFlow(mailContext).output(
-  mailContext.nodes[27].key,
-  "docTitle",
+const mailFlow = buildValueFlow(mailContext);
+for (const index of [14, 27]) {
+  const title = mailFlow.output(mailContext.nodes[index].key, "docTitle");
+  check(
+    `summary_${index}_title_is_public`,
+    title.status === "resolved" && title.sensitivity === "public_literal",
+  );
+}
+const subject = mailFlow.resolve(
+  mailContext.nodes[19].key,
+  mailContext.nodes[19].parameters.subject,
 );
 check(
-  "supported_empty_summary_title_is_public",
-  emptyTitle.status === "resolved" &&
-    emptyTitle.sensitivity === "public_literal",
-);
-const unresolvedMailFlow = rule(15403, "N8N_VALUE_FLOW_COVERAGE").diagnostics;
-check(
-  "populated_summary_code_remains_explicitly_unsupported",
-  unresolvedMailFlow.some(
-    (diagnostic) =>
-      diagnostic.location.pointer === "/nodes/14/parameters" &&
-      diagnostic.code === "code_mapping_unsupported",
-  ),
+  "whole_subject_is_public",
+  subject.status === "resolved" && subject.sensitivity === "public_literal",
 );
 check(
-  "downstream_if_version_remains_explicitly_unsupported",
-  unresolvedMailFlow.some(
-    (diagnostic) =>
-      diagnostic.location.pointer === "/nodes/18/parameters" &&
-      diagnostic.code === "node_transform_unsupported",
-  ),
-);
-check(
-  "mixed_subject_is_candidate_not_proven_transfer",
-  rule(15403, "N8N_EXTENDED_OUTBOUND_DATA").findings.some(
+  "constant_subject_has_no_personal_transfer_candidate",
+  !rule(15403, "N8N_EXTENDED_OUTBOUND_DATA").findings.some(
     (finding) =>
       finding.location.pointer === "/nodes/19/parameters/subject" &&
-      finding.claim === "candidate" &&
       codes(finding).includes("personal_data_candidate_transferred"),
+  ),
+);
+check(
+  "actual_message_personal_candidate_retained",
+  rule(15403, "N8N_EXTENDED_OUTBOUND_DATA").findings.some(
+    (finding) =>
+      finding.location.pointer === "/nodes/19/parameters/message" &&
+      codes(finding).includes("personal_data_candidate_transferred"),
+  ),
+);
+check(
+  "populated_summary_mapping_supported",
+  !rule(15403, "N8N_VALUE_FLOW_COVERAGE").diagnostics.some(
+    (d) =>
+      d.location.pointer === "/nodes/14/parameters" &&
+      d.code === "code_mapping_unsupported",
+  ),
+);
+check(
+  "if_2_3_pass_through_supported",
+  !rule(15403, "N8N_VALUE_FLOW_COVERAGE").diagnostics.some(
+    (d) =>
+      d.location.pointer === "/nodes/18/parameters" &&
+      d.code === "node_transform_unsupported",
+  ),
+);
+for (const [id, context] of contexts) {
+  const base = reports
+    .get(id)
+    .files[0].base.rules.find(
+      (r) => r.ruleId === "N8N_DEPENDENCY_CAPABILITIES",
+    );
+  for (const node of context.nodes.filter(
+    (n) => n.type === "n8n-nodes-base.stickyNote" && n.typeVersion === 1,
+  ))
+    assert.ok(
+      !base.diagnostics.some(
+        (d) =>
+          d.location.nodeKey === node.key &&
+          d.code === "builtin_capability_profile_unreviewed",
+      ),
+    );
+}
+checks.push("reviewed_sticky_notes_not_unreviewed_capabilities");
+for (const [id, kind, operation] of [
+  [6216, "emailSend", null],
+  [11007, "telegram", "sendDocument"],
+]) {
+  const selected = contexts
+    .get(id)
+    .nodes.filter(
+      (n) =>
+        n.type === "n8n-nodes-base." + kind &&
+        (operation === null || n.parameters.operation === operation),
+    );
+  check(`${id}_connector_control_exists`, selected.length > 0);
+  check(
+    `${id}_known_send_profile_supported`,
+    selected.every(
+      (node) =>
+        !rule(id, "N8N_EXTENDED_OUTBOUND_DATA").diagnostics.some(
+          (d) =>
+            d.location.nodeKey === node.key &&
+            ["unsupported_node_version", "unsupported_send_operation"].includes(
+              d.code,
+            ),
+        ),
+    ),
+  );
+}
+check(
+  "binary_attachment_content_stays_unavailable",
+  rule(11007, "N8N_EXTENDED_OUTBOUND_DATA").diagnostics.some(
+    (d) => d.code === "binary_payload_unavailable",
+  ),
+);
+check(
+  "optional_telegram_keyboard_not_required_input",
+  !rule(10476, "N8N_EXTENDED_OUTBOUND_DATA").diagnostics.some(
+    (d) => d.code === "required_send_field_missing",
+  ) &&
+    rule(10476, "N8N_EXTENDED_OUTBOUND_DATA").diagnostics.some(
+      (d) => d.code === "message_reply_markup_unverified",
+    ),
+);
+const longText = reports
+  .get(3314)
+  .files[0].tools.native.modes.find((m) => m.mode === "nlp");
+check(
+  "long_program_scanned_in_bounded_chunks",
+  longText.diagnostics.some((d) => d.code === "nlp_chunked_text_profile"),
+);
+check(
+  "long_program_not_skipped_at_old_field_limit",
+  !longText.diagnostics.some((d) => d.code === "native_field_size_limit"),
+);
+for (const id of [20541, 14034, 3314, 11007])
+  check(
+    `${id}_spurious_budget_exhaustion_removed`,
+    !rule(id, "N8N_VALUE_FLOW_COVERAGE").diagnostics.some(
+      (d) => d.code === "flow_budget_exceeded",
+    ),
+  );
+check(
+  "runtime_context_still_explicit",
+  [...reports.values()].every((report) =>
+    report.files[0].extensionRules.some(
+      (r) =>
+        r.ruleId === "CONTEXT_RUNTIME_EVIDENCE" &&
+        r.diagnostics.some((d) => d.code === "runtime_evidence_missing"),
+    ),
   ),
 );
 for (const [id, index, label] of [
   [18521, 20, "notion"],
   [15403, 13, "gemini"],
-  [15403, 16, "docs_create"],
   [15403, 17, "docs_update"],
   [15403, 23, "whatsapp"],
 ]) {
@@ -173,6 +271,31 @@ for (const [id, index, label] of [
     ),
   );
 }
+const documentTitle = mailFlow.resolve(
+  mailContext.nodes[16].key,
+  mailContext.nodes[16].parameters.title,
+);
+check(
+  "docs_create_title_is_public_after_mapping_fix",
+  documentTitle.status === "resolved" &&
+    documentTitle.sensitivity === "public_literal" &&
+    !rule(15403, "N8N_EXTENDED_OUTBOUND_DATA").findings.some(
+      (finding) =>
+        finding.location.pointer === "/nodes/16/parameters/title" &&
+        codes(finding).includes("personal_data_candidate_transferred"),
+    ),
+);
+check(
+  "docs_create_profile_keeps_access_and_policy_gaps",
+  ["destination_access_unverified", "trusted_policy_transfer_unresolved"].every(
+    (code) =>
+      rule(15403, "N8N_EXTENDED_OUTBOUND_DATA").diagnostics.some(
+        (diagnostic) =>
+          diagnostic.location.pointer === "/nodes/16/parameters" &&
+          diagnostic.code === code,
+      ),
+  ),
+);
 check(
   "ner_structural_metadata_false_positives_removed",
   [...reports].every(([id, report]) =>
@@ -207,7 +330,8 @@ const output = {
   workflowExecution: "not_run",
   generalAccuracy: "not_measured",
   knownLimitations: [
-    "public_15403_subject_overapproximation_after_unsupported_code_and_if",
+    "remaining_unmodeled_code_data_and_runtime_context",
+    "english_ner_context_sensitive",
   ],
   image: process.env.WORKER_ASSESSMENT_IMAGE,
   assertions: checks,

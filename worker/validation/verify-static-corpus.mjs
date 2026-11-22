@@ -497,7 +497,7 @@ const output = {
     nativeTools:
       "static-tool-results.json: separate 7-case native/tool-boundary evidence",
     legacySqlCorpus:
-      "Existing 12-case SQL corpus is unchanged and has its own denominator.",
+      "Original SQL inputs are preserved; current labels and their separate denominator are recorded in legacy-0.1.2-results.json.",
     publicTemplates:
       "The separate 5-template smoke run has unknown accuracy and contributes no TP/FP/FN labels here.",
   },

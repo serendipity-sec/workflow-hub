@@ -1,0 +1,157 @@
+{
+  "n8nVersion": "2.48.7",
+  "cases": [
+    {
+      "id": "interpolated",
+      "file": "workflows/interpolated.json",
+      "split": "development",
+      "status": "analyzed",
+      "label": "risk",
+      "disposition": "interpolated",
+      "reference": "current_input",
+      "guard": "absent",
+      "sourcePointer": "/nodes/0",
+      "sinkPointer": "/nodes/1/parameters/query",
+      "pathPointers": ["/nodes/0", "/nodes/1/parameters/query"]
+    },
+    {
+      "id": "unrelated-if",
+      "file": "workflows/unrelated-if.json",
+      "split": "validation",
+      "status": "analyzed",
+      "label": "risk",
+      "disposition": "interpolated",
+      "reference": "current_input",
+      "guard": "unrelated_value",
+      "sourcePointer": "/nodes/0",
+      "sinkPointer": "/nodes/2/parameters/query",
+      "pathPointers": ["/nodes/0", "/nodes/1", "/nodes/2/parameters/query"]
+    },
+    {
+      "id": "direct-origin",
+      "file": "workflows/direct-origin.json",
+      "split": "validation",
+      "status": "analyzed",
+      "label": "risk",
+      "disposition": "interpolated",
+      "reference": "direct_source",
+      "guard": "unrelated_value",
+      "sourcePointer": "/nodes/0",
+      "sinkPointer": "/nodes/2/parameters/query",
+      "pathPointers": ["/nodes/0", "/nodes/1", "/nodes/2/parameters/query"]
+    },
+    {
+      "id": "reject-branch",
+      "file": "workflows/reject-branch.json",
+      "split": "validation",
+      "status": "analyzed",
+      "label": "risk",
+      "disposition": "interpolated",
+      "reference": "current_input",
+      "guard": "reject_branch",
+      "sourcePointer": "/nodes/0",
+      "sinkPointer": "/nodes/2/parameters/query",
+      "pathPointers": ["/nodes/0", "/nodes/1", "/nodes/2/parameters/query"]
+    },
+    {
+      "id": "type-constrained-false",
+      "file": "workflows/type-constrained-false.json",
+      "split": "validation",
+      "status": "analyzed",
+      "label": "risk",
+      "disposition": "interpolated",
+      "reference": "current_input",
+      "guard": "reject_branch",
+      "sourcePointer": "/nodes/0",
+      "sinkPointer": "/nodes/2/parameters/query",
+      "pathPointers": ["/nodes/0", "/nodes/1", "/nodes/2/parameters/query"]
+    },
+    {
+      "id": "guarded",
+      "file": "workflows/guarded.json",
+      "split": "development",
+      "status": "analyzed",
+      "label": "negative",
+      "disposition": "guarded"
+    },
+    {
+      "id": "bound",
+      "file": "workflows/bound.json",
+      "split": "development",
+      "status": "analyzed",
+      "label": "negative",
+      "disposition": "bound"
+    },
+    {
+      "id": "constant",
+      "file": "workflows/constant.json",
+      "split": "validation",
+      "status": "analyzed",
+      "label": "negative",
+      "disposition": "constant"
+    },
+    {
+      "id": "code-on-path",
+      "file": "workflows/code-on-path.json",
+      "split": "validation",
+      "status": "unsupported",
+      "label": "unsupported",
+      "disposition": "unknown"
+    },
+    {
+      "id": "subworkflow-missing",
+      "file": "workflows/subworkflow-missing.json",
+      "split": "validation",
+      "status": "unsupported",
+      "label": "unsupported",
+      "disposition": "unknown"
+    },
+    {
+      "id": "unsupported-version",
+      "file": "workflows/unsupported-version.json",
+      "split": "validation",
+      "status": "unsupported",
+      "label": "unsupported",
+      "disposition": "unknown"
+    },
+    {
+      "id": "removed-sink",
+      "file": "workflows/removed-sink.json",
+      "split": "validation",
+      "status": "unsupported",
+      "label": "unsupported",
+      "disposition": null
+    }
+  ],
+  "n8nAuditPositiveControl": "direct-origin",
+  "rechecks": [
+    {
+      "baseline": "interpolated",
+      "candidate": "bound",
+      "expected": "binding_verified"
+    },
+    {
+      "baseline": "interpolated",
+      "candidate": "removed-sink",
+      "expected": "inconclusive"
+    },
+    {
+      "baseline": "interpolated",
+      "candidate": "unsupported-version",
+      "expected": "inconclusive"
+    }
+  ],
+  "behavior": {
+    "baseline": "interpolated",
+    "candidate": "bound",
+    "normalInput": {
+      "id": 7
+    },
+    "expectedRows": [
+      {
+        "label": "book"
+      }
+    ],
+    "allowedWrites": 0
+  }
+}
