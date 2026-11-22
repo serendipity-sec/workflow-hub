@@ -22,11 +22,12 @@ public class WorkflowQueryService {
   private static final String WORKFLOW_WITH_LATEST_VERSION =
       """
       SELECT w.id AS workflow_id, w.title, w.created_at AS workflow_created_at,
-             latest.version_id, latest.version_label, latest.version_created_at, latest.download_enabled
+             latest.version_id, latest.version_label, latest.version_created_at, latest.download_enabled,
+             latest.content_sha256, latest.size_bytes
       FROM workflow_hub.workflows w
       LEFT JOIN LATERAL (
           SELECT id AS version_id, version AS version_label, created_at AS version_created_at,
-                 download_enabled
+                 download_enabled, content_sha256, size_bytes
           FROM workflow_hub.workflow_versions
           WHERE workflow_id = w.id
           ORDER BY created_at DESC, id DESC
@@ -44,11 +45,12 @@ public class WorkflowQueryService {
       """;
   private static final String LIST_VERSIONS =
       """
-      SELECT page.version_id, page.version_label, page.version_created_at, page.download_enabled
+      SELECT page.version_id, page.version_label, page.version_created_at, page.download_enabled,
+             page.content_sha256, page.size_bytes
       FROM workflow_hub.workflows w
       LEFT JOIN LATERAL (
           SELECT id AS version_id, version AS version_label, created_at AS version_created_at,
-                 download_enabled
+                 download_enabled, content_sha256, size_bytes
           FROM workflow_hub.workflow_versions
           WHERE workflow_id = w.id
           %s
@@ -237,7 +239,15 @@ public class WorkflowQueryService {
             id,
             rs.getString("version_label"),
             rs.getObject("version_created_at", OffsetDateTime.class).toInstant(),
-            rs.getBoolean("download_enabled"));
+            rs.getBoolean("download_enabled"),
+            rs.getString("content_sha256"),
+            sizeBytes(rs));
+  }
+
+  /** 기존 버전은 크기가 NULL(미확인)이므로 0과 구분해 null로 읽는다. */
+  private static Long sizeBytes(ResultSet rs) throws SQLException {
+    long size = rs.getLong("size_bytes");
+    return rs.wasNull() ? null : size;
   }
 
   private static UUID parseId(String value, Supplier<WorkflowQueryException> notFound) {
@@ -273,8 +283,14 @@ public class WorkflowQueryService {
   public record WorkflowDetail(
       UUID workflowId, String title, VersionItem latestVersion, Instant createdAt) {}
 
+  /** sha256과 sizeBytes는 서버가 저장한 원본 바이트 기준이며, 기록하기 전의 버전은 null이다. */
   public record VersionItem(
-      UUID versionId, String versionLabel, Instant createdAt, boolean downloadEnabled) {}
+      UUID versionId,
+      String versionLabel,
+      Instant createdAt,
+      boolean downloadEnabled,
+      String sha256,
+      Long sizeBytes) {}
 
   public record DownloadAvailability(UUID workflowId, UUID versionId, boolean downloadEnabled) {}
 

@@ -104,6 +104,61 @@ class WorkflowUploadTests {
   }
 
   @Test
+  void recordsTheServerComputedHashAndSizeOfTheStoredBytes() throws Exception {
+    byte[] original = VALID.getBytes(StandardCharsets.UTF_8);
+
+    UUID versionId =
+        idFrom(
+            mvc.perform(upload("key-hash", "T", original, "user-1"))
+                .andExpect(status().isCreated())
+                .andReturn(),
+            "versionId");
+
+    var stored = fileIdentity(versionId);
+    String objectKey =
+        jdbc.sql("SELECT s3_object_key FROM workflow_hub.workflow_versions WHERE id = :id")
+            .param("id", versionId)
+            .query(String.class)
+            .single();
+    byte[] savedBytes = store.objects().get(objectKey);
+    assertThat(stored.sha256()).isEqualTo(sha256(savedBytes)).isEqualTo(sha256(original));
+    assertThat(stored.sizeBytes()).isEqualTo(savedBytes.length).isEqualTo(original.length);
+  }
+
+  @Test
+  void hashChangesWhenOnlyWhitespaceChangesTheFileBytes() throws Exception {
+    // 같은 JSON이지만 줄바꿈만 다르다.
+    byte[] compact = VALID.getBytes(StandardCharsets.UTF_8);
+    byte[] spaced = VALID.replace("\n", "\r\n").getBytes(StandardCharsets.UTF_8);
+
+    UUID first =
+        idFrom(mvc.perform(upload("key-compact", "T", compact, "u")).andReturn(), "versionId");
+    UUID second =
+        idFrom(mvc.perform(upload("key-spaced", "T", spaced, "u")).andReturn(), "versionId");
+
+    var a = fileIdentity(first);
+    var b = fileIdentity(second);
+    assertThat(a.sha256()).isEqualTo(sha256(compact));
+    assertThat(b.sha256()).isEqualTo(sha256(spaced)).isNotEqualTo(a.sha256());
+    assertThat(a.sizeBytes()).isEqualTo(compact.length);
+    assertThat(b.sizeBytes()).isEqualTo(spaced.length);
+  }
+
+  @Test
+  void retryKeepsTheFirstHashAndSizeAndDoesNotCreateAnotherVersion() throws Exception {
+    byte[] bytes = VALID.getBytes(StandardCharsets.UTF_8);
+    UUID versionId =
+        idFrom(mvc.perform(upload("key-keep", "T", bytes, "u")).andReturn(), "versionId");
+    var first = fileIdentity(versionId);
+
+    mvc.perform(upload("key-keep", "T", bytes, "u")).andExpect(status().isCreated());
+
+    assertThat(count("workflow_hub.workflow_versions")).isEqualTo(1);
+    assertThat(fileIdentity(versionId)).isEqualTo(first);
+    assertThat(first.sha256()).isEqualTo(sha256(bytes));
+  }
+
+  @Test
   void ignoresOwnerValuesSentByTheClient() throws Exception {
     MockMultipartHttpServletRequestBuilder request =
         upload("key-owner", "T", VALID.getBytes(StandardCharsets.UTF_8), "real-user");
@@ -411,6 +466,22 @@ class WorkflowUploadTests {
         java.util.regex.Pattern.compile("\"" + field + "\":\"([0-9a-f-]{36})\"").matcher(body);
     assertThat(m.find()).isTrue();
     return UUID.fromString(m.group(1));
+  }
+
+  private record FileIdentity(String sha256, long sizeBytes) {}
+
+  private FileIdentity fileIdentity(UUID versionId) {
+    return jdbc.sql(
+            "SELECT content_sha256, size_bytes FROM workflow_hub.workflow_versions WHERE id = :id")
+        .param("id", versionId)
+        .query((rs, row) -> new FileIdentity(rs.getString(1), rs.getLong(2)))
+        .single();
+  }
+
+  /** 테스트 기대값은 구현과 별개로 JDK 다이제스트로 계산한다. */
+  private static String sha256(byte[] bytes) throws Exception {
+    return java.util.HexFormat.of()
+        .formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes));
   }
 
   private long count(String table) {

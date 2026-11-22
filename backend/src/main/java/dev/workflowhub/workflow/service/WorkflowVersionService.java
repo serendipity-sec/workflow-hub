@@ -93,6 +93,8 @@ public class WorkflowVersionService {
     }
     UUID versionId = UUID.randomUUID();
     String objectKey = "workflows/" + workflowId + "/" + versionId + ".json";
+    // 저장소에 넘기는 같은 배열로 계산한다.
+    var identity = WorkflowFileIdentity.of(bytes);
     try {
       store.put(objectKey, bytes);
     } catch (RuntimeException e) {
@@ -122,7 +124,7 @@ public class WorkflowVersionService {
                 var base = findComparisonBase(workflowId, comparisonId);
                 VersionNumber number = requireCurrentBase(workflowId, base, updateType);
                 String label = number.next(updateType).label();
-                insertVersion(workflowId, versionId, label, objectKey);
+                insertVersion(workflowId, versionId, label, objectKey, identity);
                 recordRequest(owner, key, fingerprint, workflowId, versionId);
                 wroteRows.set(true);
                 return new UploadResult(workflowId, versionId, label);
@@ -235,16 +237,24 @@ public class WorkflowVersionService {
     return number;
   }
 
-  private void insertVersion(UUID workflowId, UUID versionId, String label, String objectKey) {
+  private void insertVersion(
+      UUID workflowId,
+      UUID versionId,
+      String label,
+      String objectKey,
+      WorkflowFileIdentity identity) {
     jdbc.sql(
             """
-            INSERT INTO workflow_hub.workflow_versions (id, workflow_id, version, s3_object_key, created_at)
-            VALUES (:id, :workflowId, :label, :objectKey, clock_timestamp())
+            INSERT INTO workflow_hub.workflow_versions
+                (id, workflow_id, version, s3_object_key, content_sha256, size_bytes, created_at)
+            VALUES (:id, :workflowId, :label, :objectKey, :sha256, :sizeBytes, clock_timestamp())
             """)
         .param("id", versionId)
         .param("workflowId", workflowId)
         .param("label", label)
         .param("objectKey", objectKey)
+        .param("sha256", identity.sha256())
+        .param("sizeBytes", identity.sizeBytes())
         .update();
   }
 

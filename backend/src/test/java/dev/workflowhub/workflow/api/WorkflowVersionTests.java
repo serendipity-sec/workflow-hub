@@ -209,6 +209,30 @@ class WorkflowVersionTests {
         .andExpect(jsonPath("$.code").value("VERSION_DOWNLOAD_DISABLED"));
   }
 
+  @Test
+  void recordsHashAndSizeOfTheStoredBytesForEveryVersionAndKeepsThemOnRetry() throws Exception {
+    Version v1 = upload();
+    UUID comparisonId = createComparison(v1);
+    String key = UUID.randomUUID().toString();
+    var request = registration(v1, comparisonId, "MINOR", key);
+    Version v11 =
+        versionFrom(
+            mvc.perform(request.with(user(OWNER))).andExpect(status().isCreated()).andReturn());
+
+    assertThat(fileIdentity(v1)).containsExactly(sha256(BASE), (long) BASE.length);
+    assertThat(fileIdentity(v11)).containsExactly(sha256(CANDIDATE), (long) CANDIDATE.length);
+    assertThat(sha256(BASE)).isNotEqualTo(sha256(CANDIDATE));
+    assertThat(fileIdentity(v11))
+        .containsExactly(sha256(storedBytes(v11)), (long) storedBytes(v11).length);
+
+    // 같은 키 재시도는 같은 버전을 돌려주고 최초 해시·크기를 유지한다.
+    mvc.perform(registration(v1, comparisonId, "MINOR", key).with(user(OWNER)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.data.versionId").value(v11.versionId().toString()));
+    assertThat(versionLabels(v1)).containsExactlyInAnyOrder("v1", "v1.1");
+    assertThat(fileIdentity(v11)).containsExactly(sha256(CANDIDATE), (long) CANDIDATE.length);
+  }
+
   @ParameterizedTest
   @CsvSource({"MINOR,v1.1", "MAJOR,v2"})
   void oneConcurrentRegistrationWinsOnTheSameLine(String updateType, String label)
@@ -450,6 +474,29 @@ class WorkflowVersionTests {
             "UPDATE workflow_hub.workflow_comparisons SET expires_at = now() - interval '1 second' WHERE id = :id")
         .param("id", comparisonId)
         .update();
+  }
+
+  private List<Object> fileIdentity(Version version) {
+    return jdbc.sql(
+            "SELECT content_sha256, size_bytes FROM workflow_hub.workflow_versions WHERE id = :id")
+        .param("id", version.versionId())
+        .query((rs, row) -> List.<Object>of(rs.getString(1), rs.getLong(2)))
+        .single();
+  }
+
+  private byte[] storedBytes(Version version) {
+    String objectKey =
+        jdbc.sql("SELECT s3_object_key FROM workflow_hub.workflow_versions WHERE id = :id")
+            .param("id", version.versionId())
+            .query(String.class)
+            .single();
+    return store.objects().get(objectKey);
+  }
+
+  /** 기대값은 구현과 별개로 JDK 다이제스트로 계산한다. */
+  private static String sha256(byte[] bytes) throws Exception {
+    return java.util.HexFormat.of()
+        .formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes));
   }
 
   private List<String> versionLabels(Version version) {

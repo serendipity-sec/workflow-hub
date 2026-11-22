@@ -46,6 +46,9 @@ public class WorkflowQueryController {
   private static final String CURSOR_PARAMETER = "다음 페이지를 요청할 때 같은 목록의 nextCursor 값을 그대로 사용한다";
   private static final String END_CURSOR = "다음 페이지에 사용할 값. 마지막 페이지에서는 null";
   private static final String LATEST_VERSION = "가장 최근에 등록한 버전. 등록된 버전이 없으면 null";
+  private static final String FILE_HASH =
+      "서버가 S3에 저장한 원본 바이트의 SHA-256(소문자 hex 64자). 해시를 기록하기 전에 등록된 버전은 null";
+  private static final String FILE_SIZE = "서버가 S3에 저장한 원본 바이트 수. 기록하기 전에 등록된 버전은 null";
   private static final String BAD_PAGINATION =
       "limit이 정수 범위를 벗어나거나(INVALID_LIMIT), cursor가 유효하지 않다(INVALID_CURSOR)";
   private static final String UNAUTHORIZED = "토큰이 없거나 유효하지 않다";
@@ -131,7 +134,9 @@ public class WorkflowQueryController {
                                 "versionId":"5d2f7c1a-8b3e-4c6d-a1f0-9e4b2c7d8a33",
                                 "versionLabel":"v1",
                                 "createdAt":"2026-11-22T04:15:30Z",
-                                "downloadEnabled":true
+                                "downloadEnabled":true,
+                                "sha256":"3c700c2454485bca511c63f2fdb89dbbde0dc674c08ef0f8a1c1dcc3201ae3f8",
+                                "sizeBytes":52
                               }
                             }}
                             """))),
@@ -182,7 +187,9 @@ public class WorkflowQueryController {
                               "versionId":"5d2f7c1a-8b3e-4c6d-a1f0-9e4b2c7d8a33",
                               "versionLabel":"v1",
                               "createdAt":"2026-11-22T04:15:30Z",
-                              "downloadEnabled":true
+                              "downloadEnabled":true,
+                              "sha256":"3c700c2454485bca511c63f2fdb89dbbde0dc674c08ef0f8a1c1dcc3201ae3f8",
+                              "sizeBytes":52
                             }],"nextCursor":null}}
                             """))),
     @ApiResponse(
@@ -460,17 +467,43 @@ public class WorkflowQueryController {
           VersionMetadata latestVersion,
       @Schema(example = REGISTERED_AT) Instant createdAt) {}
 
-  @Schema(requiredProperties = {"versionId", "versionLabel", "createdAt", "downloadEnabled"})
+  @Schema(
+      requiredProperties = {
+        "versionId",
+        "versionLabel",
+        "createdAt",
+        "downloadEnabled",
+        "sha256",
+        "sizeBytes"
+      })
   public record VersionMetadata(
       @Schema(example = VERSION_ID) UUID versionId,
       @Schema(example = "v1") String versionLabel,
       @Schema(example = REGISTERED_AT) Instant createdAt,
-      @Schema(description = "원본 JSON 다운로드 허용 여부", example = "true") boolean downloadEnabled) {
+      @Schema(description = "원본 JSON 다운로드 허용 여부", example = "true") boolean downloadEnabled,
+      @JsonInclude(JsonInclude.Include.ALWAYS)
+          @Schema(
+              description = FILE_HASH,
+              example = "3c700c2454485bca511c63f2fdb89dbbde0dc674c08ef0f8a1c1dcc3201ae3f8",
+              types = {"string", "null"})
+          String sha256,
+      @JsonInclude(JsonInclude.Include.ALWAYS)
+          @Schema(
+              description = FILE_SIZE,
+              example = "52",
+              types = {"integer", "null"},
+              format = "int64")
+          Long sizeBytes) {
     private static VersionMetadata from(VersionItem item) {
       return item == null
           ? null
           : new VersionMetadata(
-              item.versionId(), item.versionLabel(), item.createdAt(), item.downloadEnabled());
+              item.versionId(),
+              item.versionLabel(),
+              item.createdAt(),
+              item.downloadEnabled(),
+              item.sha256(),
+              item.sizeBytes());
     }
   }
 }

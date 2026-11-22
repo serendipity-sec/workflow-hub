@@ -64,6 +64,8 @@ public class WorkflowUploadService {
     UUID workflowId = UUID.randomUUID();
     UUID versionId = UUID.randomUUID();
     String objectKey = "workflows/" + workflowId + "/" + versionId + ".json";
+    // 저장소에 넘기는 같은 배열로 계산한다.
+    var identity = WorkflowFileIdentity.of(file);
 
     long storeStart = System.nanoTime();
     try {
@@ -88,7 +90,15 @@ public class WorkflowUploadService {
     try {
       transactions.executeWithoutResult(
           status -> {
-            record(ownerId, idempotencyKey, fingerprint, title, workflowId, versionId, objectKey);
+            record(
+                ownerId,
+                idempotencyKey,
+                fingerprint,
+                title,
+                workflowId,
+                versionId,
+                objectKey,
+                identity);
             bodyCompleted.set(true);
           });
     } catch (DuplicateKeyException e) {
@@ -171,7 +181,8 @@ public class WorkflowUploadService {
       String title,
       UUID workflowId,
       UUID versionId,
-      String objectKey) {
+      String objectKey,
+      WorkflowFileIdentity identity) {
     jdbc.sql(
             "INSERT INTO workflow_hub.workflows (id, owner_id, title) VALUES (:id, :owner, :title)")
         .param("id", workflowId)
@@ -180,13 +191,16 @@ public class WorkflowUploadService {
         .update();
     jdbc.sql(
             """
-            INSERT INTO workflow_hub.workflow_versions (id, workflow_id, version, s3_object_key)
-            VALUES (:id, :workflowId, :version, :objectKey)
+            INSERT INTO workflow_hub.workflow_versions
+                (id, workflow_id, version, s3_object_key, content_sha256, size_bytes)
+            VALUES (:id, :workflowId, :version, :objectKey, :sha256, :sizeBytes)
             """)
         .param("id", versionId)
         .param("workflowId", workflowId)
         .param("version", FIRST_VERSION)
         .param("objectKey", objectKey)
+        .param("sha256", identity.sha256())
+        .param("sizeBytes", identity.sizeBytes())
         .update();
     jdbc.sql(
             """
