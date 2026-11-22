@@ -19,6 +19,13 @@ class ApiDocsTests {
   private static final String LIST = "$.paths['/api/me/workflows'].get";
   private static final String DETAIL = "$.paths['/api/workflows/{workflowId}'].get";
   private static final String VERSIONS = "$.paths['/api/workflows/{workflowId}/versions'].get";
+  private static final String REGISTER = "$.paths['/api/workflows/{workflowId}/versions'].post";
+  private static final String COMPARE =
+      "$.paths['/api/workflows/{workflowId}/versions/{versionId}/comparisons'].post";
+  private static final String DOWNLOAD =
+      "$.paths['/api/workflows/{workflowId}/versions/{versionId}/download'].get";
+  private static final String AVAILABILITY =
+      "$.paths['/api/workflows/{workflowId}/versions/{versionId}/download-availability'].patch";
   private static final String SCHEMAS = "$.components.schemas.";
 
   @Nested
@@ -123,6 +130,33 @@ class ApiDocsTests {
           .andExpect(jsonPath(SCHEMAS + "VersionMetadata.properties.versionLabel").exists())
           .andExpect(
               jsonPath(SCHEMAS + "VersionMetadata.properties.createdAt.format").value("date-time"));
+    }
+
+    @Test
+    void documentsComparisonRegistrationAndDownloadControl() throws Exception {
+      var docs = mvc.perform(get("/v3/api-docs")).andExpect(status().isOk());
+      docs.andExpect(jsonPath(COMPARE + ".requestBody.content['multipart/form-data']").exists())
+          .andExpect(
+              jsonPath(COMPARE + ".requestBody.content['multipart/form-data'].schema.$ref")
+                  .value(schemaRef("ComparisonRequest")))
+          .andExpect(jsonPath(SCHEMAS + "ComparisonRequest.required[0]").value("file"))
+          .andExpect(jsonPath(SCHEMAS + "ComparisonRequest.properties.file.format").value("binary"))
+          .andExpect(jsonPath(successSchema(COMPARE)).value(schemaRef("ComparisonResponse")))
+          .andExpect(
+              jsonPath(REGISTER + ".parameters[?(@.name=='Idempotency-Key')].required").value(true))
+          .andExpect(
+              jsonPath(
+                      REGISTER
+                          + ".responses['409'].content['application/json'].schema.anyOf.length()")
+                  .value(2))
+          .andExpect(jsonPath(AVAILABILITY + ".requestBody.content['application/json']").exists())
+          .andExpect(jsonPath(DOWNLOAD + ".responses['403'].description").exists())
+          .andExpect(
+              jsonPath(SCHEMAS + "DownloadAvailabilityRequest.properties.downloadEnabled.type")
+                  .value("boolean"))
+          .andExpect(
+              jsonPath(SCHEMAS + "VersionMetadata.properties.downloadEnabled.type")
+                  .value("boolean"));
     }
 
     @Test

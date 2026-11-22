@@ -27,10 +27,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import tools.jackson.databind.JsonNode;
 
 @RestController
 @RequestMapping(produces = MediaType.APPLICATION_JSON_VALUE)
@@ -47,6 +50,8 @@ public class WorkflowQueryController {
       "limit이 정수 범위를 벗어나거나(INVALID_LIMIT), cursor가 유효하지 않다(INVALID_CURSOR)";
   private static final String UNAUTHORIZED = "토큰이 없거나 유효하지 않다";
   private static final String NOT_FOUND = "요청한 ID의 소유 워크플로를 찾을 수 없다(WORKFLOW_NOT_FOUND)";
+  private static final String VERSION_NOT_FOUND =
+      "요청한 소유 워크플로 버전을 찾을 수 없다(WORKFLOW_VERSION_NOT_FOUND)";
   private static final String SERVER_ERROR = "예상하지 못한 서버 오류. 응답의 requestId로 서버 로그를 찾는다";
   private static final Pattern UNSAFE_FILENAME_CHARACTERS =
       Pattern.compile("[\\p{Cc}\\p{Cf}\\\\/:*?\"<>|]");
@@ -125,7 +130,8 @@ public class WorkflowQueryController {
                               "latestVersion":{
                                 "versionId":"5d2f7c1a-8b3e-4c6d-a1f0-9e4b2c7d8a33",
                                 "versionLabel":"v1",
-                                "createdAt":"2026-11-22T04:15:30Z"
+                                "createdAt":"2026-11-22T04:15:30Z",
+                                "downloadEnabled":true
                               }
                             }}
                             """))),
@@ -175,7 +181,8 @@ public class WorkflowQueryController {
                             {"data":{"items":[{
                               "versionId":"5d2f7c1a-8b3e-4c6d-a1f0-9e4b2c7d8a33",
                               "versionLabel":"v1",
-                              "createdAt":"2026-11-22T04:15:30Z"
+                              "createdAt":"2026-11-22T04:15:30Z",
+                              "downloadEnabled":true
                             }],"nextCursor":null}}
                             """))),
     @ApiResponse(
@@ -221,10 +228,81 @@ public class WorkflowQueryController {
     return new VersionListResponse(new VersionListData(items, page.nextCursor()));
   }
 
+  @PatchMapping(
+      path = "/api/workflows/{workflowId}/versions/{versionId}/download-availability",
+      consumes = MediaType.APPLICATION_JSON_VALUE)
+  @Operation(
+      summary = "내 워크플로 버전의 다운로드 상태 변경",
+      description = "선택한 버전의 원본 JSON 다운로드를 허용하거나 중지한다. 원본 파일은 보관한다.")
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "선택한 버전의 다운로드 상태를 설정했다",
+        content =
+            @Content(
+                schema = @Schema(implementation = DownloadAvailabilityResponse.class),
+                examples =
+                    @ExampleObject(
+                        value =
+                            """
+                            {"data":{
+                              "workflowId":"0b6a8d7e-2f4c-4e0a-9a43-1d1f5c3e7a10",
+                              "versionId":"5d2f7c1a-8b3e-4c6d-a1f0-9e4b2c7d8a33",
+                              "downloadEnabled":false
+                            }}
+                            """))),
+    @ApiResponse(
+        responseCode = "400",
+        description = "JSON 본문이 잘못됐거나 downloadEnabled가 불리언 값이 아니다(BAD_REQUEST)",
+        content = @Content(schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "401",
+        description = UNAUTHORIZED,
+        content = @Content(schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "404",
+        description = VERSION_NOT_FOUND,
+        content = @Content(schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "415",
+        description = "지원하지 않는 요청 본문 형식(UNSUPPORTED_MEDIA_TYPE)",
+        content = @Content(schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "500",
+        description = SERVER_ERROR,
+        content = @Content(schema = @Schema(implementation = ApiError.class)))
+  })
+  public DownloadAvailabilityResponse setDownloadAvailability(
+      @AuthenticationPrincipal @Parameter(hidden = true) Jwt jwt,
+      @PathVariable("workflowId")
+          @Parameter(
+              description = "워크플로 ID",
+              schema = @Schema(format = "uuid"),
+              example = WORKFLOW_ID)
+          String workflowId,
+      @PathVariable("versionId")
+          @Parameter(
+              description = "다운로드 상태를 변경할 버전 ID",
+              schema = @Schema(format = "uuid"),
+              example = VERSION_ID)
+          String versionId,
+      @RequestBody DownloadAvailabilityRequest request) {
+    JsonNode enabled = request.downloadEnabled();
+    if (enabled == null || !enabled.isBoolean()) {
+      throw WorkflowQueryException.invalidDownloadAvailability();
+    }
+    var availability =
+        queries.updateDownloadAvailability(
+            jwt.getSubject(), workflowId, versionId, enabled.booleanValue());
+    return new DownloadAvailabilityResponse(
+        new DownloadAvailabilityData(
+            availability.workflowId(), availability.versionId(), availability.downloadEnabled()));
+  }
+
   @GetMapping("/api/workflows/{workflowId}/versions/{versionId}/download")
   @Operation(
       summary = "내 워크플로 버전 원본 다운로드",
-      description = "로그인 사용자가 소유한 워크플로에서 선택한 버전의 원본 JSON 바이트를 첨부 파일로 받는다.")
+      description = "로그인 사용자가 소유한 워크플로에서 다운로드가 허용된 버전의 원본 JSON 바이트를 첨부 파일로 받는다.")
   @ApiResponses({
     @ApiResponse(
         responseCode = "200",
@@ -246,8 +324,15 @@ public class WorkflowQueryController {
                 mediaType = MediaType.APPLICATION_JSON_VALUE,
                 schema = @Schema(implementation = ApiError.class))),
     @ApiResponse(
+        responseCode = "403",
+        description = "선택한 버전의 다운로드가 중지되어 있다(VERSION_DOWNLOAD_DISABLED)",
+        content =
+            @Content(
+                mediaType = MediaType.APPLICATION_JSON_VALUE,
+                schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
         responseCode = "404",
-        description = "요청한 소유 워크플로 버전을 찾을 수 없다(WORKFLOW_VERSION_NOT_FOUND)",
+        description = VERSION_NOT_FOUND,
         content =
             @Content(
                 mediaType = MediaType.APPLICATION_JSON_VALUE,
@@ -315,6 +400,20 @@ public class WorkflowQueryController {
   @Schema(requiredProperties = "data")
   public record VersionListResponse(VersionListData data) {}
 
+  @Schema(requiredProperties = "downloadEnabled")
+  public record DownloadAvailabilityRequest(
+      @Schema(description = "원본 JSON 다운로드 허용 여부", implementation = Boolean.class, example = "false")
+          JsonNode downloadEnabled) {}
+
+  @Schema(requiredProperties = "data")
+  public record DownloadAvailabilityResponse(DownloadAvailabilityData data) {}
+
+  @Schema(requiredProperties = {"workflowId", "versionId", "downloadEnabled"})
+  public record DownloadAvailabilityData(
+      @Schema(example = WORKFLOW_ID) UUID workflowId,
+      @Schema(example = VERSION_ID) UUID versionId,
+      @Schema(example = "false") boolean downloadEnabled) {}
+
   @Schema(requiredProperties = {"items", "nextCursor"})
   public record WorkflowListData(
       List<WorkflowSummary> items,
@@ -361,15 +460,17 @@ public class WorkflowQueryController {
           VersionMetadata latestVersion,
       @Schema(example = REGISTERED_AT) Instant createdAt) {}
 
-  @Schema(requiredProperties = {"versionId", "versionLabel", "createdAt"})
+  @Schema(requiredProperties = {"versionId", "versionLabel", "createdAt", "downloadEnabled"})
   public record VersionMetadata(
       @Schema(example = VERSION_ID) UUID versionId,
       @Schema(example = "v1") String versionLabel,
-      @Schema(example = REGISTERED_AT) Instant createdAt) {
+      @Schema(example = REGISTERED_AT) Instant createdAt,
+      @Schema(description = "원본 JSON 다운로드 허용 여부", example = "true") boolean downloadEnabled) {
     private static VersionMetadata from(VersionItem item) {
       return item == null
           ? null
-          : new VersionMetadata(item.versionId(), item.versionLabel(), item.createdAt());
+          : new VersionMetadata(
+              item.versionId(), item.versionLabel(), item.createdAt(), item.downloadEnabled());
     }
   }
 }

@@ -20,6 +20,11 @@ public class N8nWorkflowValidator {
           .build();
 
   public N8nWorkflow validate(byte[] content) {
+    JsonNode name = parse(content).get("name");
+    return new N8nWorkflow(name != null && name.isString() ? name.stringValue() : null);
+  }
+
+  JsonNode parse(byte[] content) {
     JsonNode root;
     try {
       root = mapper.readTree(content);
@@ -57,8 +62,7 @@ public class N8nWorkflowValidator {
       validateConnectionTypes(source.getValue(), nodeNames);
     }
 
-    JsonNode name = root.get("name");
-    return new N8nWorkflow(name != null && name.isString() ? name.stringValue() : null);
+    return root;
   }
 
   private static void validateConnectionTypes(JsonNode byType, Set<String> nodeNames) {
