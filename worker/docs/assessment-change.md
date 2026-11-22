@@ -1,0 +1,44 @@
+# 원본 정의 비교와 제한된 수정안
+
+`assessment-change.ts`는 두 원본 파일을 읽어 정적 선언의 변화를 비교하고, finding에 맞춘 수정 안내를 만든다. 워크플로·표현식·Code를 실행하지 않는다. 기존 finding 비교는 유지하며 이 계층은 원본 정의와 별도 환경·정책 자료의 변경을 추가한다.
+
+## 정의 비교
+
+`compareDefinitions(beforeBytes, afterBytes, beforeEvidence?, afterEvidence?)`는 `definitionComparisonSchema`로 검증된 결과를 반환한다. 입력 파일과 sidecar의 SHA-256이 다르면 거부한다. JSON 키 순서·노드 배열 순서·서식은 의미 변화로 세지 않는다. 두 전체 파일의 실제 바이트 해시는 각각 보존한다.
+
+| 비교 범위                                             | 출력 의미                                                                                                           |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| 노드 ID로 대응한 추가·삭제·활성/비활성·종류·버전      | 새 기능, 제거 또는 재검사할 어댑터 변화. 삭제·비활성화를 검증된 해결로 표현하지 않음                                |
+| 인증 설정·자격 증명 참조                              | 인증 선언 변화. 실제 인증 집행이나 권한은 미검증                                                                    |
+| HTTP URL                                              | 정적인 origin 변경과 같은 origin의 경로/쿼리 변경 구분. 동적 목적지 의미는 미확인                                   |
+| Send Email/Gmail/Slack/Telegram 수신 필드             | 선언한 수신 대상 변화. 실제 수신자의 소유권·별칭 해석은 미검증                                                      |
+| DB resource/operation                                 | 작업 선언과 지원 SQL AST의 SELECT/INSERT/UPDATE/DELETE 등 문장 종류 변화. 지원 Postgres 버전의 생략 기본값만 정규화 |
+| 명령·Code·파일·하위 워크플로·AI·외부 패키지 노드 종류 | 선언한 기능 범주 추가/제거. 임의 코드의 모든 기능을 비교하지 않음                                                   |
+| IF/Switch/Filter 설정과 일반/AI 연결·출력 번호        | 방어/분기 재검사가 필요함. 실제 같은 값과 모든 경로의 방어 효과는 분석기로 다시 확인                                |
+| 노드 설정·워크플로 설정·메타데이터                    | 그 밖의 변경을 누락하지 않고 재검사 대상으로 기록                                                                   |
+| 환경·패키지·advisory·정책·자식·분류·승인·영수증       | 같은 JSON이라도 제공 근거가 바뀌면 재평가 대상으로 기록                                                             |
+
+변경에는 고정 코드, 마스킹된 노드 위치, `recheck: required`만 들어간다. 주소·수신자·쿼리·사용자 필드명·개별 비밀값의 해시를 출력하지 않는다. 256개 변경 한도를 넘거나 ID 변경으로 대응이 불명확하면 `inconclusive`다. `securityEquivalent: not_claimed`, `behaviorPreserved: not_verified`는 결과 전체에 유지한다. 일반 Code 본문은 설정 변화로 보고하며 완전한 프로그램 의미 비교를 주장하지 않는다.
+
+## 수정 안내와 적용
+
+`createRemediationPlans(context, findings, inputSha256)`의 세 번째 인자는 **원본 바이트 해시**다. Context를 다시 직렬화한 해시로 대체할 수 없다. 계획은 finding ID, 노드, 수정 종류, 고정 선행 조건·후속 검사만 담으며 10개 범주의 수동 조치 안내를 제공한다.
+
+자동 적용은 다음 두 프로필에 한정한다.
+
+| 계획                         | 적용 가능한 원본                                                                                                                                  | 수행하는 변경                                                                                    | 남는 확인                                                      |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| `enable_tls_verification`    | HTTP Request 3·4·4.1–4.5, `options.allowUnauthorizedCerts`가 명시적으로 `true`                                                                    | 그 옵션만 `false`로 변경                                                                         | 대상 인증서 체인과 정상 요청 성공                              |
+| `bind_postgres_lookup_value` | Postgres 2.8, `database/executeQuery`, 단일 식별자 SELECT/FROM/WHERE, 인용하지 않은 `{{ $json.body.id }}` 한 값, 기존 바인딩·다른 query 옵션 없음 | 쿼리의 실제 값 자리를 `$1`로 바꾸고 `options.queryReplacement = "={{ [$json.body.id] }}"`를 추가 | 열 타입, 기대 조회 결과, 입력의 구조 변경 차단, 정상 업무 보존 |
+
+Postgres 수정은 동적 식별자·인용한 템플릿·다중 문장·여러 조건·직접 원본 노드 참조·다른 버전·기존 바인딩을 자동 수정하지 않는다. SQL/표현식을 실행하거나 문자열을 평가하지 않는다. TLS 수정은 서버 인증서 문제를 해결하거나 정상 통신을 보증하는 작업이 아니다.
+
+`applyRemediation(bytes, plan)`은 계획 스키마·계획 ID·정확한 파일 해시·현재 노드 위치·인식 가능한 원본 조건을 다시 확인한 뒤 **새 Buffer**를 반환한다. 임의 JSON Patch, 경로 또는 값을 받지 않으며 입력 Buffer를 바꾸거나 파일을 직접 쓰지 않는다. CLI의 명시적 적용 명령이 새 파일 생성과 재검사를 담당한다. 새 버전·공개·업무 동작 보존은 자동 승인하지 않는다.
+
+출력은 읽기 쉬운 JSON으로 직렬화하므로 전체 파일 바이트가 바뀔 수 있다. 기존 근거는 새 바이트에 자동 승계하지 않는다. 수정안의 `normalBehavior: requires_validation`을 유지하고 [합성 실행 영수증](assessment-evidence.md)과 실제 재검사 결과를 별도로 연결한다.
+
+## 근거와 검증
+
+노드 의미의 고정 기준은 n8n commit `86dff76e10efba250a4d3e57760e4eb5d2bbea25`의 [HTTP Request 옵션 처리](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/HttpRequest/V3/HttpRequestV3.node.ts), [Postgres 쿼리·바인딩 처리](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Postgres/v2/actions/database/executeQuery.operation.ts)다. 이전 [흐름 프로필](flow-profiles.md)과 [설정 프로필](settings-profiles.md)의 버전 근거를 재사용한다.
+
+`assessment-change.test.mjs`는 서식/순서, 인증·주소·수신자·DB 작업, 삭제·비활성화·분기, 같은 JSON의 환경 변경, 정확한 해시, 제한된 두 수정의 실제 새 바이트와 재검사, 원본 보존, 금지된 자동 수정 변형을 확인한다. 외부 API·운영 DB·사용자 코드 실행을 검증한 테스트가 아니다.

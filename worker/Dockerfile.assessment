@@ -1,0 +1,7 @@
+ARG RUNTIME_IMAGE=workflow-worker-assessment-runtime:0.3.0
+FROM ${RUNTIME_IMAGE}
+WORKDIR /opt/worker
+COPY dist/ ./dist/
+COPY tools/native-inspection.py ./tools/native-inspection.py
+USER 65532:65532
+ENTRYPOINT ["node", "--max-old-space-size=256", "dist/assessment-entry.js"]

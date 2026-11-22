@@ -3,6 +3,15 @@ import { runLocal, runRemoteOnce } from "./runner.js";
 import { runStaticFile } from "./static-runner.js";
 import { compareStatic } from "./static-compare.js";
 import { limits } from "./contract.js";
+import { writeFile } from "node:fs/promises";
+import { runAssessment, runAssessmentFile } from "./assessment-runner.js";
+import {
+  assessmentLimits,
+  assessmentReportSchema,
+} from "./assessment-contract.js";
+import { compareDefinitions, applyRemediation } from "./assessment-change.js";
+import { parseEvidenceBytes } from "./assessment-evidence.js";
+import { sha256 } from "./worker-io.js";
 import {
   parseTask,
   readLocalFile,
@@ -11,6 +20,97 @@ import {
 } from "./worker-io.js";
 
 async function main(args: string[], signal: AbortSignal): Promise<void> {
+  const assessmentOptions = {
+    dockerExecutable: process.env.WORKER_DOCKER_PATH,
+    image: process.env.WORKER_ASSESSMENT_IMAGE,
+    signal,
+  };
+  if (
+    args[0] === "assess" &&
+    (args.length === 2 || args.length === 3) &&
+    args[1]
+  ) {
+    const report = await runAssessmentFile(args[1], {
+      ...assessmentOptions,
+      evidencePath: args[2],
+    });
+    process.stdout.write(JSON.stringify(report) + "\n");
+    if (report.status === "error") process.exitCode = 1;
+    return;
+  }
+  if (
+    args[0] === "diff-definitions" &&
+    (args.length === 3 || args.length === 5) &&
+    args[1] &&
+    args[2]
+  ) {
+    const before = await readLocalFile(args[1], limits.fileBytes);
+    const after = await readLocalFile(args[2], limits.fileBytes);
+    const beforeEvidence = args[3]
+      ? parseEvidenceBytes(
+          await readLocalFile(args[3], 1024 * 1024),
+          sha256(before),
+        )
+      : undefined;
+    const afterEvidence = args[4]
+      ? parseEvidenceBytes(
+          await readLocalFile(args[4], 1024 * 1024),
+          sha256(after),
+        )
+      : undefined;
+    const comparison = compareDefinitions(
+      before,
+      after,
+      beforeEvidence,
+      afterEvidence,
+    );
+    process.stdout.write(JSON.stringify(comparison) + "\n");
+    if (comparison.status === "inconclusive") process.exitCode = 1;
+    return;
+  }
+  if (
+    args[0] === "apply-remediation" &&
+    args.length === 5 &&
+    args[1] &&
+    args[2] &&
+    args[3] &&
+    args[4]
+  ) {
+    const bytes = await readLocalFile(args[1], limits.fileBytes);
+    const report = assessmentReportSchema.parse(
+      JSON.parse(
+        (await readLocalFile(args[2], assessmentLimits.resultBytes)).toString(
+          "utf8",
+        ),
+      ),
+    );
+    if (report.status === "error" || report.inputSha256 !== sha256(bytes))
+      throw new WorkerFailure("invalid_result");
+    const plan = report.files[0]?.remediation.find(
+      (plan) => plan.id === args[3],
+    );
+    if (!plan) throw new WorkerFailure("invalid_result");
+    const revised = applyRemediation(bytes, plan);
+    // Changed bytes invalidate earlier evidence. Do not silently carry policy approvals forward.
+    const recheck = await runAssessment(revised, undefined, assessmentOptions);
+    if (recheck.status === "error") {
+      process.stdout.write(JSON.stringify(recheck) + "\n");
+      process.exitCode = 1;
+      return;
+    }
+    await writeFile(args[4], revised, { flag: "wx", mode: 0o600 });
+    process.stdout.write(
+      JSON.stringify({
+        status: "revised_file_created",
+        beforeSha256: sha256(bytes),
+        afterSha256: sha256(revised),
+        originalModified: false,
+        behaviorPreserved: "not_verified",
+        recheck,
+      }) + "\n",
+    );
+    return;
+  }
   if (args[0] === "compare-static" && args.length === 3 && args[1] && args[2]) {
     const before = JSON.parse(
       (await readLocalFile(args[1], limits.resultBytes)).toString("utf8"),

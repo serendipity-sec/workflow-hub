@@ -168,7 +168,11 @@ export async function runGitleaks(
     );
     if (version.reason) result = fail(version.reason);
     else if (version.code !== 0) result = fail("tool_failed");
-    else if (version.stdout.trim() !== gitleaksVersion)
+    // Official OCI releases prefix the same pinned version with "v"; the
+    // release executable and CI's Go build may omit it. No other versions pass.
+    else if (
+      ![gitleaksVersion, `v${gitleaksVersion}`].includes(version.stdout.trim())
+    )
       result = fail("tool_version_mismatch");
     else {
       const config = join(directory, "trusted.toml");

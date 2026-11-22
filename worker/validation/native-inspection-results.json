@@ -1,0 +1,105 @@
+{
+  "generatedAt": "2026-11-22T10:32:45.290Z",
+  "scope": "synthetic_native_inspection_only",
+  "execution": "not_run",
+  "nodeVersion": "v24.14.0",
+  "platform": "win32",
+  "helperSha256": "08a25223c297e8f9a1c72fca265d508a15071fa97e09a5b516206eb19e8d1032",
+  "controllerSha256": "0b75ddb8d874735ec32df7ae0d3a0e5a0784720d34d418481332a8cef8e4d3b7",
+  "pythonExecutableSha256": "0b471133e110cfb53a061cad528ce8e517d7b9ac41a0a396c39ad795a487fc14",
+  "inputSha256": "1a716f7ef76bdf9fc7964a30a5556b4395b2ab8b8ecb35ec554942899e83a482",
+  "command": "WORKER_PYTHON_PATH=<trusted path> node validation/verify-native-inspection.mjs [report path]",
+  "arguments": ["-I", "-B", "<trusted helper>", "nlp|python"],
+  "limits": {
+    "inputBytes": 2097152,
+    "outputBytes": 262144,
+    "timeoutMsPerMode": 60000,
+    "nlpTotalChars": 262144,
+    "nlpFieldChars": 16384,
+    "pythonSourceChars": 65536,
+    "pythonAstNodes": 10000
+  },
+  "modes": [
+    {
+      "mode": "nlp",
+      "status": "completed",
+      "versions": {
+        "python": "3.12.10",
+        "presidio": "2.2.366",
+        "spacy": "3.8.18",
+        "model": "en_core_web_sm@3.8.0"
+      },
+      "findingCount": 6,
+      "findingCodes": [
+        "nlp_email_candidate",
+        "nlp_location_candidate",
+        "nlp_payment_card_candidate",
+        "nlp_person_candidate"
+      ],
+      "diagnosticCodes": [
+        "nlp_english_model_profile",
+        "nlp_language_outside_profile"
+      ]
+    },
+    {
+      "mode": "python",
+      "status": "completed",
+      "versions": {
+        "python": "3.12.10",
+        "presidio": null,
+        "spacy": null,
+        "model": null
+      },
+      "findingCount": 12,
+      "findingCodes": [
+        "python_dynamic_evaluation_call",
+        "python_external_input_evaluation",
+        "python_external_input_log_call",
+        "python_external_input_request_call",
+        "python_external_input_shell_call",
+        "python_file_access_call",
+        "python_log_call",
+        "python_outbound_request_call",
+        "python_process_execution_call"
+      ],
+      "diagnosticCodes": [
+        "python_parse_unavailable",
+        "python_static_profile_limited"
+      ]
+    }
+  ],
+  "assertions": {
+    "englishPersonAndLocationCandidates": true,
+    "emailAndPaymentCardCandidates": true,
+    "negativeTextNoCandidates": true,
+    "unsupportedLanguageExplicit": true,
+    "pythonAliasesAndExternalInput": true,
+    "commentsAndStringsNotCalls": true,
+    "constantProcessNotInputInjection": true,
+    "invalidPythonPartial": true,
+    "workflowCodeNotExecuted": true,
+    "rawValuesAbsent": true
+  },
+  "errors": [
+    {
+      "case": "absent",
+      "status": "error",
+      "code": "native_tool_unavailable"
+    },
+    {
+      "case": "cancelled",
+      "status": "error",
+      "code": "native_cancelled"
+    },
+    {
+      "case": "output_limit",
+      "status": "error",
+      "code": "native_output_limit"
+    },
+    {
+      "case": "timeout",
+      "status": "error",
+      "code": "native_timeout"
+    }
+  ]
+}
