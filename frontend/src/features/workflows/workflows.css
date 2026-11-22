@@ -12,8 +12,9 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 18px 22px;
-  background: var(--surface);
+  padding: 16px 22px 16px 16px;
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
   border-radius: var(--r-md);
   box-shadow: var(--shadow);
   text-decoration: none;
@@ -28,8 +29,8 @@
   width: 44px;
   height: 44px;
   border-radius: 14px;
-  background: var(--surface-2);
-  color: var(--ink);
+  background: var(--ink);
+  color: #fff;
 }
 .row-main {
   display: grid;
@@ -42,7 +43,13 @@
   white-space: nowrap;
 }
 .row-arrow {
-  color: var(--muted);
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--ink);
 }
 
 /* ---------- Detail ---------- */
@@ -66,9 +73,9 @@
 }
 .latest-version {
   margin: 0;
-  font-size: 2.6rem;
+  font-size: 3rem;
   font-weight: 700;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.04em;
   line-height: 1.1;
 }
 .latest-card .muted {
@@ -79,14 +86,18 @@
   list-style: none;
   margin: 16px 0 0;
   padding: 0;
+  display: grid;
+  gap: 8px;
 }
 .version-list li {
   display: grid;
   grid-template-columns: 72px 1fr auto;
   align-items: center;
   gap: 12px;
-  padding: 12px 0;
-  border-top: 1px solid var(--line);
+  padding: 10px 12px 10px 16px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--glass-border);
 }
 .version-label {
   font-weight: 700;

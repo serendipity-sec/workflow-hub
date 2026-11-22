@@ -5,6 +5,9 @@
 const PATHS = {
   'arrow-left': 'M19 12H5 M11 6l-6 6 6 6',
   'arrow-right': 'M5 12h14 M13 6l6 6-6 6',
+  folder:
+    'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z',
+  home: 'M4 11l8-7 8 7 M6 10v10h12V10',
   check: 'M5 12.5l4.5 4.5L19 7.5',
   clock: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 7.5V12l3 2',
   download: 'M12 4v11 M7 11l5 5 5-5 M5 20h14',

@@ -11,11 +11,11 @@ const ROWS = [
  * Small illustration of how versions stack up. It is a static picture, not a
  * live control: the rows are examples and nothing here calls the API.
  */
-export function VersionTimeline() {
+export function VersionTimeline({ className }: { className?: string }) {
   return (
     <Card
       tone="dark"
-      className="timeline"
+      className={['timeline', className].filter(Boolean).join(' ')}
       role="img"
       aria-label="버전이 v1, v1.1, v2로 쌓이는 예시"
     >

@@ -2,7 +2,6 @@ import { ButtonLink } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
 import { Icon } from '../../shared/ui/Icon';
 import type { IconName } from '../../shared/ui/Icon';
-import { Tag } from '../../shared/ui/Tag';
 import { VersionTimeline } from './VersionTimeline';
 import './home.css';
 
@@ -50,64 +49,77 @@ const NOTES: { icon: IconName; title: string; body: string }[] = [
   },
 ];
 
-function twoDigits(n: number) {
-  return String(n).padStart(2, '0');
-}
-
 export function HomePage() {
+  const available = STEPS.filter((step) => step.available).length;
+
   return (
     <div className="home">
-      <header className="home-hero">
-        <div className="home-hero-text enter">
-          <p className="eyebrow">WORKFLOW HUB</p>
-          <h1>워크플로를 버전으로 남기고, 원본 그대로 받으세요.</h1>
-          <p className="home-lead">
-            n8n 워크플로를 올리면 버전별로 보관합니다. 이전 버전도 언제든 같은
-            파일로 내려받을 수 있습니다.
-          </p>
-          <div className="home-actions">
-            <ButtonLink to="/workflows">내 워크플로 보기</ButtonLink>
-            <ButtonLink to="/workflows/new" variant="secondary">
-              <Icon name="plus" size={16} />
-              등록하기
-            </ButtonLink>
-          </div>
-        </div>
-        <div className="enter enter-late">
-          <VersionTimeline />
-        </div>
+      <header className="home-head enter">
+        <p className="eyebrow">WORKFLOW HUB</p>
+        <h1>
+          <span>Workflow</span> <span>Hub</span>
+        </h1>
+        <p className="home-lead">
+          n8n 워크플로를 버전별로 보관하고, 원본 그대로 내려받으세요. 수정할
+          때마다 새 버전으로 남기면 이전 버전도 언제든 같은 파일로 받을 수
+          있습니다.
+        </p>
       </header>
 
-      <section aria-labelledby="flow-heading" className="home-section">
-        <h2 id="flow-heading" className="section-label">
-          서비스 흐름
-        </h2>
-        <ol className="flow">
-          {STEPS.map((step, index) => (
-            <li
-              key={step.title}
-              className={step.available ? 'flow-item' : 'flow-item is-pending'}
-            >
-              <span className="flow-number">{twoDigits(index + 1)}</span>
-              <strong>{step.title}</strong>
-              <p className="muted">{step.description}</p>
-              <Tag tone={step.available ? 'dark' : 'outline'}>
-                {step.available ? '제공 중' : '준비 중'}
-              </Tag>
-            </li>
-          ))}
-        </ol>
-      </section>
+      <div className="bento enter enter-late">
+        <Card className="bento-flow" aria-labelledby="flow-heading">
+          <h2 id="flow-heading">서비스 흐름</h2>
+          <ol className="flow">
+            {STEPS.map((step, index) => (
+              <li
+                key={step.title}
+                className="flow-item"
+                style={{ '--i': index } as React.CSSProperties}
+              >
+                <span
+                  className={step.available ? 'flow-pill is-on' : 'flow-pill'}
+                >
+                  <span className="flow-num">{index + 1}</span>
+                  {step.title}
+                  <span className="flow-state">
+                    {step.available ? '제공 중' : '준비 중'}
+                  </span>
+                </span>
+                <p className="muted">{step.description}</p>
+              </li>
+            ))}
+          </ol>
+        </Card>
 
-      <section aria-labelledby="notes-heading" className="home-section">
-        <h2 id="notes-heading" className="section-label">
-          보관 방식
-        </h2>
-        <Card className="notes-card">
+        <Card className="bento-stat">
+          <p className="stat-label">제공 중인 단계</p>
+          <p className="stat-value">
+            {available}
+            <span>/{STEPS.length}</span>
+          </p>
+          <div
+            className="stat-bar"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={STEPS.length}
+            aria-valuenow={available}
+            aria-label="제공 중인 단계"
+          >
+            <span style={{ width: `${(available / STEPS.length) * 100}%` }} />
+          </div>
+          <p className="muted">나머지는 준비 중입니다.</p>
+        </Card>
+
+        <VersionTimeline className="bento-version" />
+
+        <Card className="bento-notes" aria-labelledby="notes-heading">
+          <h2 id="notes-heading">보관 방식</h2>
           <ul className="notes">
             {NOTES.map((note) => (
               <li key={note.title}>
-                <Icon name={note.icon} size={20} />
+                <span className="notes-icon">
+                  <Icon name={note.icon} size={18} />
+                </span>
                 <div>
                   <strong>{note.title}</strong>
                   <p className="muted">{note.body}</p>
@@ -116,7 +128,20 @@ export function HomePage() {
             ))}
           </ul>
         </Card>
-      </section>
+
+        <Card tone="dark" className="bento-start">
+          <h2>첫 워크플로를 등록해 보세요</h2>
+          <p className="muted">
+            n8n 편집기에서 내보낸 JSON 파일 하나면 충분합니다.
+          </p>
+          <div className="start-actions">
+            <ButtonLink to="/workflows/new">워크플로 등록하기</ButtonLink>
+            <ButtonLink to="/workflows" variant="ghost" className="start-link">
+              내 워크플로 보기
+            </ButtonLink>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

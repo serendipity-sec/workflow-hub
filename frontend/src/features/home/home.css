@@ -2,52 +2,161 @@
 
 .home {
   display: grid;
-  gap: clamp(40px, 7vw, 72px);
+  gap: clamp(24px, 4vw, 40px);
 }
 
-/* ---------- Hero ---------- */
-.home-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-  gap: clamp(28px, 5vw, 64px);
-  align-items: center;
-  padding-top: clamp(8px, 3vw, 32px);
+/* ---------- Heading ---------- */
+.home-head h1 {
+  margin: 0 0 16px;
+  font-size: clamp(2.8rem, 8vw, 5.4rem);
+  font-weight: 700;
+  line-height: 0.98;
+  letter-spacing: -0.05em;
 }
-.home-hero h1 {
-  max-width: 13em;
-  margin: 0 0 20px;
-  font-size: clamp(2rem, 5.4vw, 3.4rem);
-  line-height: 1.18;
+.home-head h1 span {
+  display: block;
 }
 .eyebrow {
-  margin: 0 0 20px;
+  margin: 0 0 14px;
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.2em;
   color: var(--muted);
 }
 .home-lead {
-  max-width: 30em;
+  max-width: 36em;
   margin: 0;
-  font-size: clamp(1rem, 1.6vw, 1.1rem);
+  font-size: clamp(0.98rem, 1.5vw, 1.08rem);
   color: var(--ink-2);
 }
-.home-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 32px;
+
+/* ---------- Card grid ---------- */
+.bento {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-areas:
+    'flow flow stat version'
+    'notes notes start start';
+  gap: 16px;
+}
+.bento-flow {
+  grid-area: flow;
+}
+.bento-stat {
+  grid-area: stat;
+}
+.bento-version {
+  grid-area: version;
+}
+.bento-notes {
+  grid-area: notes;
+}
+.bento-start {
+  grid-area: start;
+}
+.bento .card h2 {
+  margin-bottom: 14px;
+  font-size: 1.05rem;
 }
 
-/* ---------- Version illustration (dark card) ---------- */
+/* Service flow: staggered pills, like a small timeline. */
+.flow {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+.flow-item {
+  margin-left: calc(var(--i) * 22px);
+}
+.flow-item p {
+  margin: 6px 0 0 6px;
+  font-size: 0.88rem;
+}
+.flow-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 8px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1.5px dashed var(--line-strong);
+  color: var(--ink-2);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+.flow-pill.is-on {
+  border: 1.5px solid var(--ink);
+  background: var(--ink);
+  color: #fff;
+}
+.flow-num {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(20, 20, 24, 0.08);
+  font-size: 0.8rem;
+}
+.flow-pill.is-on .flow-num {
+  background: #fff;
+  color: var(--ink);
+}
+.flow-state {
+  margin-right: 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+/* Stat card */
+.bento-stat {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+}
+.bento-stat p {
+  margin: 0;
+}
+.stat-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.stat-value {
+  font-size: 3.4rem;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  line-height: 1.1;
+}
+.stat-value span {
+  font-size: 1.6rem;
+  color: var(--muted);
+}
+.stat-bar {
+  height: 8px;
+  margin: 8px 0 10px;
+  border-radius: var(--r-pill);
+  background: rgba(20, 20, 24, 0.1);
+  overflow: hidden;
+}
+.stat-bar span {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+}
+
+/* Version illustration (dark card) */
 .timeline {
-  padding: clamp(20px, 3vw, 28px);
+  padding: 24px;
 }
 .timeline-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 .timeline-tag {
   color: rgba(255, 255, 255, 0.7);
@@ -71,17 +180,17 @@
 .timeline-rows li {
   position: relative;
   display: grid;
-  grid-template-columns: 24px auto 1fr auto;
+  grid-template-columns: 24px auto 1fr;
   align-items: center;
   gap: 8px;
-  padding: 14px 0;
+  padding: 12px 0;
 }
 .timeline-dot {
   z-index: 1;
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--dark);
+  background: #1b1b1e;
   border: 2px solid rgba(255, 255, 255, 0.55);
 }
 .is-latest .timeline-dot {
@@ -89,94 +198,76 @@
   border-color: #fff;
 }
 .timeline-file {
-  padding: 2px 10px;
-  border-radius: var(--r-pill);
-  background: rgba(255, 255, 255, 0.12);
-  font-size: 0.8rem;
+  display: none;
 }
 
-/* ---------- Sections ---------- */
-.section-label {
-  margin: 0 0 20px;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  color: var(--muted);
-}
-
-/* Service flow: no boxes, only numbers and thin rules. */
-.flow {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0 32px;
-}
-.flow-item {
-  display: grid;
-  align-content: start;
-  justify-items: start;
-  gap: 6px;
-  padding-top: 20px;
-  border-top: 1.5px solid var(--ink);
-}
-.flow-item p {
-  margin: 0 0 10px;
-}
-.flow-item .tag {
-  margin-top: auto;
-}
-.flow-number {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--muted);
-}
-.flow-item.is-pending {
-  border-top: 1.5px dashed var(--line-strong);
-}
-.flow-item.is-pending strong {
-  color: var(--ink-2);
-}
-
-/* How files are kept: one card, three columns with thin dividers. */
-.notes-card {
-  padding: clamp(20px, 3vw, 32px);
-}
+/* How files are kept: file-list style rows */
 .notes {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
 }
 .notes li {
   display: flex;
+  align-items: center;
   gap: 14px;
-  padding: 0 clamp(16px, 3vw, 32px);
-  border-left: 1px solid var(--line);
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--glass-border);
 }
-.notes li:first-child {
-  padding-left: 0;
-  border-left: 0;
-}
-.notes li:last-child {
-  padding-right: 0;
-}
-.notes .icon {
-  margin-top: 3px;
+.notes-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--ink);
+  color: #fff;
 }
 .notes p {
-  margin: 2px 0 0;
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+/* Start card (dark) */
+.bento-start {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: clamp(24px, 3vw, 36px);
+}
+.bento-start h2 {
+  margin: 0 0 4px;
+  font-size: clamp(1.3rem, 2.4vw, 1.8rem);
+}
+.bento-start p {
+  margin: 0;
+}
+.start-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+}
+.start-link {
+  color: rgba(255, 255, 255, 0.85);
+}
+.card-dark .start-link:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
 }
 
 /* ---------- Motion ---------- */
-/* The hero enters once on load. Nothing else moves. */
+/* The page enters once on load. Nothing else moves. */
 .enter {
   animation: enter 0.6s ease-out both;
 }
 .enter-late {
-  animation-delay: 0.15s;
+  animation-delay: 0.12s;
 }
 @keyframes enter {
   from {
@@ -195,41 +286,30 @@
 }
 
 /* ---------- Responsive ---------- */
-@media (max-width: 960px) {
-  .flow {
+@media (max-width: 1100px) {
+  .bento {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 28px 32px;
+    grid-template-areas:
+      'flow flow'
+      'stat version'
+      'notes notes'
+      'start start';
   }
 }
-@media (max-width: 860px) {
-  .home-hero {
+@media (max-width: 620px) {
+  .bento {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      'flow'
+      'stat'
+      'version'
+      'notes'
+      'start';
   }
-  .home-hero h1 {
-    max-width: none;
+  .flow-item {
+    margin-left: 0;
   }
-}
-@media (max-width: 720px) {
-  .notes {
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
-  .notes li,
-  .notes li:first-child,
-  .notes li:last-child {
-    padding: 0;
-    border-left: 0;
-  }
-  .notes li + li {
-    padding-top: 20px;
-    border-top: 1px solid var(--line);
-  }
-}
-@media (max-width: 520px) {
-  .flow {
-    grid-template-columns: 1fr;
-  }
-  .home-actions .btn {
+  .start-actions .btn {
     flex: 1 1 100%;
   }
 }
