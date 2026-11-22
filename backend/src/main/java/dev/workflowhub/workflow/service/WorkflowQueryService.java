@@ -22,10 +22,11 @@ public class WorkflowQueryService {
   private static final String WORKFLOW_WITH_LATEST_VERSION =
       """
       SELECT w.id AS workflow_id, w.title, w.created_at AS workflow_created_at,
-             latest.version_id, latest.version_label, latest.version_created_at
+             latest.version_id, latest.version_label, latest.version_created_at, latest.download_enabled
       FROM workflow_hub.workflows w
       LEFT JOIN LATERAL (
-          SELECT id AS version_id, version AS version_label, created_at AS version_created_at
+          SELECT id AS version_id, version AS version_label, created_at AS version_created_at,
+                 download_enabled
           FROM workflow_hub.workflow_versions
           WHERE workflow_id = w.id
           ORDER BY created_at DESC, id DESC
@@ -43,10 +44,11 @@ public class WorkflowQueryService {
       """;
   private static final String LIST_VERSIONS =
       """
-      SELECT page.version_id, page.version_label, page.version_created_at
+      SELECT page.version_id, page.version_label, page.version_created_at, page.download_enabled
       FROM workflow_hub.workflows w
       LEFT JOIN LATERAL (
-          SELECT id AS version_id, version AS version_label, created_at AS version_created_at
+          SELECT id AS version_id, version AS version_label, created_at AS version_created_at,
+                 download_enabled
           FROM workflow_hub.workflow_versions
           WHERE workflow_id = w.id
           %s
@@ -58,10 +60,18 @@ public class WorkflowQueryService {
       """;
   private static final String FIND_DOWNLOAD =
       """
-      SELECT w.title, v.version, v.s3_object_key
+      SELECT w.title, v.version, v.s3_object_key, v.download_enabled
       FROM workflow_hub.workflows w
       JOIN workflow_hub.workflow_versions v ON v.workflow_id = w.id
       WHERE w.id = :workflowId AND w.owner_id = :owner AND v.id = :versionId
+      """;
+  private static final String UPDATE_DOWNLOAD_AVAILABILITY =
+      """
+      UPDATE workflow_hub.workflow_versions v
+      SET download_enabled = :downloadEnabled
+      FROM workflow_hub.workflows w
+      WHERE v.workflow_id = w.id AND w.id = :workflowId AND w.owner_id = :owner
+        AND v.id = :versionId
       """;
 
   private final JdbcClient jdbc;
@@ -136,6 +146,28 @@ public class WorkflowQueryService {
     return new VersionPage(items, nextCursor);
   }
 
+  public DownloadAvailability updateDownloadAvailability(
+      String ownerId, String workflowId, String versionId, boolean downloadEnabled) {
+    UUID workflow = parseId(workflowId, WorkflowQueryException::versionNotFound);
+    UUID version = parseId(versionId, WorkflowQueryException::versionNotFound);
+    int updated =
+        jdbc.sql(UPDATE_DOWNLOAD_AVAILABILITY)
+            .param("workflowId", workflow)
+            .param("owner", ownerId)
+            .param("versionId", version)
+            .param("downloadEnabled", downloadEnabled)
+            .update();
+    if (updated == 0) {
+      throw WorkflowQueryException.versionNotFound();
+    }
+    log.info(
+        "event=workflow.download.availability_updated workflowId={} versionId={} downloadEnabled={}",
+        workflow,
+        version,
+        downloadEnabled);
+    return new DownloadAvailability(workflow, version, downloadEnabled);
+  }
+
   public DownloadedVersion downloadVersion(String ownerId, String workflowId, String versionId) {
     UUID workflow = parseId(workflowId, WorkflowQueryException::versionNotFound);
     UUID version = parseId(versionId, WorkflowQueryException::versionNotFound);
@@ -149,10 +181,14 @@ public class WorkflowQueryService {
                     new DownloadMetadata(
                         rs.getString("title"),
                         rs.getString("version"),
-                        rs.getString("s3_object_key")))
+                        rs.getString("s3_object_key"),
+                        rs.getBoolean("download_enabled")))
             .optional()
             .orElseThrow(WorkflowQueryException::versionNotFound);
 
+    if (!metadata.downloadEnabled()) {
+      throw WorkflowQueryException.downloadDisabled();
+    }
     byte[] content;
     try {
       content = store.get(metadata.objectKey());
@@ -200,7 +236,8 @@ public class WorkflowQueryService {
         : new VersionItem(
             id,
             rs.getString("version_label"),
-            rs.getObject("version_created_at", OffsetDateTime.class).toInstant());
+            rs.getObject("version_created_at", OffsetDateTime.class).toInstant(),
+            rs.getBoolean("download_enabled"));
   }
 
   private static UUID parseId(String value, Supplier<WorkflowQueryException> notFound) {
@@ -236,9 +273,13 @@ public class WorkflowQueryService {
   public record WorkflowDetail(
       UUID workflowId, String title, VersionItem latestVersion, Instant createdAt) {}
 
-  public record VersionItem(UUID versionId, String versionLabel, Instant createdAt) {}
+  public record VersionItem(
+      UUID versionId, String versionLabel, Instant createdAt, boolean downloadEnabled) {}
+
+  public record DownloadAvailability(UUID workflowId, UUID versionId, boolean downloadEnabled) {}
 
   public record DownloadedVersion(String title, String versionLabel, byte[] content) {}
 
-  private record DownloadMetadata(String title, String versionLabel, String objectKey) {}
+  private record DownloadMetadata(
+      String title, String versionLabel, String objectKey, boolean downloadEnabled) {}
 }

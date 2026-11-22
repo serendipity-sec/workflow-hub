@@ -14,7 +14,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 
 class WorkflowCreatedAtMigrationTests {
   @Test
-  void upgradesExistingRowsFromV1AndDoesNotReapplyOnRestart() {
+  void upgradesExistingRowsFromV2AndDoesNotReapplyOnRestart() {
     try (var postgres = new PostgreSQLContainer("postgres:17-alpine")) {
       postgres.start();
       flyway(postgres, "2").migrate();
@@ -38,14 +38,26 @@ class WorkflowCreatedAtMigrationTests {
           .update();
 
       var current = flyway(postgres, null);
-      assertThat(current.migrate().migrationsExecuted).isEqualTo(1);
+      assertThat(current.migrate().migrationsExecuted).isEqualTo(3);
       assertThat(
               jdbc.sql("SELECT created_at FROM workflow_hub.workflows WHERE id = :id")
                   .param("id", workflowId)
                   .query(OffsetDateTime.class)
                   .single())
           .isEqualTo(OffsetDateTime.parse("2026-10-20T01:00:00Z"));
-      assertThat(current.info().current().getScript()).isEqualTo("V3__add_workflow_created_at.sql");
+      assertThat(current.info().current().getScript())
+          .isEqualTo("V5__create_workflow_comparisons.sql");
+      assertThat(
+              jdbc.sql(
+                      """
+                      SELECT download_enabled
+                      FROM workflow_hub.workflow_versions
+                      WHERE workflow_id = :id
+                      """)
+                  .param("id", workflowId)
+                  .query(Boolean.class)
+                  .list())
+          .containsExactly(true, true);
       assertThat(current.migrate().migrationsExecuted).isZero();
 
       assertThat(

@@ -17,6 +17,11 @@ public class WorkflowQueryException extends RuntimeException {
         HttpStatus.BAD_REQUEST, "INVALID_LIMIT", "limit must be an integer between 1 and 100");
   }
 
+  public static WorkflowQueryException invalidDownloadAvailability() {
+    return new WorkflowQueryException(
+        HttpStatus.BAD_REQUEST, "BAD_REQUEST", "downloadEnabled must be a boolean");
+  }
+
   static WorkflowQueryException invalidCursor() {
     return new WorkflowQueryException(HttpStatus.BAD_REQUEST, "INVALID_CURSOR", "Invalid cursor");
   }
@@ -29,6 +34,11 @@ public class WorkflowQueryException extends RuntimeException {
   static WorkflowQueryException versionNotFound() {
     return new WorkflowQueryException(
         HttpStatus.NOT_FOUND, "WORKFLOW_VERSION_NOT_FOUND", "Workflow version not found");
+  }
+
+  static WorkflowQueryException downloadDisabled() {
+    return new WorkflowQueryException(
+        HttpStatus.FORBIDDEN, "VERSION_DOWNLOAD_DISABLED", "Version download is disabled");
   }
 
   static WorkflowQueryException storageUnavailable() {
