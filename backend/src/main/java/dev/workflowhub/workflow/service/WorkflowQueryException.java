@@ -26,6 +26,16 @@ public class WorkflowQueryException extends RuntimeException {
         HttpStatus.NOT_FOUND, "WORKFLOW_NOT_FOUND", "Workflow not found");
   }
 
+  static WorkflowQueryException versionNotFound() {
+    return new WorkflowQueryException(
+        HttpStatus.NOT_FOUND, "WORKFLOW_VERSION_NOT_FOUND", "Workflow version not found");
+  }
+
+  static WorkflowQueryException storageUnavailable() {
+    return new WorkflowQueryException(
+        HttpStatus.SERVICE_UNAVAILABLE, "STORAGE_UNAVAILABLE", "Could not read the file");
+  }
+
   public HttpStatus status() {
     return status;
   }
