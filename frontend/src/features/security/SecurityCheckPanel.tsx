@@ -1,3 +1,6 @@
+import { Card } from '../../shared/ui/Card';
+import { Tag } from '../../shared/ui/Tag';
+
 /**
  * Placeholder for the security check result of a version. The security worker is
  * not connected to the service yet, so this must not look like a result: no score,
@@ -9,9 +12,9 @@ export function SecurityCheckPanel({
   versionLabel?: string;
 }) {
   return (
-    <section className="panel panel-pending" aria-labelledby="security-heading">
+    <Card tone="pending" aria-labelledby="security-heading">
       <h2 id="security-heading">
-        보안 검사 <span className="tag">준비 중</span>
+        보안 검사 <Tag tone="outline">준비 중</Tag>
       </h2>
       <p>
         {versionLabel ? `${versionLabel}의 ` : ''}보안 검사는 아직 제공하지
@@ -21,6 +24,6 @@ export function SecurityCheckPanel({
         검사 결과가 연결되면 위험 근거(노드·필드 위치)와 수정 안내가 이 영역에
         표시됩니다. 검사 결과가 없다는 것은 안전하다는 뜻이 아닙니다.
       </p>
-    </section>
+    </Card>
   );
 }

@@ -1,0 +1,129 @@
+/* Workflow screens: list, detail, upload. Tokens in app/styles.css. */
+
+/* ---------- List ---------- */
+.row-list {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.row-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 22px;
+  background: var(--surface);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow);
+  text-decoration: none;
+  transition: transform 0.18s ease;
+}
+.row-card:hover {
+  transform: translateY(-2px);
+}
+.row-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.row-main {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+.row-main strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row-arrow {
+  color: var(--muted);
+}
+
+/* ---------- Detail ---------- */
+.back-link {
+  margin: 0 0 12px -8px;
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+.latest-card {
+  display: grid;
+  gap: 4px;
+}
+.latest-label {
+  margin: 0;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+.latest-version {
+  margin: 0;
+  font-size: 2.6rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+.latest-card .muted {
+  margin: 0;
+}
+
+.version-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+}
+.version-list li {
+  display: grid;
+  grid-template-columns: 72px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.version-label {
+  font-weight: 700;
+}
+
+/* ---------- Upload ---------- */
+.upload-form {
+  display: grid;
+  gap: 20px;
+  max-width: 600px;
+}
+.upload-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+@media (max-width: 800px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 520px) {
+  .version-list li {
+    grid-template-columns: 1fr auto;
+  }
+  .version-list li .muted {
+    grid-column: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-card {
+    transition: none;
+  }
+  .row-card:hover {
+    transform: none;
+  }
+}

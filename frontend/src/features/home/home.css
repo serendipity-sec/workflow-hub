@@ -1,44 +1,57 @@
-/* Home screen only. Shared tokens (--green, --line, ...) live in app/styles.css. */
+/* Home screen only. Tokens live in app/styles.css, parts in shared/ui. */
 
+.home {
+  display: grid;
+  gap: clamp(40px, 7vw, 72px);
+}
+
+/* ---------- Hero ---------- */
 .home-hero {
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
-  gap: 48px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: clamp(28px, 5vw, 64px);
   align-items: center;
-  padding: 24px 0 56px;
+  padding-top: clamp(8px, 3vw, 32px);
 }
 .home-hero h1 {
-  max-width: 18ch;
+  max-width: 13em;
+  margin: 0 0 20px;
+  font-size: clamp(2rem, 5.4vw, 3.4rem);
+  line-height: 1.18;
+}
+.eyebrow {
+  margin: 0 0 20px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--muted);
 }
 .home-lead {
-  font-size: 1.1rem;
-  color: var(--muted);
-  max-width: 46ch;
+  max-width: 30em;
+  margin: 0;
+  font-size: clamp(1rem, 1.6vw, 1.1rem);
+  color: var(--ink-2);
 }
 .home-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-top: 24px;
-}
-.home-section {
-  padding: 32px 0;
+  margin-top: 32px;
 }
 
-/* ---------- Version illustration ---------- */
+/* ---------- Version illustration (dark card) ---------- */
 .timeline {
-  position: relative;
-  background: white;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 28px 24px 24px;
+  padding: clamp(20px, 3vw, 28px);
+}
+.timeline-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
 }
 .timeline-tag {
-  position: absolute;
-  top: 12px;
-  right: 14px;
-  font-size: 0.75rem;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.7);
+  border-color: rgba(255, 255, 255, 0.25);
 }
 .timeline-rows {
   list-style: none;
@@ -50,10 +63,10 @@
   content: '';
   position: absolute;
   left: 7px;
-  top: 14px;
-  bottom: 14px;
+  top: 22px;
+  bottom: 22px;
   width: 2px;
-  background: var(--line);
+  background: rgba(255, 255, 255, 0.18);
 }
 .timeline-rows li {
   position: relative;
@@ -61,103 +74,104 @@
   grid-template-columns: 24px auto 1fr auto;
   align-items: center;
   gap: 8px;
-  padding: 12px 0;
+  padding: 14px 0;
 }
 .timeline-dot {
+  z-index: 1;
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: white;
-  border: 2px solid var(--green);
-  z-index: 1;
+  background: var(--dark);
+  border: 2px solid rgba(255, 255, 255, 0.55);
 }
 .is-latest .timeline-dot {
-  background: var(--green);
+  background: #fff;
+  border-color: #fff;
 }
 .timeline-file {
+  padding: 2px 10px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.12);
   font-size: 0.8rem;
-  color: var(--green);
-  background: var(--green-soft);
-  border-radius: 6px;
-  padding: 2px 8px;
-}
-/* A pulse runs down the line a few times, then rests. */
-.timeline-rows::after {
-  content: '';
-  position: absolute;
-  left: 4px;
-  top: 14px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--amber);
-  animation: timeline-pulse 3.2s ease-in-out 3 1s both;
-  opacity: 0;
-}
-@keyframes timeline-pulse {
-  0% {
-    transform: translateY(0);
-    opacity: 0;
-  }
-  15% {
-    opacity: 1;
-  }
-  85% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(150px);
-    opacity: 0;
-  }
 }
 
-/* ---------- Steps and facts ---------- */
-.steps,
-.facts {
+/* ---------- Sections ---------- */
+.section-label {
+  margin: 0 0 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+/* Service flow: no boxes, only numbers and thin rules. */
+.flow {
   list-style: none;
+  margin: 0;
   padding: 0;
-  margin: 16px 0 0;
   display: grid;
-  gap: 16px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0 32px;
 }
-.steps {
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-}
-.facts {
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-}
-.step,
-.fact {
-  background: white;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 24px;
-}
-.step {
+.flow-item {
   display: grid;
   align-content: start;
-  gap: 4px;
   justify-items: start;
+  gap: 6px;
+  padding-top: 20px;
+  border-top: 1.5px solid var(--ink);
 }
-.step p,
-.fact p {
-  margin: 0;
+.flow-item p {
+  margin: 0 0 10px;
 }
-.step-number {
+.flow-item .tag {
+  margin-top: auto;
+}
+.flow-number {
   font-size: 0.85rem;
   font-weight: 700;
-  color: var(--green);
+  color: var(--muted);
 }
-.step-pending {
-  background: #fbfbf8;
-  border-style: dashed;
+.flow-item.is-pending {
+  border-top: 1.5px dashed var(--line-strong);
 }
-.step .tag {
-  margin-top: 8px;
+.flow-item.is-pending strong {
+  color: var(--ink-2);
+}
+
+/* How files are kept: one card, three columns with thin dividers. */
+.notes-card {
+  padding: clamp(20px, 3vw, 32px);
+}
+.notes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.notes li {
+  display: flex;
+  gap: 14px;
+  padding: 0 clamp(16px, 3vw, 32px);
+  border-left: 1px solid var(--line);
+}
+.notes li:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+.notes li:last-child {
+  padding-right: 0;
+}
+.notes .icon {
+  margin-top: 3px;
+}
+.notes p {
+  margin: 2px 0 0;
 }
 
 /* ---------- Motion ---------- */
-/* The hero enters once on load. Nothing else moves because the page scrolled. */
+/* The hero enters once on load. Nothing else moves. */
 .enter {
   animation: enter 0.6s ease-out both;
 }
@@ -174,32 +188,48 @@
     transform: none;
   }
 }
-.lift {
-  transition:
-    transform 0.2s ease,
-    border-color 0.2s ease;
-}
-.lift:hover {
-  transform: translateY(-2px);
-  border-color: var(--green);
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .enter,
-  .timeline-rows::after {
+  .enter {
     animation: none;
   }
-  .lift {
-    transition: none;
-  }
-  .lift:hover {
-    transform: none;
-  }
 }
 
-@media (max-width: 800px) {
+/* ---------- Responsive ---------- */
+@media (max-width: 960px) {
+  .flow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 28px 32px;
+  }
+}
+@media (max-width: 860px) {
   .home-hero {
     grid-template-columns: 1fr;
-    gap: 32px;
+  }
+  .home-hero h1 {
+    max-width: none;
+  }
+}
+@media (max-width: 720px) {
+  .notes {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .notes li,
+  .notes li:first-child,
+  .notes li:last-child {
+    padding: 0;
+    border-left: 0;
+  }
+  .notes li + li {
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+  }
+}
+@media (max-width: 520px) {
+  .flow {
+    grid-template-columns: 1fr;
+  }
+  .home-actions .btn {
+    flex: 1 1 100%;
   }
 }

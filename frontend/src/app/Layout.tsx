@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet } from 'react-router';
 import { AuthMenu } from '../features/auth/AuthMenu';
+import { Icon } from '../shared/ui/Icon';
 
 export function Layout() {
   return (
@@ -7,6 +8,9 @@ export function Layout() {
       <header className="topbar">
         <div className="topbar-inner">
           <Link to="/" className="brand">
+            <span className="brand-mark">
+              <Icon name="layers" size={18} />
+            </span>
             Workflow Hub
           </Link>
           <nav aria-label="주 메뉴" className="nav">

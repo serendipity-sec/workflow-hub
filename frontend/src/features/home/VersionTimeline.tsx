@@ -1,3 +1,6 @@
+import { Card } from '../../shared/ui/Card';
+import { Tag } from '../../shared/ui/Tag';
+
 const ROWS = [
   { label: 'v2', note: '주요 수정', latest: true },
   { label: 'v1.1', note: '작은 수정', latest: false },
@@ -10,12 +13,18 @@ const ROWS = [
  */
 export function VersionTimeline() {
   return (
-    <div
+    <Card
+      tone="dark"
       className="timeline"
       role="img"
       aria-label="버전이 v1, v1.1, v2로 쌓이는 예시"
     >
-      <span className="timeline-tag">예시</span>
+      <div className="timeline-head">
+        <strong>버전 이력</strong>
+        <Tag tone="outline" className="timeline-tag">
+          예시
+        </Tag>
+      </div>
       <ol className="timeline-rows">
         {ROWS.map((row) => (
           <li key={row.label} className={row.latest ? 'is-latest' : undefined}>
@@ -26,6 +35,6 @@ export function VersionTimeline() {
           </li>
         ))}
       </ol>
-    </div>
+    </Card>
   );
 }

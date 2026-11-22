@@ -1,4 +1,7 @@
 import type { ReactNode } from 'react';
+import { Button } from './Button';
+import { Icon } from './Icon';
+import './ui.css';
 
 export function LoadingState({ label = '불러오는 중…' }: { label?: string }) {
   return (
@@ -19,9 +22,10 @@ export function ErrorState({
     <div className="state state-error" role="alert">
       <p>{message}</p>
       {onRetry && (
-        <button type="button" className="button-secondary" onClick={onRetry}>
+        <Button variant="secondary" size="sm" onClick={onRetry}>
+          <Icon name="refresh" size={16} />
           다시 시도
-        </button>
+        </Button>
       )}
     </div>
   );
