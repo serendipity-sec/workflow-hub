@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { useNavigate } from 'react-router';
+import { ApiError } from '../../shared/api/client';
 import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
 import { Field } from '../../shared/ui/Field';
@@ -66,6 +67,14 @@ export function WorkflowUploadPage() {
       });
       void navigate(`/workflows/${result.workflowId}`);
     } catch (uploadError) {
+      // The server fingerprints the file bytes; the metadata-based key cannot see that.
+      // A different file under the same key gets 409, so the next try needs a new key.
+      if (
+        uploadError instanceof ApiError &&
+        uploadError.code === 'IDEMPOTENCY_KEY_REUSED'
+      ) {
+        lastSubmit.current = null;
+      }
       setError(describeWorkflowError(uploadError));
       setSubmitting(false);
     }
