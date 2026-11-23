@@ -72,7 +72,7 @@ public class WorkflowGraphComparison {
   /** 수정본을 먼저 검증해, 잘못된 입력이 기준 파일 읽기(저장소 접근)를 일으키지 않게 한다. */
   public Result compare(Supplier<byte[]> base, byte[] candidate) {
     JsonNode candidateTree = validator.parse(candidate);
-    JsonNode baseTree = validator.parse(base.get());
+    JsonNode baseTree = parseBase(base.get());
 
     Map<String, JsonNode> baseByName = nodesByName(baseTree);
     Map<String, JsonNode> candidateByName = nodesByName(candidateTree);
@@ -145,6 +145,21 @@ public class WorkflowGraphComparison {
             new Graph(
                 graphNodes(candidateByName, candidateGraphIds), List.copyOf(candidateConnections)));
     return new Result(summarize(changes), graphs, List.copyOf(changes));
+  }
+
+  /**
+   * 저장된 기준 버전에도 같은 한도를 적용한다. 한도를 낮추기 전에 등록된 큰 버전이 걸릴 수 있어, 업로드한 수정본의 문제로 오해하지 않도록 메시지에서 기준 버전임을
+   * 밝힌다.
+   */
+  private JsonNode parseBase(byte[] base) {
+    try {
+      return validator.parse(base);
+    } catch (WorkflowUploadException e) {
+      if (N8nWorkflowValidator.LIMIT_EXCEEDED.equals(e.code())) {
+        throw new WorkflowUploadException(e.status(), e.code(), "Base version: " + e.getMessage());
+      }
+      throw e;
+    }
   }
 
   private static Map<String, JsonNode> nodesByName(JsonNode tree) {

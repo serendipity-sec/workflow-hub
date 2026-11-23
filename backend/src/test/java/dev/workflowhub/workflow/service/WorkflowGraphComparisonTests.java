@@ -16,7 +16,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 class WorkflowGraphComparisonTests {
   private final WorkflowGraphComparison comparison =
-      new WorkflowGraphComparison(new N8nWorkflowValidator());
+      new WorkflowGraphComparison(new N8nWorkflowValidator(WorkflowLimits.DEFAULTS));
 
   @Test
   void keepsConnectionsAcrossRenamesAndReportsBranchAndPortChanges() {
@@ -310,8 +310,96 @@ class WorkflowGraphComparisonTests {
         .doesNotContain("synthetic-private");
   }
 
+  private final WorkflowGraphComparison smallLimits =
+      new WorkflowGraphComparison(new N8nWorkflowValidator(new WorkflowLimits(10, 2, 2)));
+
+  private static final String AT_LIMIT =
+      """
+      {"nodes":[{"name":"A","type":"t"},{"name":"B","type":"t"}],
+       "connections":{"A":{"main":[[{"node":"B"},{"node":"A"}]]}}}
+      """;
+  private static final String OVER_NODES =
+      """
+      {"nodes":[{"name":"A","type":"t"},{"name":"B","type":"t"},{"name":"C","type":"t"}],
+       "connections":{}}
+      """;
+
+  @Test
+  void comparesTwoFilesThatSitExactlyAtTheLimits() {
+    var result = compare(smallLimits, AT_LIMIT, AT_LIMIT);
+
+    assertThat(result.summary()).isEqualTo(new Summary(0, 0, 0, 0, 0));
+  }
+
+  @Test
+  void rejectsACandidateOverTheLimitsBeforeReadingTheBaseFile() {
+    assertThatThrownBy(
+            () ->
+                smallLimits.compare(
+                    () -> {
+                      throw new AssertionError("기준 파일을 읽으면 안 된다");
+                    },
+                    OVER_NODES.getBytes(StandardCharsets.UTF_8)))
+        .isInstanceOfSatisfying(
+            WorkflowUploadException.class,
+            e -> {
+              assertThat(e.code()).isEqualTo("WORKFLOW_LIMIT_EXCEEDED");
+              assertThat(e.getMessage()).isEqualTo("Workflow node count exceeds the limit (2)");
+            });
+  }
+
+  @Test
+  void saysTheStoredBaseVersionIsTheOneOverTheLimits() {
+    assertThatThrownBy(() -> compare(smallLimits, OVER_NODES, AT_LIMIT))
+        .isInstanceOfSatisfying(
+            WorkflowUploadException.class,
+            e -> {
+              assertThat(e.status().value()).isEqualTo(422);
+              assertThat(e.code()).isEqualTo("WORKFLOW_LIMIT_EXCEEDED");
+              assertThat(e.getMessage())
+                  .isEqualTo("Base version: Workflow node count exceeds the limit (2)");
+            });
+  }
+
+  @Test
+  void keepsTheBaseVersionPrefixForADeepUtf16Base() {
+    // 한도(깊이 10)를 넘는 UTF-16 기준 파일도 깊이 초과로 분류되고 기준 버전 접두사가 붙는다.
+    String deep = "{\"\u227b\":" + "{\"a\":".repeat(20) + "1" + "}".repeat(21);
+
+    assertThatThrownBy(
+            () ->
+                smallLimits.compare(
+                    deep.getBytes(StandardCharsets.UTF_16LE),
+                    AT_LIMIT.getBytes(StandardCharsets.UTF_8)))
+        .isInstanceOfSatisfying(
+            WorkflowUploadException.class,
+            e -> {
+              assertThat(e.code()).isEqualTo("WORKFLOW_LIMIT_EXCEEDED");
+              assertThat(e.getMessage())
+                  .isEqualTo("Base version: Workflow nesting depth exceeds the limit (10)");
+            });
+  }
+
+  @Test
+  void aStructurallyInvalidBaseKeepsItsOwnErrorCode() {
+    String invalid = "{\"nodes\":[],\"connections\":{}}";
+
+    assertThatThrownBy(() -> compare(smallLimits, invalid, AT_LIMIT))
+        .isInstanceOfSatisfying(
+            WorkflowUploadException.class,
+            e -> {
+              assertThat(e.code()).isEqualTo("INVALID_WORKFLOW");
+              assertThat(e.getMessage()).doesNotStartWith("Base version");
+            });
+  }
+
   private WorkflowGraphComparison.Result compare(String base, String candidate) {
-    return comparison.compare(
+    return compare(comparison, base, candidate);
+  }
+
+  private static WorkflowGraphComparison.Result compare(
+      WorkflowGraphComparison target, String base, String candidate) {
+    return target.compare(
         base.getBytes(StandardCharsets.UTF_8), candidate.getBytes(StandardCharsets.UTF_8));
   }
 }

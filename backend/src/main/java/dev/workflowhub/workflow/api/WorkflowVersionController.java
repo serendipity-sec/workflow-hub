@@ -101,8 +101,23 @@ public class WorkflowVersionController {
         content = @Content(schema = @Schema(implementation = ApiError.class))),
     @ApiResponse(
         responseCode = "422",
-        description = "유효한 n8n 워크플로 JSON이 아니다(INVALID_WORKFLOW)",
-        content = @Content(schema = @Schema(implementation = ApiError.class))),
+        description =
+            """
+            유효한 n8n 워크플로 JSON이 아니거나(INVALID_WORKFLOW) 규모 한도를 넘었다(WORKFLOW_LIMIT_EXCEEDED). \
+            한도는 중첩 깊이(루트 객체를 1로 센다)·노드 수·연결 수이며 기본값은 64·300·1,500이고, 최초 업로드와 같은 값을 쓴다. \
+            한도에 도달한 파일은 통과하고 초과한 파일만 거절한다. \
+            수정본뿐 아니라 저장된 기준 버전이 한도를 넘어도 같은 코드이며, 이때 메시지는 "Base version:"으로 시작한다. \
+            거절된 요청은 비교 파일을 저장하지 않는다""",
+        content =
+            @Content(
+                schema = @Schema(implementation = ApiError.class),
+                examples =
+                    @ExampleObject(
+                        name = "한도 초과",
+                        value =
+                            """
+                            {"code":"WORKFLOW_LIMIT_EXCEEDED","message":"Workflow connection count exceeds the limit (1500)","requestId":"3f1c0f5e-52a8-4d2b-9a43-6b2f6f8f0c11"}
+                            """))),
     @ApiResponse(
         responseCode = "500",
         description = SERVER_ERROR,
