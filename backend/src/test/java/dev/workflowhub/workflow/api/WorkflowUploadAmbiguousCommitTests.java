@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import dev.workflowhub.PostgresTestConfiguration;
+import dev.workflowhub.workflow.service.WorkflowObjectCleanup;
 import dev.workflowhub.workflow.service.WorkflowUploadService.UploadResult;
 import dev.workflowhub.workflow.service.WorkflowVersionService;
 import dev.workflowhub.workflow.service.WorkflowVersionService.UpdateType;
@@ -62,11 +63,13 @@ class WorkflowUploadAmbiguousCommitTests {
   @Autowired JdbcClient jdbc;
   @Autowired InMemoryWorkflowObjectStore store;
   @Autowired WorkflowVersionService versions;
+  @Autowired WorkflowObjectCleanup cleanup;
   @MockitoSpyBean TransactionTemplate transactions;
   @Autowired PlatformTransactionManager transactionManager;
 
   @BeforeEach
   void clean() {
+    jdbc.sql("DELETE FROM workflow_hub.pending_objects").update();
     jdbc.sql("DELETE FROM workflow_hub.idempotency_keys").update();
     jdbc.sql("DELETE FROM workflow_hub.workflow_comparisons").update();
     jdbc.sql("DELETE FROM workflow_hub.workflow_versions").update();
@@ -103,6 +106,8 @@ class WorkflowUploadAmbiguousCommitTests {
             .query(String.class)
             .single();
     assertThat(store.objects()).containsOnlyKeys(objectKey);
+    // 커밋된 버전은 정리 대상 기록이 함께 사라진다.
+    assertThat(pendingKeys()).isEmpty();
   }
 
   @Test
@@ -128,6 +133,15 @@ class WorkflowUploadAmbiguousCommitTests {
         .isZero();
     // 이후 커밋됐을 수 있으므로 객체를 지우지 않는다. 남은 객체는 로그의 키로 정리한다.
     assertThat(store.objects()).hasSize(1);
+    // 기록이 남아 있으므로 대기 시간이 지나면 정리 작업이 참조 없음을 확인하고 지운다.
+    String objectKey = store.objects().keySet().iterator().next();
+    assertThat(pendingKeys()).containsExactly(objectKey);
+    jdbc.sql(
+            "UPDATE workflow_hub.pending_objects SET cleanup_after = clock_timestamp() - interval '1 second'")
+        .update();
+    cleanup.cleanDue();
+    assertThat(store.objects()).isEmpty();
+    assertThat(pendingKeys()).isEmpty();
   }
 
   @Test
@@ -264,6 +278,12 @@ class WorkflowUploadAmbiguousCommitTests {
         .hasSize(3)
         .containsKey("workflows/comparisons/" + comparisonId + ".json")
         .containsKeys(versionKeys.toArray(String[]::new));
+  }
+
+  private java.util.List<String> pendingKeys() {
+    return jdbc.sql("SELECT object_key FROM workflow_hub.pending_objects ORDER BY object_key")
+        .query(String.class)
+        .list();
   }
 
   private MockMultipartHttpServletRequestBuilder upload(String key) {

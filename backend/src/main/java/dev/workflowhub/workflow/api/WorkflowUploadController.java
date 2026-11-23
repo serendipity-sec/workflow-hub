@@ -117,7 +117,8 @@ public class WorkflowUploadController {
                             """))),
     @ApiResponse(
         responseCode = "503",
-        description = "파일 저장에 실패했다. 아무것도 생성되지 않았으니 같은 키로 재시도한다",
+        description =
+            "파일 저장에 실패했거나, 저장한 파일이 등록 전에 정리되어 커밋하지 못했다(STORAGE_UNAVAILABLE). 아무것도 생성되지 않았으니 같은 키로 재시도한다",
         content = @Content(schema = @Schema(implementation = ApiError.class)))
   })
   public ResponseEntity<UploadResponse> upload(

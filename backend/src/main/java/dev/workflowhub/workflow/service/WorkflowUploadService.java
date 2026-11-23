@@ -29,16 +29,19 @@ public class WorkflowUploadService {
   private final WorkflowObjectStore store;
   private final JdbcClient jdbc;
   private final TransactionTemplate transactions;
+  private final WorkflowObjectCleanup cleanup;
 
   public WorkflowUploadService(
       N8nWorkflowValidator validator,
       WorkflowObjectStore store,
       JdbcClient jdbc,
-      TransactionTemplate transactions) {
+      TransactionTemplate transactions,
+      WorkflowObjectCleanup cleanup) {
     this.validator = validator;
     this.store = store;
     this.jdbc = jdbc;
     this.transactions = transactions;
+    this.cleanup = cleanup;
   }
 
   /** 같은 소유자·키·입력으로 다시 호출하면 최초 결과를 돌려주고 워크플로는 한 번만 만든다. */
@@ -67,13 +70,15 @@ public class WorkflowUploadService {
     // 저장소에 넘기는 같은 배열로 계산한다.
     var identity = WorkflowFileIdentity.of(file);
 
+    // S3에 쓰기 전에 정리 대상으로 남긴다. 저장과 커밋 사이에 프로세스가 중단돼도 재시작 후 찾을 수 있다.
+    cleanup.record(objectKey);
     long storeStart = System.nanoTime();
     try {
       store.put(objectKey, file);
     } catch (RuntimeException e) {
       log.error(
           "event=workflow.upload.storage_failed objectKey={} owner={}", objectKey, ownerId, e);
-      deleteQuietly(objectKey);
+      // 응답만 유실되고 저장은 끝났거나 늦게 끝날 수 있다. 기록을 남겨 두면 대기 시간 뒤 정리 작업이 지운다.
       throw new WorkflowUploadException(
           HttpStatus.SERVICE_UNAVAILABLE,
           "STORAGE_UNAVAILABLE",
@@ -108,7 +113,7 @@ public class WorkflowUploadService {
           ownerId,
           idempotencyKey,
           objectKey);
-      deleteQuietly(objectKey);
+      cleanup.discard(objectKey);
       Optional<Existing> winner = findExisting(ownerId, idempotencyKey);
       if (winner.isPresent()) {
         return replay(ownerId, idempotencyKey, winner.get(), fingerprint);
@@ -123,7 +128,7 @@ public class WorkflowUploadService {
             workflowId,
             objectKey,
             e);
-        deleteQuietly(objectKey);
+        cleanup.discard(objectKey);
         throw e;
       }
       // 커밋 단계의 실패는 응답만 유실되고 커밋은 적용됐을 수 있다. 행이 있으면 성공으로 처리하고,
@@ -142,7 +147,7 @@ public class WorkflowUploadService {
             versionId);
         return new UploadResult(workflowId, versionId, FIRST_VERSION);
       }
-      // 객체는 보존한다. 이 줄의 키 값으로 행 존재 여부를 확인해 정리한다.
+      // 객체는 보존한다. 정리 대상 기록이 남아 있으면 대기 시간 뒤 정리 작업이 버전 참조 여부를 확인해 처리한다.
       log.error(
           "event=workflow.upload.commit_unknown owner={} workflowId={} versionId={} objectKey={}",
           ownerId,
@@ -214,6 +219,8 @@ public class WorkflowUploadService {
         .param("workflowId", workflowId)
         .param("versionId", versionId)
         .update();
+    // 커밋되면 버전 행이 객체를 가리키므로 정리 대상에서 뺀다. 롤백되면 이 삭제도 취소돼 기록이 남는다.
+    cleanup.releaseForCommit(objectKey);
   }
 
   private Optional<Existing> findExisting(String ownerId, String idempotencyKey) {
@@ -254,16 +261,6 @@ public class WorkflowUploadService {
         existing.result().workflowId(),
         existing.result().versionId());
     return existing.result();
-  }
-
-  private void deleteQuietly(String objectKey) {
-    try {
-      store.delete(objectKey);
-      log.info("event=workflow.upload.orphan_deleted objectKey={}", objectKey);
-    } catch (RuntimeException e) {
-      // 정리 실패는 요청 결과를 바꾸지 않는다. 남은 객체는 이 로그의 키로 찾아 지운다.
-      log.error("event=workflow.upload.orphan_delete_failed objectKey={}", objectKey, e);
-    }
   }
 
   static void requireValidKey(String key) {
