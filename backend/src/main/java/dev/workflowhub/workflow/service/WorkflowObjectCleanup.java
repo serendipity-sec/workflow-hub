@@ -67,8 +67,8 @@ public class WorkflowObjectCleanup {
   /**
    * 버전 INSERT와 같은 트랜잭션에서 호출한다. 커밋되면 기록이 사라지고 버전 행이 객체를 대신 가리킨다.
    *
-   * <p>기록이 이미 없으면 정리 작업이 대기 시간 뒤 이 객체를 지웠다는 뜻이다. 삭제된 파일을 가리키는 버전을 만들지 않도록 실패시킨다. 정리 작업은 삭제가 끝날 때까지
-   * 기록 행을 잠그므로 이 삭제는 그 완료를 기다린 뒤 결과를 본다.
+   * <p>기록이 이미 없거나 정리 작업이 삭제 시작을 표시(delete_started_at)했으면, 파일이 지워졌거나 지워질 수 있다. 삭제된 파일을 가리키는 버전을 만들지
+   * 않도록 실패시킨다. 정리 작업은 참조가 없음을 확인한 트랜잭션에서 이 표시를 커밋한 뒤 S3를 지우므로, 이 조건을 통과한 요청의 파일은 정리 작업이 지우지 않는다.
    */
   void releaseForCommit(String objectKey) {
     int released =
@@ -77,7 +77,8 @@ public class WorkflowObjectCleanup {
             .param("key", objectKey)
             .update();
     if (released == 0) {
-      log.error("event=workflow.object_cleanup.record_missing objectKey={}", objectKey);
+      // 행이 없는 경우와 삭제 시작 표시가 있는 경우를 구분하지 않는다. 행 상태는 pending_objects에서 확인한다.
+      log.error("event=workflow.object_cleanup.commit_refused objectKey={}", objectKey);
       throw new WorkflowUploadException(
           HttpStatus.SERVICE_UNAVAILABLE,
           "STORAGE_UNAVAILABLE",
@@ -147,12 +148,13 @@ public class WorkflowObjectCleanup {
 
   private Optional<String> claimDue() {
     // 처리 전에 한 행씩 선점하며, 이후 단계가 실패하거나 프로세스가 멈춰도 재시도 간격 뒤 다시 시도된다.
+    // 만료 조건은 문장 시작 시각으로 고정해 인덱스 범위 검색을 쓴다. 실행 중 만료되는 행은 다음 실행이 처리한다.
     return jdbc.sql(
             """
             WITH due AS (
                 SELECT object_key
                 FROM workflow_hub.pending_objects
-                WHERE cleanup_after <= clock_timestamp()
+                WHERE cleanup_after <= statement_timestamp()
                 ORDER BY cleanup_after, object_key
                 LIMIT 1
                 FOR UPDATE SKIP LOCKED

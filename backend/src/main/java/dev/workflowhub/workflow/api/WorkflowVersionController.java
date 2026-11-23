@@ -192,7 +192,8 @@ public class WorkflowVersionController {
         content = @Content(schema = @Schema(implementation = ApiError.class))),
     @ApiResponse(
         responseCode = "503",
-        description = "비교 파일을 읽거나 등록 파일을 저장할 수 없다(STORAGE_UNAVAILABLE)",
+        description =
+            "비교 파일을 읽거나 등록 파일을 저장할 수 없다. 저장한 등록 파일이 커밋 전에 정리된 경우도 같다(STORAGE_UNAVAILABLE). 이 요청으로는 버전이 만들어지지 않았으니 같은 Idempotency-Key로 재시도한다",
         content = @Content(schema = @Schema(implementation = ApiError.class)))
   })
   public ResponseEntity<UploadResponse> register(
