@@ -73,6 +73,11 @@ for (const argument of process.argv.slice(3)) {
       id: sample.id,
       inputSha256: sample.sha256,
       engineVersion: report.engineVersion,
+      inspectionVersion: inspection.inspectionVersion,
+      serviceReportVersion: inspection.serviceReport.serviceReportVersion,
+      ...(inspection.serviceReport.serviceScope
+        ? { serviceScope: inspection.serviceReport.serviceScope }
+        : {}),
       assessmentStatus: report.status,
       executionStatus: inspection.serviceReport.executionStatus,
       analysisStatus: inspection.serviceReport.analysisStatus,

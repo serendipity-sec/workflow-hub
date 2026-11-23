@@ -29,7 +29,7 @@ for (const sample of manifest.samples) {
   );
   assert.notEqual(report.status, "error");
   assert.equal(report.inputSha256, sample.sha256);
-  assert.equal(report.engineVersion, "0.7.0");
+  assert.equal(report.engineVersion, "0.9.0");
   assert.equal(report.boundary.kind, "docker");
   assert.equal(
     `sha256:${report.boundary.imageSha256}`,
@@ -287,7 +287,7 @@ check(
 );
 check(
   "docs_create_profile_keeps_access_and_policy_gaps",
-  ["destination_access_unverified", "trusted_policy_transfer_unresolved"].every(
+  ["destination_access_unverified", "transfer_policy_not_configured"].every(
     (code) =>
       rule(15403, "N8N_EXTENDED_OUTBOUND_DATA").diagnostics.some(
         (diagnostic) =>
@@ -337,7 +337,7 @@ for (const id of [2490, 18521]) {
   check(
     `${id}_table_runtime_and_policy_gaps_retained`,
     outbound.diagnostics.some(
-      (d) => d.code === "trusted_policy_transfer_unresolved",
+      (d) => d.code === "transfer_policy_not_configured",
     ),
   );
 }

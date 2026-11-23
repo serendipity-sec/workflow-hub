@@ -1,3 +1,4 @@
+import { parseExpressionAt } from "acorn";
 import type { MainEdge, NormalizedNode } from "./n8n.js";
 import type { Context } from "./static-context.js";
 import { isObject } from "./static-context.js";
@@ -10,7 +11,11 @@ import type {
 import { locationFor, stableId } from "./static-contract.js";
 import { inspectJavaScript } from "./static-settings.js";
 import { isStructuredPostgres } from "./definition-risks.js";
-import { isStaticIntervalWait } from "./value-flow.js";
+import {
+  buildValueFlow,
+  isStaticIntervalWait,
+  isStaticItemLimit,
+} from "./value-flow.js";
 
 const prefix = "n8n-nodes-base.";
 const http = prefix + "httpRequest";
@@ -20,6 +25,7 @@ const respond = prefix + "respondToWebhook";
 const conditional = prefix + "if";
 const noop = prefix + "noOp";
 const codeNode = prefix + "code";
+const stopAndError = prefix + "stopAndError";
 const httpVersions = new Set([3, 4, 4.1, 4.2, 4.3, 4.4, 4.5]);
 const pgVersions = new Set([2.4, 2.5, 2.6, 2.8]);
 const webhookVersions = new Set([2, 2.1, 2.2]);
@@ -33,6 +39,464 @@ const rootLocation: StaticLocation = { nodeKey: null, pointer: "/nodes" };
 
 type Ref = { kind: "current" | "direct"; path: string; name?: string };
 type Trace = { source: NormalizedNode; path: NormalizedNode[]; reference: Ref };
+type LocalEffect = { inputs: number; outputs: number; preservesInput: boolean };
+type FlowContext = Context & { localEffects: ReadonlyMap<string, LocalEffect> };
+
+/** A deliberately small Acorn profile for data-only parameter expressions.
+ * Calls, callbacks, mutation and dynamic property keys outside the n8n read
+ * accessors stay opaque. Parsing never invokes workflow expressions. */
+function readOnlyParameters(parameters: unknown): boolean {
+  let remaining = 2048;
+  const roots = new Set([
+    "$json",
+    "$input",
+    "$node",
+    "$now",
+    "$today",
+    "$env",
+    "$vars",
+    "$workflow",
+    "$execution",
+    "$itemIndex",
+    "$runIndex",
+    "undefined",
+  ]);
+  const safeKey = (key: unknown): boolean =>
+    typeof key === "string" &&
+    !["__proto__", "prototype", "constructor"].includes(key);
+  const ast = (value: unknown, depth = 0): boolean => {
+    if (--remaining < 0 || depth > 48 || !isObject(value)) return false;
+    const child = (next: unknown): boolean => ast(next, depth + 1);
+    if (value.type === "Literal")
+      return (
+        (!value.regex &&
+          ["string", "number", "boolean"].includes(typeof value.value)) ||
+        (value.type === "Literal" && value.value === null)
+      );
+    if (value.type === "Identifier")
+      return typeof value.name === "string" && roots.has(value.name);
+    if (value.type === "ChainExpression") return child(value.expression);
+    if (value.type === "MemberExpression")
+      return (
+        child(value.object) &&
+        isObject(value.property) &&
+        (value.computed === true
+          ? value.property.type === "Literal" &&
+            (typeof value.property.value === "number" ||
+              safeKey(value.property.value))
+          : safeKey(value.property.name))
+      );
+    if (
+      value.type === "CallExpression" &&
+      isObject(value.callee) &&
+      Array.isArray(value.arguments)
+    ) {
+      const callee = value.callee;
+      if (callee.type === "Identifier" && callee.name === "$")
+        return (
+          value.arguments.length === 1 &&
+          isObject(value.arguments[0]) &&
+          value.arguments[0].type === "Literal" &&
+          typeof value.arguments[0].value === "string"
+        );
+      if (
+        callee.type !== "MemberExpression" ||
+        callee.computed === true ||
+        !isObject(callee.property) ||
+        !["first", "last", "all"].includes(String(callee.property.name)) ||
+        value.arguments.length
+      )
+        return false;
+      return (
+        isObject(callee.object) &&
+        ((callee.object.type === "Identifier" &&
+          callee.object.name === "$input") ||
+          (callee.object.type === "CallExpression" &&
+            isObject(callee.object.callee) &&
+            callee.object.callee.type === "Identifier" &&
+            callee.object.callee.name === "$" &&
+            child(callee.object)))
+      );
+    }
+    if (["BinaryExpression", "LogicalExpression"].includes(String(value.type)))
+      return child(value.left) && child(value.right);
+    if (value.type === "UnaryExpression")
+      return (
+        ["!", "+", "-", "~", "typeof", "void"].includes(
+          String(value.operator),
+        ) && child(value.argument)
+      );
+    if (value.type === "ConditionalExpression")
+      return (
+        child(value.test) && child(value.consequent) && child(value.alternate)
+      );
+    if (value.type === "ArrayExpression" && Array.isArray(value.elements))
+      return value.elements.every(
+        (element) => element === null || child(element),
+      );
+    if (value.type === "ObjectExpression" && Array.isArray(value.properties))
+      return value.properties.every(
+        (property) =>
+          isObject(property) &&
+          property.type === "Property" &&
+          property.kind === "init" &&
+          property.method !== true &&
+          property.computed !== true &&
+          isObject(property.key) &&
+          safeKey(property.key.name ?? property.key.value) &&
+          child(property.value),
+      );
+    if (value.type === "TemplateLiteral" && Array.isArray(value.expressions))
+      return value.expressions.every(child);
+    return false;
+  };
+  const pending: { value: unknown; depth: number }[] = [
+    { value: parameters, depth: 0 },
+  ];
+  while (pending.length) {
+    if (--remaining < 0) return false;
+    const { value, depth } = pending.pop()!;
+    if (depth > 32) return false;
+    if (typeof value === "string" && value.startsWith("=")) {
+      if (value.length > 65536) return false;
+      if (!value.includes("{{") && !value.includes("}}")) continue;
+      const parts = expressions(value);
+      if (!parts) return false;
+      for (const part of parts) {
+        try {
+          const expression = parseExpressionAt(part, 0, {
+            ecmaVersion: "latest",
+          });
+          if (expression.end !== part.length || !ast(expression)) return false;
+        } catch {
+          return false;
+        }
+      }
+    } else if (Array.isArray(value)) {
+      if (value.length > 128) return false;
+      pending.push(...value.map((next) => ({ value: next, depth: depth + 1 })));
+    } else if (isObject(value)) {
+      const entries = Object.entries(value);
+      if (entries.length > 128 || entries.some(([key]) => !safeKey(key)))
+        return false;
+      pending.push(
+        ...entries.map(([, next]) => ({ value: next, depth: depth + 1 })),
+      );
+    }
+  }
+  return true;
+}
+
+function localDataEffects(context: Context): ReadonlyMap<string, LocalEffect> {
+  const profiles = new Map<string, LocalEffect>();
+  const flow = buildValueFlow(context);
+  for (const node of context.nodes) {
+    const collection = collectionEffect(context, node);
+    if (collection) {
+      profiles.set(node.key, collection);
+      continue;
+    }
+    const set =
+      node.type === prefix + "set" &&
+      [3, 3.1, 3.2, 3.3, 3.4, 3.5].includes(node.typeVersion);
+    const branch =
+      node.type === prefix + "switch" &&
+      [3, 3.1, 3.2, 3.3, 3.4, 3.5].includes(node.typeVersion);
+    const aggregate =
+      node.type === prefix + "aggregate" && node.typeVersion === 1;
+    if (
+      (!set && !branch && !aggregate) ||
+      !safeExecution(node) ||
+      !readOnlyParameters(node.parameters)
+    )
+      continue;
+    if (
+      context.unsupportedEdges.some(
+        (edge) => edge.from === node.key || edge.to === node.key,
+      ) ||
+      context.edges.some((edge) => edge.to === node.key && edge.input !== 0)
+    )
+      continue;
+    const p = node.parameters;
+    if (p.options !== undefined && !isObject(p.options)) continue;
+    const options = isObject(p.options) ? p.options : {};
+    let outputs = 1;
+    if (set) {
+      if (p.mode !== undefined && p.mode !== "manual" && p.mode !== "raw")
+        continue;
+      if (p.mode === "raw") {
+        if (typeof p.jsonOutput !== "string") continue;
+        if (!p.jsonOutput.startsWith("=")) {
+          try {
+            if (!isObject(JSON.parse(p.jsonOutput))) continue;
+          } catch {
+            continue;
+          }
+        }
+      } else {
+        const container = node.typeVersion < 3.3 ? p.fields : p.assignments;
+        if (container !== undefined && !isObject(container)) continue;
+        const entries = isObject(container)
+          ? container[node.typeVersion < 3.3 ? "values" : "assignments"]
+          : undefined;
+        if (entries !== undefined && !Array.isArray(entries)) continue;
+      }
+      if (p.duplicateItem !== undefined && p.duplicateItem !== false) continue;
+      if (
+        p.includeOtherFields !== undefined &&
+        typeof p.includeOtherFields !== "boolean"
+      )
+        continue;
+      if (
+        Object.entries(options).some(
+          ([key, value]) =>
+            ![
+              "dotNotation",
+              "ignoreConversionErrors",
+              "includeBinary",
+              "stripBinary",
+            ].includes(key) || typeof value !== "boolean",
+        )
+      )
+        continue;
+    }
+    if (branch) {
+      if (p.mode !== undefined && p.mode !== "rules") continue;
+      const rules = isObject(p.rules) ? p.rules.values : undefined;
+      if (!Array.isArray(rules) || !rules.length || rules.length > 128)
+        continue;
+      if (
+        rules.some(
+          (rule) =>
+            !isObject(rule) ||
+            !isObject(rule.conditions) ||
+            !Array.isArray(rule.conditions.conditions) ||
+            !rule.conditions.conditions.length ||
+            rule.conditions.conditions.some(
+              (condition) =>
+                !isObject(condition) ||
+                !isObject(condition.operator) ||
+                typeof condition.operator.type !== "string" ||
+                typeof condition.operator.operation !== "string" ||
+                ![
+                  "string",
+                  "number",
+                  "boolean",
+                  "dateTime",
+                  "array",
+                  "object",
+                ].includes(String(condition.operator.type)) ||
+                ![
+                  "equals",
+                  "notEquals",
+                  "contains",
+                  "notContains",
+                  "lt",
+                  "lte",
+                  "gt",
+                  "gte",
+                  "exists",
+                  "notExists",
+                  "empty",
+                  "notEmpty",
+                  "true",
+                  "false",
+                ].includes(String(condition.operator.operation)),
+            ),
+        )
+      )
+        continue;
+      const fallback = options.fallbackOutput;
+      const index =
+        typeof fallback === "string" && /^(?:0|[1-9]\d*)$/.test(fallback)
+          ? Number(fallback)
+          : fallback;
+      if (
+        fallback !== undefined &&
+        fallback !== "none" &&
+        fallback !== "extra" &&
+        !(
+          typeof index === "number" &&
+          Number.isSafeInteger(index) &&
+          index >= 0 &&
+          index < rules.length
+        )
+      )
+        continue;
+      if (
+        options.allMatchingOutputs !== undefined &&
+        typeof options.allMatchingOutputs !== "boolean"
+      )
+        continue;
+      outputs = rules.length + (fallback === "extra" ? 1 : 0);
+    } else {
+      // Reuse the bounded field decoder to reject malformed Set/Aggregate
+      // declarations. Upstream value uncertainty is retained by that analyzer;
+      // it is not itself evidence of a network, SQL or response side effect.
+      flow.output(node.key, "");
+      const allowed = new Set([
+        "set_exclusion_whole_object_partial",
+        "set_raw_merge_partial",
+        "aggregate_dotted_key_resolution_unverified",
+        "aggregate_excluded_unknown_fields",
+      ]);
+      if (
+        flow.diagnostics.some(
+          (item) =>
+            item.nodeKey === node.key &&
+            !allowed.has(item.code) &&
+            (/^(set_|aggregate_|flow_)/.test(item.code) ||
+              item.code === "unsafe_field_reference"),
+        )
+      )
+        continue;
+    }
+    if (
+      context.edges.some(
+        (edge) => edge.from === node.key && edge.output >= outputs,
+      )
+    )
+      continue;
+    profiles.set(node.key, { inputs: 1, outputs, preservesInput: branch });
+  }
+  return profiles;
+}
+
+/** Fixed local operations only. Item selection is not a proof of which item
+ * executes, and transforming collections never preserves current JSON paths. */
+function collectionEffect(
+  context: Context,
+  node: NormalizedNode,
+): LocalEffect | undefined {
+  if (!safeExecution(node) || !readOnlyParameters(node.parameters)) return;
+  const p = node.parameters;
+  const known = (keys: string[]): boolean =>
+    Object.keys(p).every((key) => keys.includes(key));
+  const emptyOptions = (): boolean =>
+    p.options === undefined ||
+    (isObject(p.options) && Object.keys(p.options).length === 0);
+  let profile: LocalEffect | undefined;
+  if (node.type === prefix + "limit" && node.typeVersion === 1) {
+    if (!isStaticItemLimit(node)) return;
+    profile = { inputs: 1, outputs: 1, preservesInput: true };
+  } else if (
+    node.type === prefix + "merge" &&
+    [3, 3.1, 3.2].includes(node.typeVersion)
+  ) {
+    const count = p.numberInputs === undefined ? 2 : p.numberInputs;
+    if (
+      !known(["mode", "numberInputs", "options"]) ||
+      (p.mode !== undefined && p.mode !== "append") ||
+      !emptyOptions() ||
+      typeof count !== "number" ||
+      !Number.isSafeInteger(count) ||
+      count < 2 ||
+      count > 10
+    )
+      return;
+    profile = { inputs: count, outputs: 1, preservesInput: false };
+  } else if (
+    node.type === prefix + "splitOut" &&
+    [1, 1.1].includes(node.typeVersion)
+  ) {
+    if (
+      !known(["fieldToSplitOut", "include", "fieldsToInclude", "options"]) ||
+      (p.options !== undefined && !isObject(p.options))
+    )
+      return;
+    const options = isObject(p.options) ? p.options : {};
+    if (
+      Object.entries(options).some(([key, value]) =>
+        key === "destinationFieldName"
+          ? typeof value !== "string"
+          : key === "disableDotNotation"
+            ? typeof value !== "boolean"
+            : key !== "includeBinary" || value !== false,
+      )
+    )
+      return;
+    // Keep lodash bracket syntax, prototype paths and binary splitting outside
+    // this narrow JSON-only effect profile.
+    const fields = (value: unknown): string[] | undefined => {
+      if (typeof value !== "string" || value.length > 4096) return;
+      const selected = value
+        .split(",")
+        .map((field) => field.trim().replace(/^\$json\./, ""));
+      if (
+        !selected.length ||
+        selected.length > 128 ||
+        selected.some(
+          (field) =>
+            !/^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$/.test(
+              field,
+            ) ||
+            field
+              .split(".")
+              .some((part) =>
+                ["__proto__", "prototype", "constructor"].includes(part),
+              ),
+        )
+      )
+        return;
+      return selected;
+    };
+    const split = fields(p.fieldToSplitOut);
+    const include = p.include === undefined ? "noOtherFields" : p.include;
+    if (
+      !split ||
+      !["noOtherFields", "allOtherFields", "selectedOtherFields"].includes(
+        include as string,
+      ) ||
+      (include === "selectedOtherFields" && !fields(p.fieldsToInclude))
+    )
+      return;
+    if (
+      options.destinationFieldName !== undefined &&
+      options.destinationFieldName !== ""
+    ) {
+      const destination = fields(options.destinationFieldName);
+      if (
+        !destination ||
+        destination.length !== split.length ||
+        new Set(destination).size !== destination.length
+      )
+        return;
+    }
+    profile = { inputs: 1, outputs: 1, preservesInput: false };
+  } else if (node.type === prefix + "errorTrigger" && node.typeVersion === 1) {
+    if (!known(["notice"])) return;
+    profile = { inputs: 0, outputs: 1, preservesInput: false };
+  } else if (node.type === stopAndError && node.typeVersion === 1) {
+    const mode = p.errorType === undefined ? "errorMessage" : p.errorType;
+    if (
+      !known(["errorType", "errorMessage", "errorObject"]) ||
+      (mode !== "errorMessage" && mode !== "errorObject") ||
+      typeof p[mode] !== "string"
+    )
+      return;
+    if (mode === "errorObject" && !(p[mode] as string).startsWith("=")) {
+      try {
+        if (!isObject(JSON.parse(p[mode] as string))) return;
+      } catch {
+        return;
+      }
+    }
+    profile = { inputs: 1, outputs: 0, preservesInput: false };
+  }
+  if (
+    !profile ||
+    context.unsupportedEdges.some(
+      (edge) => edge.from === node.key || edge.to === node.key,
+    ) ||
+    context.edges.some(
+      (edge) =>
+        (edge.to === node.key && edge.input >= profile.inputs) ||
+        (edge.from === node.key && edge.output >= profile.outputs),
+    )
+  )
+    return;
+  return profile;
+}
 
 function sourceOutputCount(node: NormalizedNode): number | undefined {
   const methods = new Set([
@@ -66,9 +530,10 @@ function sourceOutputCount(node: NormalizedNode): number | undefined {
     : undefined;
 }
 
-function controlEdge(context: Context, edge: MainEdge): boolean {
+function controlEdge(context: FlowContext, edge: MainEdge): boolean {
   const node = context.nodeByKey.get(edge.from);
-  if (!node || !safeExecution(node) || edge.input !== 0) return false;
+  const targetInputs = context.localEffects.get(edge.to)?.inputs ?? 1;
+  if (!node || !safeExecution(node) || edge.input >= targetInputs) return false;
   if (node.type === webhook) {
     const count = sourceOutputCount(node);
     return (
@@ -82,6 +547,8 @@ function controlEdge(context: Context, edge: MainEdge): boolean {
     return ifVersions.has(node.typeVersion) && edge.output < 2;
   if (node.type === noop) return node.typeVersion === 1 && edge.output === 0;
   if (isStaticIntervalWait(node)) return edge.output === 0;
+  const local = context.localEffects.get(node.key);
+  if (local) return edge.output < local.outputs;
   if (node.type === http)
     return httpVersions.has(node.typeVersion) && edge.output === 0;
   if (node.type === pg)
@@ -123,7 +590,7 @@ function reference(text: string): Ref | undefined {
 }
 
 function pathBetween(
-  context: Context,
+  context: FlowContext,
   from: NormalizedNode,
   to: NormalizedNode,
 ): NormalizedNode[] | undefined {
@@ -144,7 +611,7 @@ function pathBetween(
 }
 
 function trace(
-  context: Context,
+  context: FlowContext,
   sink: NormalizedNode,
   ref: Ref,
 ): Trace | undefined {
@@ -196,7 +663,8 @@ function trace(
         previous.typeVersion === 1 &&
         edge.output === 0
       ) &&
-      !(isStaticIntervalWait(previous) && edge.output === 0)
+      !(isStaticIntervalWait(previous) && edge.output === 0) &&
+      !context.localEffects.get(previous.key)?.preservesInput
     )
       return;
     current = previous;
@@ -204,7 +672,7 @@ function trace(
 }
 
 function narrowNumericGuard(
-  context: Context,
+  context: FlowContext,
   sink: NormalizedNode,
   value: string,
   ref: Ref,
@@ -274,7 +742,7 @@ function rule(ruleId: string, category: Category): RuleResult {
   return {
     ruleId,
     category,
-    profileVersion: "1.3.0",
+    profileVersion: "1.5.0",
     findings: [],
     diagnostics: [],
     coverage: [],
@@ -287,22 +755,27 @@ function evaluate(
   suffix: string,
   checks: () => void,
 ): void {
-  const findingStart = result.findings.length;
-  const diagnosticStart = result.diagnostics.length;
+  const previousFindings = new Set(result.findings.map((item) => item.id));
+  const previousDiagnostics = new Set(
+    result.diagnostics.map((item) => item.id),
+  );
   checks();
   const location = locationFor(node, suffix);
+  const findings = result.findings.filter(
+    (item) => !previousFindings.has(item.id),
+  );
+  const diagnostics = result.diagnostics.filter(
+    (item) => !previousDiagnostics.has(item.id),
+  );
   result.coverage.push({
     location,
-    status:
-      result.diagnostics.length > diagnosticStart
-        ? result.findings.length > findingStart
-          ? "partial"
-          : "unsupported"
-        : "checked",
-    findingIds: result.findings.slice(findingStart).map((item) => item.id),
-    diagnosticIds: result.diagnostics
-      .slice(diagnosticStart)
-      .map((item) => item.id),
+    status: diagnostics.length
+      ? findings.length
+        ? "partial"
+        : "unsupported"
+      : "checked",
+    findingIds: findings.map((item) => item.id),
+    diagnosticIds: diagnostics.map((item) => item.id),
   });
 }
 
@@ -323,9 +796,39 @@ function finding(
   evidence: Finding["evidence"],
   claim: Finding["claim"] = "configuration",
   severity: Finding["severity"] = "medium",
-): void {
-  result.findings.push({
-    id: stableId(result.ruleId, location, code),
+): Finding | undefined {
+  const id = stableId(result.ruleId, location, code);
+  const existing = result.findings.find((item) => item.id === id);
+  if (existing) return existing;
+  if (result.findings.length >= 256) {
+    const rank = { info: 0, low: 1, medium: 2, high: 3 };
+    const replace = result.findings.findIndex(
+      (item) => rank[item.severity] < rank[severity],
+    );
+    if (replace < 0) {
+      diagnostic(result, location, "definition_finding_limit");
+      return;
+    }
+    // Keep a later high-severity candidate rather than silently losing it to
+    // earlier informational findings. The displaced location remains explicit
+    // partial coverage, and all coverage references stay schema-consistent.
+    const omitted = result.findings.splice(replace, 1)[0]!;
+    diagnostic(result, omitted.location, "definition_finding_limit");
+    const limitId = stableId(
+      result.ruleId,
+      omitted.location,
+      "definition_finding_limit",
+    );
+    for (const scope of result.coverage) {
+      if (!scope.findingIds.includes(omitted.id)) continue;
+      scope.findingIds = scope.findingIds.filter((item) => item !== omitted.id);
+      if (!scope.diagnosticIds.includes(limitId))
+        scope.diagnosticIds.push(limitId);
+      scope.status = scope.findingIds.length ? "partial" : "unsupported";
+    }
+  }
+  const added: Finding = {
+    id,
     ruleId: result.ruleId,
     category: result.category,
     severity,
@@ -341,7 +844,9 @@ function finding(
         "verify_runtime_conditions",
       ],
     },
-  });
+  };
+  result.findings.push(added);
+  return added;
 }
 
 function traceEvidence(found: Trace | undefined): Finding["evidence"] {
@@ -354,7 +859,7 @@ function traceEvidence(found: Trace | undefined): Finding["evidence"] {
 }
 
 function dynamicEvidence(
-  context: Context,
+  context: FlowContext,
   result: RuleResult,
   node: NormalizedNode,
   value: string,
@@ -515,7 +1020,7 @@ function outboundBody(result: RuleResult, node: NormalizedNode): void {
 }
 
 function httpRules(
-  context: Context,
+  context: FlowContext,
   egress: RuleResult,
   ssrf: RuleResult,
 ): void {
@@ -581,7 +1086,7 @@ function httpRules(
             (dynamic && !literalUrl) ||
             (literalUrl && nonpublicLiteral(literalUrl.hostname))
           ) {
-            finding(
+            const added = finding(
               result,
               location,
               dynamic && !literalUrl
@@ -595,9 +1100,7 @@ function httpRules(
                 : "configuration",
               dynamic && !literalUrl ? "high" : "medium",
             );
-            result.findings
-              .at(-1)!
-              .assumptions.push("dns_redirects_and_network_unverified");
+            added?.assumptions.push("dns_redirects_and_network_unverified");
           }
           if (!safeExecution(node))
             diagnostic(result, location, "nonstandard_execution_semantics");
@@ -607,7 +1110,7 @@ function httpRules(
   }
 }
 
-function sqlRule(context: Context, result: RuleResult): void {
+function sqlRule(context: FlowContext, result: RuleResult): void {
   for (const node of context.nodes.filter((item) => item.type === pg)) {
     evaluate(result, node, "/parameters/query", () => {
       const location = locationFor(node, "/parameters/query");
@@ -654,7 +1157,7 @@ function sqlRule(context: Context, result: RuleResult): void {
         traced.refs.length === 1 &&
         narrowNumericGuard(context, node, value, traced.refs[0]!);
       if (!guarded) {
-        finding(
+        const last = finding(
           result,
           location,
           "dynamic_sql_text",
@@ -662,16 +1165,16 @@ function sqlRule(context: Context, result: RuleResult): void {
           traced.complete ? "supported_path" : "candidate",
           "high",
         );
-        const last = result.findings.at(-1)!;
-        last.remediation = {
-          code: "use_fixed_sql_and_value_parameters",
-          checks: [
-            "value_positions_only",
-            "check_node_version_binding_semantics",
-            "preserve_expected_rows",
-            "rescan_same_profile",
-          ],
-        };
+        if (last)
+          last.remediation = {
+            code: "use_fixed_sql_and_value_parameters",
+            checks: [
+              "value_positions_only",
+              "check_node_version_binding_semantics",
+              "preserve_expected_rows",
+              "rescan_same_profile",
+            ],
+          };
       }
       if (!safeExecution(node))
         diagnostic(result, location, "nonstandard_execution_semantics");
@@ -679,7 +1182,8 @@ function sqlRule(context: Context, result: RuleResult): void {
   }
 }
 
-function outputRule(context: Context, result: RuleResult): void {
+function outputRule(context: FlowContext, result: RuleResult): void {
+  errorOutputRule(context, result);
   for (const node of context.nodes.filter(
     (item) =>
       item.type === respond ||
@@ -796,7 +1300,7 @@ function outputRule(context: Context, result: RuleResult): void {
             "javascript_whole_input_log_call",
           )
         ) {
-          finding(
+          const added = finding(
             result,
             location,
             "javascript_whole_input_log_call",
@@ -804,12 +1308,10 @@ function outputRule(context: Context, result: RuleResult): void {
             "candidate",
             "medium",
           );
-          result.findings
-            .at(-1)!
-            .assumptions.push(
-              "lexical_binding_unverified",
-              "bounded_ast_patterns_only",
-            );
+          added?.assumptions.push(
+            "lexical_binding_unverified",
+            "bounded_ast_patterns_only",
+          );
         }
         diagnostic(
           result,
@@ -823,7 +1325,128 @@ function outputRule(context: Context, result: RuleResult): void {
   }
 }
 
-function reviewedBasicEffect(context: Context, node: NormalizedNode): boolean {
+/** Stop and Error stores the chosen message, or every field of errorObject as
+ * error metadata. It is an output sink even though it has no main output port.
+ * This reports potential sensitive error contents, never actual log delivery. */
+function errorOutputRule(context: FlowContext, result: RuleResult): void {
+  const flow = buildValueFlow(context);
+  for (const node of context.nodes.filter(
+    (item) => item.type === stopAndError,
+  )) {
+    evaluate(result, node, "/parameters", () => {
+      const location = locationFor(node, "/parameters");
+      if (node.disabled) {
+        diagnostic(result, location, "disabled_node_not_executed");
+        return;
+      }
+      if (node.typeVersion !== 1) {
+        diagnostic(result, location, "unsupported_error_output_profile");
+        return;
+      }
+      if (!safeExecution(node))
+        diagnostic(result, location, "nonstandard_execution_semantics");
+      const mode =
+        node.parameters.errorType === undefined
+          ? "errorMessage"
+          : node.parameters.errorType;
+      const validMode = mode === "errorMessage" || mode === "errorObject";
+      if (!validMode)
+        diagnostic(result, location, "unsupported_error_output_mode");
+      const fields = validMode ? [mode] : ["errorMessage", "errorObject"];
+      for (const field of fields) {
+        const payload = node.parameters[field];
+        const selected = locationFor(node, "/parameters/" + field);
+        if (typeof payload !== "string") {
+          diagnostic(result, selected, "error_payload_unavailable");
+          continue;
+        }
+        let value;
+        if (field === "errorObject" && !payload.startsWith("=")) {
+          if (payload.length > 65536) {
+            diagnostic(result, selected, "error_payload_analysis_limit");
+            continue;
+          }
+          try {
+            const parsed: unknown = JSON.parse(payload);
+            if (!isObject(parsed))
+              diagnostic(result, selected, "error_payload_object_unverified");
+            // Parse the JSON as literal data. A string that resembles an n8n
+            // expression inside metadata must never become an executed read.
+            value = flow.resolveExpression(node.key, JSON.stringify(parsed));
+          } catch {
+            diagnostic(result, selected, "error_payload_json_unverified");
+            continue;
+          }
+        } else {
+          value = flow.resolve(node.key, payload);
+        }
+        const evidence: Finding["evidence"] = [];
+        for (const origin of value.origins) {
+          if (evidence.length >= 16) break;
+          const source = context.nodeByKey.get(origin.nodeKey);
+          if (
+            source &&
+            !evidence.some((item) => item.location.nodeKey === source.key)
+          )
+            evidence.push({
+              code: "error_payload_origin",
+              location: locationFor(source, "/parameters"),
+            });
+        }
+        const candidates: [string, Finding["severity"]][] = [];
+        if (value.sensitivityClasses.includes("secret_candidate"))
+          candidates.push(["secret_candidate_in_error_payload", "high"]);
+        if (value.sensitivityClasses.includes("pii_candidate"))
+          candidates.push([
+            "personal_data_candidate_in_error_payload",
+            "medium",
+          ]);
+        if (
+          value.fullObject &&
+          value.origins.some((origin) => origin.kind !== "literal")
+        )
+          candidates.push(["whole_input_in_error_payload", "medium"]);
+        for (const [code, severity] of candidates) {
+          const added = finding(
+            result,
+            selected,
+            code,
+            evidence,
+            "candidate",
+            severity,
+          );
+          if (!added) continue;
+          added.assumptions.push(
+            "error_storage_visibility_unverified",
+            "sensitivity_candidate_not_confirmed_content",
+          );
+          added.remediation = {
+            code: "use_public_error_code_and_redact_metadata",
+            checks: [
+              "preserve_error_control_flow",
+              "exclude_secrets_and_personal_data",
+              "review_error_workflow_and_log_visibility",
+              "rescan_same_profile",
+            ],
+          };
+        }
+        for (const code of value.diagnosticCodes.slice(0, 32))
+          diagnostic(result, selected, code);
+        if (
+          value.status !== "resolved" ||
+          value.sensitivityClasses.includes("unknown")
+        )
+          diagnostic(result, selected, "error_payload_provenance_unresolved");
+      }
+    });
+  }
+}
+
+function reviewedBasicEffect(
+  context: FlowContext,
+  node: NormalizedNode,
+): boolean {
+  if (context.localEffects.has(node.key)) return true;
   const edges = [...context.edges, ...context.unsupportedEdges];
   const incoming = edges.filter((edge) => edge.to === node.key);
   const outgoing = edges.filter((edge) => edge.from === node.key);
@@ -856,13 +1479,16 @@ function reviewedBasicEffect(context: Context, node: NormalizedNode): boolean {
   );
 }
 
-function addUnknownCoverage(context: Context, results: RuleResult[]): void {
+function addUnknownCoverage(context: FlowContext, results: RuleResult[]): void {
   for (const result of results) {
     for (const node of context.nodes.filter(
       (item) =>
         !inspectedTypes.has(item.type) &&
         !reviewedBasicEffect(context, item) &&
-        !(result.category === "output" && item.type === codeNode),
+        !(
+          result.category === "output" &&
+          (item.type === codeNode || item.type === stopAndError)
+        ),
     )) {
       const location = locationFor(node);
       const id = stableId(result.ruleId, location, "opaque_node_effects");
@@ -903,7 +1529,11 @@ function addUnknownCoverage(context: Context, results: RuleResult[]): void {
 }
 
 /** Analyze declared fields and bounded paths without evaluating any expression. */
-export function analyzeFlow(context: Context): RuleResult[] {
+export function analyzeFlow(input: Context): RuleResult[] {
+  const context: FlowContext = {
+    ...input,
+    localEffects: localDataEffects(input),
+  };
   const egress = rule("N8N_HTTP_EGRESS", "egress");
   const ssrf = rule("N8N_HTTP_SSRF", "ssrf");
   const sql = rule("N8N_SQL_TEXT_FLOW", "sql");

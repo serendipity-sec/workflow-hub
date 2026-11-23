@@ -17,6 +17,10 @@ import {
 } from "./assessment-evidence.js";
 import type { AbstractValue, ValueFlow } from "./value-flow.js";
 import {
+  binaryInputProvenance,
+  type BinaryInput,
+} from "./binary-provenance.js";
+import {
   parseLiteralJsonData,
   resolveLiteralData,
   transferDataClasses,
@@ -37,7 +41,14 @@ type Role =
   | "sql_tool"
   | "code_tool"
   | "workflow_tool"
-  | "retrieval_tool";
+  | "retrieval_tool"
+  | "utility_tool"
+  | "lookup_tool"
+  | "vector_tool"
+  | "vector_store"
+  | "embedding"
+  | "document_loader"
+  | "text_splitter";
 type Profile = { role: Role; versions: ReadonlySet<number> };
 
 // Version declarations and dispatch are pinned in docs/ai-flow.md. These are
@@ -65,6 +76,48 @@ const profiles = new Map<string, Profile>([
     { role: "model", versions: versions(1, 1.1, 1.2) },
   ],
   [prefix + "lmChatOpenRouter", { role: "model", versions: versions(1) }],
+  [prefix + "lmChatGroq", { role: "model", versions: versions(1) }],
+  [
+    prefix + "memoryMongoDbChat",
+    { role: "memory", versions: versions(1, 1.1) },
+  ],
+  [
+    prefix + "embeddingsGoogleGemini",
+    { role: "embedding", versions: versions(1) },
+  ],
+  [
+    prefix + "embeddingsOpenAi",
+    { role: "embedding", versions: versions(1, 1.1, 1.2) },
+  ],
+  [
+    prefix + "vectorStorePinecone",
+    { role: "vector_store", versions: versions(1) },
+  ],
+  [
+    prefix + "vectorStoreSupabase",
+    { role: "vector_store", versions: versions(1.3) },
+  ],
+  [
+    prefix + "documentDefaultDataLoader",
+    { role: "document_loader", versions: versions(1, 1.1) },
+  ],
+  [
+    prefix + "textSplitterRecursiveCharacterTextSplitter",
+    { role: "text_splitter", versions: versions(1) },
+  ],
+  [prefix + "toolWikipedia", { role: "lookup_tool", versions: versions(1) }],
+  [
+    "n8n-nodes-base.rssFeedReadTool",
+    { role: "lookup_tool", versions: versions(1.2) },
+  ],
+  [
+    "n8n-nodes-base.dateTimeTool",
+    { role: "utility_tool", versions: versions(2) },
+  ],
+  [
+    "n8n-nodes-base.cryptoTool",
+    { role: "utility_tool", versions: versions(1) },
+  ],
   [
     prefix + "memoryBufferWindow",
     { role: "memory", versions: versions(1, 1.1, 1.2, 1.3, 1.4) },
@@ -120,6 +173,17 @@ const profiles = new Map<string, Profile>([
 function profile(node: NormalizedNode): Profile | undefined {
   const result = profiles.get(node.type);
   if (!result?.versions.has(node.typeVersion)) return;
+  if (result.role === "vector_store") {
+    const mode = node.parameters.mode ?? "retrieve";
+    if (
+      !["insert", "load", "retrieve", "retrieve-as-tool", "update"].includes(
+        String(mode),
+      ) ||
+      typeof mode !== "string"
+    )
+      return;
+    if (mode === "retrieve-as-tool") return { ...result, role: "vector_tool" };
+  }
   if (
     result.role === "agent" &&
     node.typeVersion < 2 &&
@@ -218,13 +282,50 @@ export function coveredAiEdge(
         from === "retriever" &&
         to === "qa"
       );
+    case "ai_vectorStore":
+      return (
+        edge.input === 0 &&
+        incoming.length === 1 &&
+        from === "vector_store" &&
+        (source.parameters.mode ?? "retrieve") === "retrieve" &&
+        (to === "retriever" || to === "retrieval_tool")
+      );
+    case "ai_embedding":
+      return (
+        edge.input === 0 &&
+        incoming.length === 1 &&
+        from === "embedding" &&
+        (to === "vector_store" || to === "vector_tool")
+      );
+    case "ai_document":
+      return (
+        edge.input === 0 &&
+        incoming.length === 1 &&
+        from === "document_loader" &&
+        to === "vector_store" &&
+        target.parameters.mode === "insert"
+      );
+    case "ai_textSplitter":
+      return (
+        edge.input === 0 &&
+        incoming.length === 1 &&
+        from === "text_splitter" &&
+        to === "document_loader" &&
+        (target.typeVersion === 1 ||
+          target.parameters.textSplittingMode === "custom")
+      );
     default:
       return false;
   }
 }
 
 export interface AiPromptInputs {
-  inputs: { value: unknown; pointer: string }[];
+  inputs: {
+    value: unknown;
+    pointer: string;
+    literalData?: boolean;
+    nodeKey?: string;
+  }[];
   diagnostics: string[];
 }
 
@@ -232,6 +333,7 @@ export interface AiPromptInputs {
 function promptInputs(
   node: NormalizedNode,
   includeTool = false,
+  context?: Context,
 ): AiPromptInputs | undefined {
   const role = profile(node)?.role;
   if (!role || !isConsumer(role) || (role === "agent_tool" && !includeTool))
@@ -268,14 +370,23 @@ function promptInputs(
       add(options[selected], `/parameters/options/${selected}`);
   }
   if (isAgent(role)) {
-    // Binary presence and file contents are not included in workflow JSON.
+    // The default enables a possible transfer, not evidence that a file is
+    // missing. Presence and JSON-to-file dependencies are inspected separately.
     if (
       !isObject(options) ||
       options.passthroughBinaryImages !== false ||
       (options.passthroughBinaryPdfs !== undefined &&
         options.passthroughBinaryPdfs !== false)
-    )
-      unknown("ai_binary_prompt_content_unverified", "/parameters/options");
+    ) {
+      const binary = context ? binaryInputProvenance(context, node) : undefined;
+      if (binary?.state !== "none") {
+        result.inputs.push(...(binary?.inputs ?? []));
+        unknown("ai_binary_prompt_content_unverified", "/parameters/options");
+        result.diagnostics.push(
+          ...(binary?.diagnostics ?? ["binary_provenance_unresolved"]),
+        );
+      }
+    }
   }
   if (role === "chain" && parameters.messages !== undefined) {
     if (!isObject(parameters.messages)) {
@@ -299,6 +410,18 @@ function promptInputs(
           ) {
             if (message.imageUrl !== undefined)
               add(message.imageUrl, "/parameters");
+            if (message.messageType === "imageBinary") {
+              const binary = context
+                ? binaryInputProvenance(context, node)
+                : undefined;
+              result.inputs.push(...(binary?.inputs ?? []));
+              result.diagnostics.push(
+                ...(binary?.diagnostics ?? ["binary_provenance_unresolved"]),
+              );
+              if (binary?.state === "none")
+                unknown("ai_binary_prompt_input_missing");
+            } else if (message.messageType !== "imageUrl")
+              unknown("ai_chat_message_type_unresolved");
             unknown("ai_binary_prompt_content_unverified");
           }
         }
@@ -310,8 +433,9 @@ function promptInputs(
 
 export function aiPromptInputs(
   node: NormalizedNode,
+  context?: Context,
 ): AiPromptInputs | undefined {
-  return promptInputs(node);
+  return promptInputs(node, false, context);
 }
 
 function makeRule(
@@ -321,7 +445,7 @@ function makeRule(
   return {
     ruleId,
     category,
-    profileVersion: "1.0.0",
+    profileVersion: "1.2.0",
     coverage: [],
     findings: [],
     diagnostics: [],
@@ -542,6 +666,8 @@ function fromAiSchemaMode(
   if (
     node.type === "n8n-nodes-base.httpRequestTool" ||
     node.type === "n8n-nodes-base.postgresTool" ||
+    (["utility_tool", "lookup_tool"].includes(profile(node)?.role ?? "") &&
+      node.type.startsWith("n8n-nodes-base.")) ||
     profile(node)?.role === "agent_tool"
   )
     return "active";
@@ -556,6 +682,48 @@ function fromAiSchemaMode(
   // Native Code, Workflow V1, HTTP and vector-store tools have their own
   // schema builders. Their code and inactive parameters are not fromAI input.
   return "inactive";
+}
+
+function staticToolExampleSchema(
+  raw: unknown,
+  allFieldsRequired: boolean,
+): string | undefined {
+  // Match only generate-schema 2.6.0's flat object/primitive subset. Values
+  // become type names, never enum/default/example values in model content.
+  // Objects are also accepted by n8n's pinned asSchemaText helper.
+  const text =
+    typeof raw === "string"
+      ? raw
+      : isObject(raw)
+        ? JSON.stringify(raw)
+        : undefined;
+  if (text === undefined || text.startsWith("=") || text.length > 8192) return;
+  const parsed = parseLiteralJsonData(text);
+  if (!parsed.parsed || parsed.diagnostics.length || !isObject(parsed.value))
+    return;
+  const entries = Object.entries(parsed.value);
+  if (entries.length > 64) return;
+  const properties: Record<string, { type: string }> = Object.create(null);
+  for (const [name, value] of entries) {
+    if (
+      name.length > 128 ||
+      ["__proto__", "prototype", "constructor"].includes(name) ||
+      Object.hasOwn(Object.prototype, name) ||
+      (value !== null &&
+        !["string", "number", "boolean"].includes(typeof value)) ||
+      (typeof value === "number" && !Number.isFinite(value))
+    )
+      return;
+    properties[name] = { type: value === null ? "null" : typeof value };
+  }
+  return JSON.stringify({
+    $schema: "http://json-schema.org/draft-04/schema#",
+    type: "object",
+    properties,
+    ...(allFieldsRequired && entries.length
+      ? { required: entries.map(([name]) => name) }
+      : {}),
+  });
 }
 
 function nativeToolSchemaInputs(node: NormalizedNode): AiPromptInputs {
@@ -592,6 +760,18 @@ function nativeToolSchemaInputs(node: NormalizedNode): AiPromptInputs {
         result.diagnostics.push("ai_tool_schema_content_unverified");
     } else {
       // JSON examples supply structure, not their original literal values.
+      const derived = staticToolExampleSchema(
+        value,
+        role === "code_tool" && node.typeVersion >= 1.3,
+      );
+      if (derived !== undefined) {
+        result.inputs.push({
+          value: derived,
+          pointer: "/parameters/jsonSchemaExample",
+          literalData: true,
+        });
+        continue;
+      }
       if (typeof value === "string" && value.startsWith("="))
         result.inputs.push({ value, pointer: "/parameters/jsonSchemaExample" });
       result.inputs.push({ value: undefined, pointer: "/parameters" });
@@ -768,6 +948,13 @@ const capabilityCodes: Record<Role, string> = {
   code_tool: "ai_code_tool_capability_declared",
   workflow_tool: "ai_workflow_tool_capability_declared",
   retrieval_tool: "ai_retrieval_tool_capability_declared",
+  utility_tool: "ai_utility_tool_capability_declared",
+  lookup_tool: "ai_lookup_tool_capability_declared",
+  vector_tool: "ai_vector_search_tool_capability_declared",
+  vector_store: "ai_vector_store_capability_declared",
+  embedding: "ai_embedding_provider_declared",
+  document_loader: "ai_document_loader_declared",
+  text_splitter: "ai_text_splitter_declared",
 };
 
 function contracts(
@@ -806,7 +993,7 @@ function contracts(
         scope.diagnostic("ai_connection_contract_unresolved");
       scope.finding("ai_typed_connection_declared", { related: [source] });
     }
-    const inputs = aiPromptInputs(node);
+    const inputs = aiPromptInputs(node, context);
     for (const code of inputs?.diagnostics ?? []) scope.diagnostic(code);
     if (isConsumer(role)) {
       const models = related(context, node, "ai_languageModel");
@@ -876,6 +1063,43 @@ function contracts(
       scope.diagnostic("ai_retrieved_content_and_access_unverified");
       if (!related(context, node, "ai_vectorStore").length)
         scope.diagnostic("ai_required_vector_store_connection_missing");
+    }
+    if (role === "vector_store" || role === "vector_tool") {
+      if (
+        !related(context, node, "ai_embedding").some(
+          (source) => !source.disabled && profile(source)?.role === "embedding",
+        )
+      )
+        scope.diagnostic("ai_required_embedding_connection_missing");
+      if (
+        node.parameters.mode === "insert" &&
+        !related(context, node, "ai_document").some(
+          (source) =>
+            !source.disabled && profile(source)?.role === "document_loader",
+        )
+      )
+        scope.diagnostic("ai_required_document_connection_missing");
+      if (
+        node.parameters.useReranker !== undefined &&
+        node.parameters.useReranker !== false
+      )
+        scope.diagnostic("ai_vector_reranker_unreviewed");
+    }
+    if (
+      role === "lookup_tool" &&
+      node.type === "n8n-nodes-base.rssFeedReadTool"
+    ) {
+      scope.diagnostic("ai_lookup_tool_request_content_unverified");
+      if (
+        typeof node.parameters.url !== "string" ||
+        node.parameters.url.startsWith("=")
+      ) {
+        scope.diagnostic("ai_lookup_tool_destination_unresolved");
+        scope.finding("ai_lookup_tool_dynamic_destination_candidate", {
+          severity: "medium",
+          claim: "candidate",
+        });
+      }
     }
     if (isTool(role)) {
       scope.diagnostic("ai_tool_arguments_and_result_unverified");
@@ -962,6 +1186,8 @@ function classify(
 }
 
 function modelDestination(node: NormalizedNode): string | null {
+  if (node.type === prefix + "lmChatGroq" && profile(node)?.role === "model")
+    return "https://api.groq.com";
   // OpenAI/Gemini/OpenRouter credentials may override their default host.
   // Only an explicit OpenAI options.baseURL has precedence over credentials.
   if (
@@ -1051,8 +1277,8 @@ function promptData(
   const rule = makeRule("N8N_AI_PROMPT_DATA", "egress");
   for (const node of context.nodes) {
     const role = profile(node)?.role;
-    const inputs =
-      promptInputs(node, true) ??
+    const inputs: AiPromptInputs | undefined =
+      promptInputs(node, true, context) ??
       (role === "retrieval_tool" ||
       (role === "parser" &&
         node.parameters.autoFix !== undefined &&
@@ -1076,7 +1302,7 @@ function promptData(
     const values = inputs.inputs.map((input) =>
       input.value === undefined
         ? opaqueValue(node)
-        : flow.resolve(node.key, input.value),
+        : flow.resolve(input.nodeKey ?? node.key, input.value),
     );
     // Retrying a parser can resend the preceding model output. Retrieval tools
     // and $fromAI-driven nested agents receive model-generated arguments. Keep
@@ -1094,17 +1320,23 @@ function promptData(
       )) {
         const parent = context.nodeByKey.get(edge.to)!;
         if (parent.disabled) continue;
-        for (const input of promptInputs(parent, true)?.inputs ?? [])
+        for (const input of promptInputs(parent, true, context)?.inputs ?? [])
           values.push(
             input.value === undefined
               ? opaqueValue(parent)
-              : flow.resolve(parent.key, input.value),
+              : flow.resolve(input.nodeKey ?? parent.key, input.value),
           );
       }
       scope.diagnostic("ai_generated_argument_or_retry_content_unverified");
     }
     for (const code of inputs.diagnostics) scope.diagnostic(code);
-    if (values.some((value) => value.status !== "resolved"))
+    if (
+      values.some(
+        (value, index) =>
+          inputs.inputs[index]?.value !== undefined &&
+          value.status !== "resolved",
+      )
+    )
       scope.diagnostic("ai_prompt_expression_partial");
     const tools = related(context, node, "ai_tool").filter(
       (tool) => !tool.disabled,
@@ -1196,7 +1428,9 @@ function promptData(
           values.push(
             input.value === undefined
               ? opaqueValue(source)
-              : flow.resolve(source.key, input.value),
+              : input.literalData
+                ? resolveLiteralData(flow, source.key, input.value)
+                : flow.resolve(source.key, input.value),
           );
         for (const code of schema.diagnostics) scope.diagnostic(code);
         const markers = inspectMarkers(source.parameters);
@@ -1307,8 +1541,446 @@ function promptData(
           extraCodes: decision.codes,
         });
       else if (decision.status === "unknown")
-        scope.diagnostic("ai_model_transfer_policy_unresolved");
+        scope.diagnostic(
+          decision.codes.some(
+            (code) =>
+              code === "policy_not_provided" || code === "policy_rule_missing",
+          )
+            ? "ai_model_transfer_policy_not_configured"
+            : "ai_model_transfer_policy_unresolved",
+        );
     }
+    scope.finish();
+  }
+  return finish(rule);
+}
+
+function vectorType(node: NormalizedNode): boolean {
+  return [
+    prefix + "vectorStorePinecone",
+    prefix + "vectorStoreSupabase",
+  ].includes(node.type);
+}
+
+function embeddingDestination(node: NormalizedNode): string | null {
+  if (
+    profile(node)?.role !== "embedding" ||
+    node.type !== prefix + "embeddingsOpenAi" ||
+    !isObject(node.parameters.options)
+  )
+    return null;
+  const value = node.parameters.options.baseURL;
+  if (typeof value !== "string" || value.startsWith("=")) return null;
+  const url = URL.parse(value);
+  return url &&
+    ["https:", "http:"].includes(url.protocol) &&
+    !url.username &&
+    !url.password
+    ? url.origin
+    : null;
+}
+
+// Whole document serialization/splitting can retain any descendant class. This
+// does not infer the contents of unknown input or the embedding vector itself.
+function documentContents(value: AbstractValue): AbstractValue {
+  return {
+    ...value,
+    guards: [],
+    origins: value.origins.map((origin) =>
+      origin.kind === "literal"
+        ? origin
+        : {
+            ...origin,
+            includesDescendants: true,
+            projectionUnknown: true,
+          },
+    ),
+  };
+}
+
+function vectorData(
+  context: Context,
+  flow: ValueFlow,
+  evidence?: AssessmentEvidence,
+): RuleResult {
+  const rule = makeRule("N8N_AI_VECTOR_DATA", "egress");
+  const resolveInputs = (
+    inputs: BinaryInput[],
+    fallback: NormalizedNode,
+  ): AbstractValue[] =>
+    inputs.map((item) =>
+      item.value === undefined
+        ? opaqueValue(context.nodeByKey.get(item.nodeKey) ?? fallback)
+        : documentContents(flow.resolve(item.nodeKey, item.value)),
+    );
+  const metadataValues = (
+    raw: unknown,
+    store: NormalizedNode,
+    scope: Scope,
+  ): AbstractValue[] => {
+    const result: AbstractValue[] = [];
+    let visits = 0;
+    const walk = (value: unknown, fieldName?: string, depth = 0): void => {
+      if (++visits > 128 || depth > 8) {
+        scope.diagnostic("ai_document_analysis_limit");
+        return;
+      }
+      if (isObject(value) || Array.isArray(value)) {
+        const entries = Object.entries(value);
+        if (entries.length > 128)
+          scope.diagnostic("ai_document_analysis_limit");
+        for (const [key, child] of entries.slice(0, 128))
+          walk(child, Array.isArray(value) ? fieldName : key, depth + 1);
+      } else
+        result.push(
+          documentContents(flow.resolve(store.key, value, { fieldName })),
+        );
+    };
+    if (!isObject(raw) || !Array.isArray(raw.metadataValues)) {
+      scope.diagnostic("ai_document_metadata_unresolved");
+      result.push(opaqueValue(store));
+      walk(raw);
+    } else {
+      for (const entry of raw.metadataValues.slice(0, 64)) {
+        if (
+          !isObject(entry) ||
+          typeof entry.name !== "string" ||
+          entry.value === undefined
+        ) {
+          scope.diagnostic("ai_document_metadata_unresolved");
+          result.push(opaqueValue(store));
+          walk(entry);
+        } else {
+          walk(entry.name);
+          walk(
+            entry.value,
+            entry.name.startsWith("=") ? undefined : entry.name,
+          );
+        }
+      }
+      if (raw.metadataValues.length > 64)
+        scope.diagnostic("ai_document_analysis_limit");
+    }
+    if (visits > 128) result.push(opaqueValue(store));
+    return result;
+  };
+  const classesFinding = (
+    scope: Scope,
+    stem: string,
+    values: AbstractValue[],
+    relatedNodes: NormalizedNode[],
+  ) => {
+    for (const kind of classify(values, evidence))
+      scope.finding(
+        stem +
+          (kind === "secret"
+            ? "_secret_candidate"
+            : kind === "personal"
+              ? "_pii_candidate"
+              : "_" + kind + "_component"),
+        {
+          severity:
+            kind === "secret"
+              ? "high"
+              : kind === "personal"
+                ? "medium"
+                : "info",
+          claim: kind === "public" ? "configuration" : "candidate",
+          values,
+          related: relatedNodes,
+        },
+      );
+  };
+  const policy = (
+    scope: Scope,
+    target: NormalizedNode,
+    sink: "ai_model" | "ai_vector_store",
+    destination: string | null,
+    values: AbstractValue[],
+  ) => {
+    const decision = assessDestination(
+      evidence,
+      target.key,
+      sink,
+      destination,
+      classify(values, evidence),
+    );
+    if (decision.status === "disallowed")
+      scope.finding("trusted_policy_transfer_disallowed", {
+        severity: "high",
+        claim: "candidate",
+        related: [target],
+        values,
+        extraCodes: decision.codes,
+      });
+    else if (decision.status === "unknown")
+      scope.diagnostic(
+        decision.codes.every(
+          (code) =>
+            code === "policy_not_provided" || code === "policy_rule_missing",
+        )
+          ? "ai_vector_transfer_policy_not_configured"
+          : "ai_vector_transfer_policy_unresolved",
+      );
+  };
+  for (const store of context.nodes.filter(vectorType)) {
+    const scope = new Scope(rule, store, context);
+    if (store.disabled) {
+      scope.diagnostic("ai_disabled_node_not_invoked");
+      scope.finish();
+      continue;
+    }
+    const selected = profile(store);
+    const mode = store.parameters.mode ?? "retrieve";
+    if (!selected || !["vector_store", "vector_tool"].includes(selected.role)) {
+      scope.diagnostic("ai_vector_profile_unreviewed");
+      scope.finish(true);
+      continue;
+    }
+    const embeddings = related(context, store, "ai_embedding").filter(
+      (node) => !node.disabled,
+    );
+    const validEmbeddingEdges = context.unsupportedEdges.filter(
+      (edge) =>
+        edge.to === store.key &&
+        edge.channel === "ai_embedding" &&
+        coveredAiEdge(context, edge),
+    );
+    if (!validEmbeddingEdges.length)
+      scope.diagnostic("ai_required_embedding_connection_missing");
+    if (
+      embeddings.some((node) => profile(node)?.role !== "embedding") ||
+      validEmbeddingEdges.length !== embeddings.length
+    )
+      scope.diagnostic("ai_embedding_connection_unresolved");
+    const content: AbstractValue[] = [];
+    const metadata: AbstractValue[] = [];
+    const definitions: NormalizedNode[] = [store, ...embeddings];
+    if (mode === "insert") {
+      const loaders = related(context, store, "ai_document").filter(
+        (node) => !node.disabled,
+      );
+      definitions.push(...loaders);
+      if (!loaders.length) {
+        scope.diagnostic("ai_required_document_connection_missing");
+        content.push(
+          opaqueValue(store),
+          documentContents(flow.resolve(store.key, "={{ $json }}")),
+        );
+      }
+      if (loaders.length > 8) scope.diagnostic("ai_document_analysis_limit");
+      for (const loader of loaders.slice(0, 8)) {
+        const edge = context.unsupportedEdges.find(
+          (entry) =>
+            entry.from === loader.key &&
+            entry.to === store.key &&
+            entry.channel === "ai_document",
+        );
+        if (
+          profile(loader)?.role !== "document_loader" ||
+          !edge ||
+          !coveredAiEdge(context, edge)
+        ) {
+          scope.diagnostic("ai_document_connection_unresolved");
+          content.push(
+            opaqueValue(loader),
+            documentContents(flow.resolve(store.key, "={{ $json }}")),
+          );
+          continue;
+        }
+        const p = loader.parameters;
+        const options = p.options === undefined ? {} : p.options;
+        if (!isObject(options)) {
+          scope.diagnostic("ai_document_options_unresolved");
+          content.push(opaqueValue(loader));
+          metadata.push(flow.resolve(store.key, options));
+        } else {
+          if (options.metadata !== undefined)
+            metadata.push(...metadataValues(options.metadata, store, scope));
+          if (options.pointers !== undefined && options.pointers !== "") {
+            // Keep all possible input candidates until pointer selection and
+            // JSONLoader's string-leaf semantics have a reviewed profile.
+            scope.diagnostic("ai_document_selection_unresolved");
+            content.push(opaqueValue(loader));
+          }
+        }
+        const dataType = p.dataType ?? "json";
+        if (dataType === "binary") {
+          const binary = binaryInputProvenance(context, store);
+          for (const code of binary.diagnostics) scope.diagnostic(code);
+          if (binary.state === "none")
+            scope.diagnostic("ai_document_binary_input_missing");
+          else {
+            content.push(...resolveInputs(binary.inputs, store));
+            scope.diagnostic("ai_document_binary_content_unverified");
+          }
+          // A missing/unknown attachment is not an empty public document.
+          content.push(opaqueValue(loader));
+          if (p.binaryMode !== undefined && p.binaryMode !== "allInputData")
+            scope.diagnostic("ai_document_binary_selection_unresolved");
+        } else if (dataType === "json") {
+          const jsonMode = p.jsonMode ?? "allInputData";
+          if (jsonMode === "allInputData")
+            content.push(
+              documentContents(flow.resolve(store.key, "={{ $json }}")),
+            );
+          else if (jsonMode === "expressionData" && p.jsonData !== undefined) {
+            // n8n uses TextLoader for a string and JSONLoader for an object;
+            // a literal JSON-looking string is not parsed into expressions.
+            content.push(documentContents(flow.resolve(store.key, p.jsonData)));
+          } else {
+            scope.diagnostic("ai_document_selector_unresolved");
+            content.push(
+              opaqueValue(loader),
+              documentContents(flow.resolve(store.key, "={{ $json }}")),
+            );
+            if (p.jsonData !== undefined)
+              content.push(
+                documentContents(flow.resolve(store.key, p.jsonData)),
+              );
+          }
+        } else {
+          scope.diagnostic("ai_document_selector_unresolved");
+          content.push(
+            opaqueValue(loader),
+            documentContents(flow.resolve(store.key, "={{ $json }}")),
+          );
+          if (p.jsonData !== undefined)
+            content.push(documentContents(flow.resolve(store.key, p.jsonData)));
+          content.push(
+            ...resolveInputs(
+              binaryInputProvenance(context, store).inputs,
+              store,
+            ),
+          );
+        }
+        const splitMode = p.textSplittingMode ?? "simple";
+        if (
+          loader.typeVersion === 1.1 &&
+          splitMode !== "simple" &&
+          splitMode !== "custom"
+        )
+          scope.diagnostic("ai_document_splitter_unresolved");
+        for (const splitEdge of context.unsupportedEdges.filter(
+          (entry) =>
+            entry.to === loader.key && entry.channel === "ai_textSplitter",
+        )) {
+          if (loader.typeVersion === 1.1 && splitMode === "simple") continue;
+          if (!coveredAiEdge(context, splitEdge))
+            scope.diagnostic("ai_document_splitter_unresolved");
+        }
+      }
+    } else if (mode === "load") {
+      if (typeof store.parameters.prompt !== "string") {
+        scope.diagnostic("ai_vector_query_input_unresolved");
+        content.push(opaqueValue(store));
+      }
+      if (store.parameters.prompt !== undefined)
+        content.push(
+          documentContents(flow.resolve(store.key, store.parameters.prompt)),
+        );
+    } else if (mode === "retrieve" || mode === "retrieve-as-tool") {
+      const seen = new Set<string>([store.key]);
+      const walk = (node: NormalizedNode, depth: number): void => {
+        if (depth > 8 || seen.size > 32) {
+          scope.diagnostic("ai_document_analysis_limit");
+          return;
+        }
+        for (const edge of context.unsupportedEdges.filter(
+          (entry) =>
+            entry.from === node.key &&
+            ["ai_vectorStore", "ai_retriever", "ai_tool"].includes(
+              entry.channel,
+            ),
+        )) {
+          const consumer = context.nodeByKey.get(edge.to)!;
+          if (consumer.disabled) continue;
+          if (seen.has(consumer.key)) {
+            scope.diagnostic("ai_vector_query_connection_unresolved");
+            continue;
+          }
+          seen.add(consumer.key);
+          definitions.push(consumer);
+          if (!coveredAiEdge(context, edge))
+            scope.diagnostic("ai_vector_query_connection_unresolved");
+          const inputs = promptInputs(consumer, true, context);
+          if (inputs) {
+            for (const code of inputs.diagnostics) scope.diagnostic(code);
+            content.push(
+              ...resolveInputs(
+                inputs.inputs.map((item) => ({
+                  ...item,
+                  nodeKey: item.nodeKey ?? consumer.key,
+                })),
+                consumer,
+              ),
+            );
+          } else if (
+            isConsumer(profile(consumer)?.role ?? "vector_store") ||
+            consumer.type === prefix + "agent"
+          )
+            scope.diagnostic("ai_vector_query_input_unresolved");
+          walk(consumer, depth + 1);
+        }
+      };
+      walk(store, 0);
+      // Retrieval can use an LLM-generated query, not necessarily the literal
+      // user prompt. Retain prompt dependencies plus the unknown query.
+      content.push(opaqueValue(store));
+      scope.diagnostic("ai_vector_query_and_results_unverified");
+    } else {
+      scope.diagnostic("ai_vector_update_profile_unreviewed");
+      content.push(
+        opaqueValue(store),
+        documentContents(flow.resolve(store.key, "={{ $json }}")),
+      );
+    }
+    if (!content.length) content.push(opaqueValue(store));
+    if (
+      content.some(
+        (value) =>
+          value.diagnosticCodes.some(
+            (code) => code !== "ai_runtime_context_content_unverified",
+          ) && value.status !== "resolved",
+      )
+    )
+      scope.diagnostic("ai_document_provenance_unresolved");
+    const storageValues = [...content, ...metadata];
+    const storeOptions = store.parameters.options;
+    if (isObject(storeOptions) && storeOptions.metadata !== undefined)
+      storageValues.push(
+        ...metadataValues(storeOptions.metadata, store, scope),
+      );
+    if (
+      store.parameters.useReranker !== undefined &&
+      store.parameters.useReranker !== false
+    )
+      scope.diagnostic("ai_vector_reranker_unreviewed");
+    const stem = mode === "insert" ? "ai_document" : "ai_query";
+    classesFinding(
+      scope,
+      stem + "_to_vector_store",
+      storageValues,
+      definitions,
+    );
+    policy(scope, store, "ai_vector_store", null, storageValues);
+    scope.diagnostic("ai_vector_store_endpoint_and_access_unverified");
+    for (const embedding of embeddings.slice(0, 8)) {
+      classesFinding(scope, stem + "_to_embedding", content, [
+        embedding,
+        store,
+      ]);
+      const destination = validEmbeddingEdges.some(
+        (edge) => edge.from === embedding.key,
+      )
+        ? embeddingDestination(embedding)
+        : null;
+      policy(scope, embedding, "ai_model", destination, content);
+      if (destination === null)
+        scope.diagnostic("ai_embedding_endpoint_from_credentials_unverified");
+    }
+    if (embeddings.length > 8) scope.diagnostic("ai_document_analysis_limit");
+    scope.diagnostic("ai_vector_runtime_operations_unverified");
     scope.finish();
   }
   return finish(rule);
@@ -1319,5 +1991,9 @@ export function analyzeAiFlow(
   flow: ValueFlow,
   evidence?: AssessmentEvidence,
 ): RuleResult[] {
-  return [contracts(context, evidence), promptData(context, flow, evidence)];
+  return [
+    contracts(context, evidence),
+    promptData(context, flow, evidence),
+    vectorData(context, flow, evidence),
+  ];
 }

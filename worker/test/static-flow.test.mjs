@@ -494,6 +494,7 @@ test("reviewed annotation and elementary trigger versions do not invent opaque s
   for (const [type, versions] of [
     ["stickyNote", [1]],
     ["manualTrigger", [1]],
+    ["errorTrigger", [1]],
     ["scheduleTrigger", [1, 1.1, 1.2, 1.3, 1.4]],
     ["noOp", [1]],
   ]) {
@@ -502,7 +503,7 @@ test("reviewed annotation and elementary trigger versions do not invent opaque s
         nodes: [node("Basic", type, version)],
         connections: {},
       });
-      assert.ok(result.every((rule) => rule.profileVersion === "1.3.0"));
+      assert.ok(result.every((rule) => rule.profileVersion === "1.5.0"));
       assert.ok(
         result.every((rule) => rule.diagnostics.length === 0),
         `${type}@${version}`,
@@ -520,13 +521,7 @@ test("reviewed annotation and elementary trigger versions do not invent opaque s
       ),
     );
   }
-  for (const type of [
-    "futureBuiltin",
-    "errorTrigger",
-    "set",
-    "merge",
-    "executeCommand",
-  ]) {
+  for (const type of ["futureBuiltin", "set", "merge", "executeCommand"]) {
     const result = scan({ nodes: [node("Effect", type, 1)], connections: {} });
     assert.ok(
       result.every((rule) =>

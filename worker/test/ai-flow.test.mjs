@@ -657,9 +657,11 @@ test("an allowlisted explicit model endpoint cannot resolve memory content or ac
     diagnostics(result).includes("ai_model_context_sensitivity_unverified"),
   );
   assert.ok(
-    result.rules.every((rule) =>
-      rule.coverage.some((coverage) => coverage.status === "partial"),
-    ),
+    result.rules
+      .filter((rule) => rule.ruleId !== "N8N_AI_VECTOR_DATA")
+      .every((rule) =>
+        rule.coverage.some((coverage) => coverage.status === "partial"),
+      ),
   );
 });
 
@@ -1144,7 +1146,7 @@ test("native Code and Workflow V1 tools expose only their active input schema me
       }
 });
 
-test("native tool JSON examples and unknown selectors retain conversion uncertainty", () => {
+test("fixed native tool JSON examples resolve conversion while unknown selectors stay uncertain", () => {
   for (const schemaType of [undefined, "fromJson", null, "={{ $json.mode }}"])
     for (const type of ["toolCode", "toolWorkflow"]) {
       const native = node("Native", type, 1.3, {
@@ -1166,7 +1168,7 @@ test("native tool JSON examples and unknown selectors retain conversion uncertai
         schemaType === null || (schemaType?.startsWith("=") ?? false),
       );
       assert.ok(
-        diagnostics(result).includes(
+        !diagnostics(result).includes(
           "ai_tool_example_derived_schema_content_unverified",
         ),
       );

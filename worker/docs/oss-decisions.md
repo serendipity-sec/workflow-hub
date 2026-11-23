@@ -36,6 +36,10 @@
 
 ## 근거와 재현
 
+0.8.0의 실제 개선에는 기존 **Acorn 8.19.0** AST를 재사용했다. n8n의 async Code 문맥에 맞춰 최상위 `await` 파싱 옵션을 보완하고, 배열 콜백·제한된 JSON 예외 처리·Set/Switch/Aggregate 표현식의 로컬 효과를 해석한다. 미지원의 원인은 파서 부재만이 아니라 n8n 노드·출처·실행 의미의 해석이므로 AST 이후의 제한된 값 전달과 음성 회귀 검사를 함께 구현한다. 업로드 코드 실행은 하지 않는다.
+
+AI 도구의 고정 JSON 예제는 공식 n8n에서 사용하는 `generate-schema`의 평면 기본값 부분만 로컬 제한 프로필로 해석한다. 라이브러리를 실제 설치·실행했다고 주장하지 않는다. 중첩·배열·동적 예제는 미확인으로 유지한다. 자세한 공식 소스·한도·검증은 [AI 예제 스키마](ai-example-schema.md)를 따른다. 네이티브 Gitleaks·Presidio/spaCy·Python AST와 SQL 파서는 기존 고정 버전을 유지한다.
+
 - [Gitleaks 8.30.1 사용법](https://github.com/gitleaks/gitleaks/blob/v8.30.1/README.md) · [라이선스](https://github.com/gitleaks/gitleaks/blob/v8.30.1/LICENSE)
 - [validator.js 공식 문서](https://github.com/validatorjs/validator.js) · [라이선스](https://github.com/validatorjs/validator.js/blob/master/LICENSE)
 - [Acorn 공식 저장소](https://github.com/acornjs/acorn)

@@ -4,6 +4,11 @@ import { assessmentReportSchema } from "./assessment-contract.js";
 import type { FileAssessment } from "./assessment-contract.js";
 import { categories, staticLocationSchema } from "./static-contract.js";
 import type { Category, Finding, StaticLocation } from "./static-contract.js";
+import { classifyCoverageCause } from "./coverage-policy.js";
+import {
+  initialServiceScope,
+  serviceDiagnosticDisposition,
+} from "./service-scope.js";
 
 export const serviceReportLimits = {
   itemsPerGroup: 256,
@@ -496,7 +501,7 @@ const countsSchema = z.strictObject({
 });
 export const serviceReportSchema = z
   .strictObject({
-    serviceReportVersion: z.literal("1.0.0"),
+    serviceReportVersion: z.enum(["1.0.0", "1.1.0"]),
     inputSha256: hash,
     engineVersion: z.string().regex(/^\d+\.\d+\.\d+$/),
     assessmentStatus: z.enum(["analyzed", "partial", "unsupported", "error"]),
@@ -511,6 +516,19 @@ export const serviceReportSchema = z
     decision: z.enum(["allow", "review", "block", "inconclusive"]),
     publication: z.literal("requires_service_authorization"),
     vulnerabilityCount: z.literal("not_established"),
+    serviceScope: z
+      .strictObject({
+        profile: z.literal("initial_static_v1"),
+        environmentInput: z.literal("not_requested"),
+        environmentNotices: z.literal("usage_precautions"),
+        piiScope: z.literal("existing_detectors_context_completeness_excluded"),
+        workflowExecution: z.literal("not_run"),
+        usageNoticeCount: count,
+        excludedScopeNoticeCount: count,
+        highRiskFindingCount: count,
+        securityReviewRequired: z.boolean(),
+      })
+      .optional(),
     headline: text,
     explanation: text,
     functions: z.array(functionsSchema).max(9),
@@ -556,11 +574,33 @@ export const serviceReportSchema = z
         report.analysisStatus !==
         (report.assessmentStatus === "error"
           ? "failed"
-          : report.assessmentStatus === "analyzed"
+          : (
+                report.serviceReportVersion === "1.1.0"
+                  ? report.counts.analysisGaps === 0 &&
+                    report.executionStatus === "completed"
+                  : report.assessmentStatus === "analyzed"
+              )
             ? "complete"
             : "review_required")
       )
         return false;
+      if (report.serviceReportVersion === "1.1.0") {
+        const scope = report.serviceScope;
+        if (
+          !scope ||
+          scope.usageNoticeCount !== report.counts.environmentChecks ||
+          scope.excludedScopeNoticeCount !== report.counts.scopeNotes ||
+          scope.highRiskFindingCount <
+            report.findings.filter((item) => item.severity === "high").length ||
+          scope.highRiskFindingCount > report.counts.findings ||
+          scope.securityReviewRequired !==
+            (report.executionStatus !== "completed" ||
+              report.counts.analysisGaps > 0 ||
+              scope.highRiskFindingCount > 0 ||
+              ["block", "review"].includes(report.decision))
+        )
+          return false;
+      } else if (report.serviceScope !== undefined) return false;
       if (
         report.staticCoverageStatus !==
         (report.assessmentStatus === "error"
@@ -639,6 +679,51 @@ const evidenceDescriptions: Record<string, string> = {
   nlp_payment_card_candidate: "결제 카드 형식의 개인정보 후보를 찾았습니다.",
   nlp_ip_address_candidate: "IP 주소 형식의 데이터 후보를 찾았습니다.",
 };
+const currentEvidenceDescriptions: Record<string, string> = {
+  secret_candidate_transferred:
+    "키·비밀번호 등 비밀정보 후보가 전송·출력되는 경로입니다.",
+  personal_data_candidate_transferred:
+    "개인정보 후보가 전송·출력되는 경로입니다.",
+  whole_object_transferred:
+    "선택한 필드만이 아니라 객체 전체를 전송·출력하는 경로입니다.",
+  trusted_policy_transfer_disallowed:
+    "검사에 제공된 정책에서 허용하지 않은 목적지 또는 데이터 종류가 포함됩니다.",
+  javascript_external_evaluation_input:
+    "외부 입력이 JavaScript 동적 실행 함수에 전달되는 후보 경로입니다.",
+  javascript_dynamic_evaluation_capability:
+    "JavaScript를 동적으로 실행하는 함수 호출이 있습니다.",
+  javascript_dynamic_network_input:
+    "외부 입력이 코드의 HTTP·네트워크 호출 인자에 전달되는 후보 경로입니다.",
+  javascript_shell_input_candidate:
+    "외부 입력이 셸 명령 문자열이나 셸 실행 옵션에 영향을 줄 수 있습니다.",
+  console_output_call_candidate: "코드에서 콘솔 출력 함수로 값을 전달합니다.",
+  secret_candidate_in_error_payload:
+    "오류 메시지나 오류 객체에 비밀정보 후보가 포함됩니다. 저장·열람 범위를 확인해야 합니다.",
+  personal_data_candidate_in_error_payload:
+    "오류 메시지나 오류 객체에 개인정보 후보가 포함됩니다.",
+  whole_input_in_error_payload:
+    "오류 출력에 입력 객체 전체가 포함될 수 있습니다.",
+  ai_prompt_to_model_secret_candidate:
+    "비밀정보 후보가 AI 모델의 입력 문맥에 포함되는 경로입니다.",
+  ai_prompt_to_model_pii_candidate:
+    "개인정보 후보가 AI 모델의 입력 문맥에 포함되는 경로입니다.",
+  ai_document_to_embedding_secret_candidate:
+    "문서 본문의 비밀정보 후보가 임베딩 모델에 전달되는 경로입니다.",
+  ai_document_to_embedding_pii_candidate:
+    "문서 본문의 개인정보 후보가 임베딩 모델에 전달되는 경로입니다.",
+  ai_document_to_vector_store_secret_candidate:
+    "문서 본문 또는 메타데이터의 비밀정보 후보가 벡터 저장소로 전달되는 경로입니다.",
+  ai_document_to_vector_store_pii_candidate:
+    "문서 본문 또는 메타데이터의 개인정보 후보가 벡터 저장소로 전달되는 경로입니다.",
+  ai_query_to_embedding_secret_candidate:
+    "검색 질의의 비밀정보 후보가 임베딩 모델에 전달되는 경로입니다.",
+  ai_query_to_embedding_pii_candidate:
+    "검색 질의의 개인정보 후보가 임베딩 모델에 전달되는 경로입니다.",
+  ai_query_to_vector_store_secret_candidate:
+    "검색 질의의 비밀정보 후보가 벡터 저장소로 전달되는 경로입니다.",
+  ai_query_to_vector_store_pii_candidate:
+    "검색 질의의 개인정보 후보가 벡터 저장소로 전달되는 경로입니다.",
+};
 const remediationNames: Record<string, string> = {
   enable_tls_verification: "인증서 검증 켜기",
   bind_postgres_lookup_value: "Postgres 조회 값을 매개변수로 바인딩하기",
@@ -680,6 +765,7 @@ const capabilityNames: Record<string, string> = {
 function findingCard(
   file: FileAssessment,
   finding: Finding,
+  scoped: boolean,
 ): z.infer<typeof findingCardSchema> {
   const categoryName = categoryNames[finding.category];
   const observation = finding.severity === "info";
@@ -713,6 +799,7 @@ function findingCard(
     evidence: finding.evidence.slice(0, 32).map((item) => ({
       location: displayLocation(item.location),
       explanation:
+        (scoped ? currentEvidenceDescriptions[item.code] : undefined) ??
         evidenceDescriptions[item.code] ??
         `${categoryName} 검사기가 이 위치를 근거로 기록했습니다. 원본 결과의 근거 식별자로 세부 코드를 확인할 수 있습니다.`,
     })),
@@ -738,8 +825,10 @@ function findingCard(
 /** A deterministic presentation layer. This does not change scanner coverage or authorize publication. */
 export function buildServiceReport(input: unknown): ServiceReport {
   const report = assessmentReportSchema.parse(input);
+  // Reproduce historical artifacts and their LLM binding with their old semantics.
+  const scoped = report.engineVersion === "0.9.0";
   const output: ServiceReport = {
-    serviceReportVersion: "1.0.0",
+    serviceReportVersion: scoped ? "1.1.0" : "1.0.0",
     inputSha256: report.inputSha256,
     engineVersion: report.engineVersion,
     assessmentStatus: report.status,
@@ -756,6 +845,17 @@ export function buildServiceReport(input: unknown): ServiceReport {
     decision: report.status === "error" ? "inconclusive" : report.decision,
     publication: "requires_service_authorization",
     vulnerabilityCount: "not_established",
+    ...(scoped
+      ? {
+          serviceScope: {
+            ...initialServiceScope,
+            usageNoticeCount: 0,
+            excludedScopeNoticeCount: 0,
+            highRiskFindingCount: 0,
+            securityReviewRequired: report.status === "error",
+          },
+        }
+      : {}),
     headline:
       report.status === "error"
         ? "검사를 완료하지 못했습니다"
@@ -868,18 +968,41 @@ export function buildServiceReport(input: unknown): ServiceReport {
     for (const rule of rules) {
       for (const finding of rule.findings) {
         const group = finding.severity === "info" ? "observations" : "findings";
-        const card = findingCard(file, finding);
+        const card = findingCard(file, finding, scoped);
         if (seen.has(card.id)) continue;
         seen.add(card.id);
         output.counts[group]++;
+        if (output.serviceScope && finding.severity === "high")
+          output.serviceScope.highRiskFindingCount++;
         if (output[group].length < serviceReportLimits.itemsPerGroup)
           output[group].push(card);
         else output.omitted[group]++;
       }
       for (const diagnostic of rule.diagnostics) {
+        const legacyDescription = diagnosticDescriptions.get(diagnostic.code);
+        const cause = classifyCoverageCause(diagnostic.code);
+        const known =
+          legacyDescription !== undefined ||
+          (scoped && cause.kind !== "unclassified");
+        const group = scoped
+          ? serviceDiagnosticDisposition(diagnostic.code)
+          : (legacyDescription ?? unknownDiagnostic).group;
         const description =
-          diagnosticDescriptions.get(diagnostic.code) ?? unknownDiagnostic;
-        addDiagnostic(description.group, {
+          scoped && cause.kind !== "unclassified"
+            ? {
+                group,
+                title:
+                  group === "environmentChecks"
+                    ? "사용 전 확인할 운영 조건"
+                    : group === "scopeNotes"
+                      ? "초기 서비스 검사 범위 안내"
+                      : (legacyDescription?.title ??
+                        "추가 보안 분석이 필요한 항목"),
+                explanation: cause.explanation,
+                action: cause.nextStep,
+              }
+            : (legacyDescription ?? unknownDiagnostic);
+        addDiagnostic(group, {
           id: digest([file.analysisKey, "diagnostic", diagnostic.id]),
           reference: {
             analysisKey: file.analysisKey,
@@ -888,9 +1011,7 @@ export function buildServiceReport(input: unknown): ServiceReport {
             id: diagnostic.id,
           },
           location: displayLocation(diagnostic.location),
-          code: diagnosticDescriptions.has(diagnostic.code)
-            ? diagnostic.code
-            : "unrecognized_diagnostic",
+          code: known ? diagnostic.code : "unrecognized_diagnostic",
           title: description.title,
           explanation: description.explanation,
           action: description.action,
@@ -923,6 +1044,19 @@ export function buildServiceReport(input: unknown): ServiceReport {
     });
   }
   if (output.counts.analysisGaps) output.staticCoverageStatus = "gaps_present";
+  if (output.serviceScope) {
+    output.analysisStatus =
+      output.executionStatus === "completed" && output.counts.analysisGaps === 0
+        ? "complete"
+        : "review_required";
+    output.serviceScope.usageNoticeCount = output.counts.environmentChecks;
+    output.serviceScope.excludedScopeNoticeCount = output.counts.scopeNotes;
+    output.serviceScope.securityReviewRequired =
+      output.executionStatus !== "completed" ||
+      output.counts.analysisGaps > 0 ||
+      output.serviceScope.highRiskFindingCount > 0 ||
+      ["block", "review"].includes(output.decision);
+  }
   // Korean explanations can expand a bounded input report substantially.
   // Every omitted card remains in counts; the assessment is authoritative.
   let outputBytes = Buffer.byteLength(JSON.stringify(output));

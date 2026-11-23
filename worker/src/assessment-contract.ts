@@ -76,13 +76,17 @@ export const legacyAssessmentExtensionRules = [
   "N8N_SUBWORKFLOW_DEFINITIONS",
   "N8N_VALUE_FLOW_COVERAGE",
 ] as const;
-export const assessmentExtensionRules = [
+export const previousAssessmentExtensionRules = [
   ...legacyAssessmentExtensionRules,
   "N8N_DATABASE_OPERATIONS",
   "N8N_FILE_OPERATION_PATHS",
   "N8N_MAPPED_HTTP_DESTINATION",
   "N8N_AI_CONNECTION_CONTRACTS",
   "N8N_AI_PROMPT_DATA",
+] as const;
+export const assessmentExtensionRules = [
+  ...previousAssessmentExtensionRules,
+  "N8N_AI_VECTOR_DATA",
 ] as const;
 export const subworkflowLinkSchema = z.strictObject({
   parentAnalysisKey: hash,
@@ -108,7 +112,7 @@ export const fileAssessmentSchema = z
     parentAnalysisKey: hash.nullable(),
     caller: staticLocationSchema.nullable(),
     base: staticReportSchema,
-    extensionRules: z.array(ruleResultSchema).max(18),
+    extensionRules: z.array(ruleResultSchema).max(19),
     evidence: evidenceSummarySchema,
     dependencies: dependencyResultsSchema,
     policy: policyEvaluationSchema,
@@ -126,7 +130,11 @@ export const fileAssessmentSchema = z
       (file.depth === 0
         ? file.parentAnalysisKey === null && file.caller === null
         : file.parentAnalysisKey !== null && file.caller !== null) &&
-      [assessmentExtensionRules, legacyAssessmentExtensionRules].some(
+      [
+        assessmentExtensionRules,
+        previousAssessmentExtensionRules,
+        legacyAssessmentExtensionRules,
+      ].some(
         (expected) =>
           new Set(file.extensionRules.map((rule) => rule.ruleId)).size ===
             expected.length &&
@@ -195,7 +203,15 @@ export const fileAssessmentSchema = z
   });
 const header = {
   assessmentVersion: z.literal("1.0.0"),
-  engineVersion: z.enum(["0.3.0", "0.4.0", "0.5.0", "0.6.0", "0.7.0"]),
+  engineVersion: z.enum([
+    "0.3.0",
+    "0.4.0",
+    "0.5.0",
+    "0.6.0",
+    "0.7.0",
+    "0.8.0",
+    "0.9.0",
+  ]),
   inputSha256: hash,
   execution: z.literal("not_run"),
   boundary: assessmentBoundarySchema,
@@ -237,9 +253,12 @@ export const assessmentReportSchema = z
       return false;
     if (report.status === "error")
       return !report.inputDiagnosis || report.code === "invalid_input";
-    const expectedRules = ["0.6.0", "0.7.0"].includes(report.engineVersion)
-      ? assessmentExtensionRules
-      : legacyAssessmentExtensionRules;
+    const expectedRules =
+      report.engineVersion === "0.9.0"
+        ? assessmentExtensionRules
+        : ["0.6.0", "0.7.0", "0.8.0"].includes(report.engineVersion)
+          ? previousAssessmentExtensionRules
+          : legacyAssessmentExtensionRules;
     if (
       report.files.some(
         (file) =>
@@ -331,7 +350,7 @@ export function assessmentError(
 ): AssessmentReport {
   return {
     assessmentVersion: "1.0.0",
-    engineVersion: "0.7.0",
+    engineVersion: "0.9.0",
     inputSha256,
     execution: "not_run",
     boundary,

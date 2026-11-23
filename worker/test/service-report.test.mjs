@@ -57,7 +57,8 @@ test("service report preserves partial and separates environment evidence from a
   const before = JSON.stringify(report);
   const service = buildServiceReport(report);
   assert.equal(service.assessmentStatus, report.status);
-  assert.equal(service.analysisStatus, "review_required");
+  assert.equal(service.analysisStatus, "complete");
+  assert.equal(service.serviceScope.environmentInput, "not_requested");
   assert.equal(service.executionStatus, "completed");
   assert.equal(service.decision, report.decision);
   assert.equal(service.publication, "requires_service_authorization");
@@ -157,12 +158,13 @@ test("language scope notes remain visible without being reported as a tool failu
     service.scopeNotes.some(
       (item) =>
         item.code === "nlp_english_model_profile" &&
-        item.explanation.includes("한국어"),
+        item.action.includes("한국어"),
     ),
   );
   assert.equal(service.executionStatus, "completed");
   assert.equal(service.assessmentStatus, "partial");
-  assert.equal(service.analysisStatus, "review_required");
+  assert.equal(service.analysisStatus, "complete");
+  assert.ok(service.serviceScope.excludedScopeNoticeCount > 0);
 });
 
 test("new trigger and collection diagnostics retain their distinct unresolved conditions", async () => {
@@ -193,7 +195,12 @@ test("new trigger and collection diagnostics retain their distinct unresolved co
         : "analysisGaps";
     assert.ok(result[expectedGroup].some((card) => card.code === code));
     assert.equal(result.assessmentStatus, "partial");
-    assert.equal(result.analysisStatus, "review_required");
+    assert.equal(
+      result.analysisStatus,
+      code === "trigger_payload_schema_unverified"
+        ? "complete"
+        : "review_required",
+    );
   }
 });
 
@@ -361,8 +368,10 @@ test("input and output schema reject status, count, and extra-field tampering", 
   assert.throws(() => buildServiceReport({ ...report, status: "analyzed" }));
   const service = buildServiceReport(report);
   assert.equal(
-    serviceReportSchema.safeParse({ ...service, analysisStatus: "complete" })
-      .success,
+    serviceReportSchema.safeParse({
+      ...service,
+      analysisStatus: "review_required",
+    }).success,
     false,
   );
   assert.equal(

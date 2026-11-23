@@ -6,6 +6,7 @@ import {
   type BoundedCodeHost,
 } from "./bounded-code.js";
 import { aiPromptInputs } from "./ai-flow.js";
+import { preserveValueShape } from "./value-shape.js";
 import type { NormalizedNode } from "./n8n.js";
 import { isObject } from "./static-context.js";
 import type { Context } from "./static-context.js";
@@ -17,9 +18,15 @@ export type Sensitivity =
 export type Origin = {
   nodeKey: string;
   fieldPath: string;
-  // Candidate subtree retained by Aggregate selection/reindexing. Never an
+  // Candidate subtree retained by collection selection/reindexing. Never an
   // assertion of a descendant's exact output position or presence.
   includesDescendants?: true;
+  // Known member selections after unknown collection indices. null means a
+  // possible array index, never a wildcard property name or a proven index.
+  descendantPath?: (string | null)[];
+  // A transform retains its input dependency selector, but its output shape
+  // cannot be used to narrow that selector any further.
+  projectionUnknown?: true;
   kind:
     | "webhook"
     | "literal"
@@ -69,6 +76,16 @@ export interface AbstractValue {
   valueId: string;
   fields?: Record<string, AbstractValue>;
   fieldsComplete?: boolean;
+  /** Possible item of a bounded collection; never a stored item at index zero. */
+  representativeElement?: AbstractValue;
+  /** A selection with uncertain index alignment or optional field presence. */
+  representativeSelection?: true;
+  /** Alternative values, projected separately before their results are joined. */
+  projectionAlternatives?: AbstractValue[];
+  /** Control dependencies are retained without treating them as array items. */
+  projectionDependencies?: AbstractValue[];
+  /** Serialized contents were fully mapped; this does not preserve JSON shape. */
+  contentComplete?: true;
 }
 export interface FlowDiagnostic {
   nodeKey: string;
@@ -116,6 +133,26 @@ export function isStaticIntervalWait(node: NormalizedNode): boolean {
   );
 }
 
+/** Fixed Limit slices the item list without changing any emitted item's JSON. */
+export function isStaticItemLimit(node: NormalizedNode): boolean {
+  const p = node.parameters;
+  const count = p.maxItems === undefined ? 1 : p.maxItems;
+  return (
+    node.type === "n8n-nodes-base.limit" &&
+    node.typeVersion === 1 &&
+    Object.keys(p).every((key) =>
+      ["maxItems", "keep", "options"].includes(key),
+    ) &&
+    (p.options === undefined ||
+      (isObject(p.options) && Object.keys(p.options).length === 0)) &&
+    typeof count === "number" &&
+    Number.isSafeInteger(count) &&
+    count >= 1 &&
+    count <= 1000000 &&
+    (p.keep === undefined || p.keep === "firstItems" || p.keep === "lastItems")
+  );
+}
+
 export const valueFlowLimits = {
   recursion: 64,
   requests: 4096,
@@ -155,6 +192,24 @@ const safeParts = (path: string[]): boolean =>
       part.length <= 256 &&
       !["__proto__", "prototype", "constructor"].includes(part),
   );
+
+/** Match retained candidate subtrees without assigning an exact array index. */
+export function originIncludesField(origin: Origin, field: string): boolean {
+  if (field === origin.fieldPath) return true;
+  if (!origin.includesDescendants || !field.startsWith(origin.fieldPath + "/"))
+    return false;
+  if (!origin.descendantPath) return true;
+  const relative = parts(field).slice(parts(origin.fieldPath).length);
+  // A classification of an ancestor of the selected field still applies to
+  // that field; an unrelated sibling after a known member selection does not.
+  return origin.descendantPath.every((part, index) =>
+    index >= relative.length
+      ? true
+      : part === null
+        ? /^(?:0|[1-9]\d*)$/.test(relative[index]!)
+        : relative[index] === part,
+  );
+}
 const severity = (sensitivity: Sensitivity): number =>
   ({ public_literal: 0, unknown: 1, pii_candidate: 2, secret_candidate: 3 })[
     sensitivity
@@ -188,13 +243,52 @@ function guardKey(guard: GuardEvidence): string {
   ]);
 }
 
+function unknownProjection(value: AbstractValue): AbstractValue {
+  return {
+    ...value,
+    origins: value.origins.map((origin) =>
+      origin.kind === "literal"
+        ? origin
+        : { ...origin, projectionUnknown: true },
+    ),
+    constant: undefined,
+    fields: undefined,
+    fieldsComplete: false,
+    representativeElement: undefined,
+    representativeSelection: undefined,
+    projectionAlternatives: undefined,
+    projectionDependencies: undefined,
+    contentComplete: undefined,
+    guards: [],
+  };
+}
+
+function projectionShapeFits(values: AbstractValue[]): boolean {
+  const pending = values.map((value) => ({ value, depth: 0 }));
+  let count = 0;
+  while (pending.length) {
+    const { value, depth } = pending.pop()!;
+    if (++count > 512 || depth > 32) return false;
+    for (const child of [
+      ...Object.values(value.fields ?? {}),
+      ...(value.representativeElement ? [value.representativeElement] : []),
+      ...(value.projectionAlternatives ?? []),
+      ...(value.projectionDependencies ?? []),
+    ])
+      pending.push({ value: child, depth: depth + 1 });
+  }
+  return true;
+}
+
 function join(
   values: AbstractValue[],
   nodeKey: string,
   code?: string,
+  alternatives = false,
 ): AbstractValue {
   if (!values.length) return empty(nodeKey, code ?? "input_not_connected");
-  if (values.length === 1 && !code) return structuredClone(values[0]!);
+  if (values.length === 1 && !code && alternatives)
+    return structuredClone(values[0]!);
   const ids = unique(values.map((value) => value.valueId));
   const commonGuards = values[0]!.guards
     .filter((guard) =>
@@ -230,7 +324,7 @@ function join(
     ...(code ? [code] : []),
     ...(limited ? ["flow_alternative_limit"] : []),
   ]);
-  return {
+  const result: AbstractValue = {
     status: diagnostics.length
       ? origins.length
         ? "partial"
@@ -270,6 +364,45 @@ function join(
     diagnosticCodes: diagnostics,
     valueId: ids.length === 1 ? ids[0]! : hash(ids.sort()),
   };
+  // Dependency aggregation (object fields, serialization, call arguments) is
+  // different from choosing one possible value. Only value alternatives carry
+  // structure into a subsequent projection; never promote a child array into
+  // its containing object or a serialized string.
+  if (
+    alternatives &&
+    values.some(
+      (value) =>
+        value.fields ||
+        value.representativeElement ||
+        value.projectionAlternatives ||
+        value.origins.some(
+          (origin) => origin.descendantPath && !origin.projectionUnknown,
+        ),
+    )
+  ) {
+    if (
+      values.length <= valueFlowLimits.alternatives &&
+      projectionShapeFits(values)
+    ) {
+      result.projectionAlternatives = values;
+      result.fieldsComplete = false;
+      result.guards = [];
+    } else {
+      const bounded = unknownProjection(result);
+      bounded.status = bounded.origins.length ? "partial" : "unknown";
+      bounded.diagnosticCodes = unique([
+        ...bounded.diagnosticCodes,
+        "code_value_shape_limit",
+      ]);
+      bounded.sensitivityClasses = unique<Sensitivity>([
+        ...bounded.sensitivityClasses,
+        "unknown",
+      ]).sort((a, b) => severity(b) - severity(a));
+      bounded.sensitivity = bounded.sensitivityClasses[0]!;
+      return bounded;
+    }
+  }
+  return result;
 }
 
 export function buildValueFlow(
@@ -340,7 +473,19 @@ class ValueFlowAnalyzer implements ValueFlow {
     values: AbstractValue[] = [],
   ): AbstractValue {
     this.note(nodeKey, code);
-    return values.length ? join(values, nodeKey, code) : empty(nodeKey, code);
+    if (!values.length) return empty(nodeKey, code);
+    const result = join(values, nodeKey, code);
+    return [
+      "field_projection_partial",
+      "code_collection_shape_unverified",
+      "code_collection_cardinality_unverified",
+      "code_collection_index_unverified",
+      "code_branch_field_optional",
+      "code_array_spread_shape_unverified",
+      "collection_cardinality_unverified",
+    ].includes(code)
+      ? result
+      : unknownProjection(result);
   }
 
   private bounded(nodeKey: string, depth: number): boolean {
@@ -628,7 +773,7 @@ class ValueFlowAnalyzer implements ValueFlow {
     values: AbstractValue[],
     kind: TransformEvidence["kind"],
   ): AbstractValue {
-    const merged = join(values, nodeKey);
+    const merged = unknownProjection(join(values, nodeKey));
     let constant: string | undefined;
     let constantOverflow = false;
     if (
@@ -647,6 +792,16 @@ class ValueFlowAnalyzer implements ValueFlow {
       ...merged,
       constant,
       fullObject: kind === "serialization" && merged.fullObject,
+      contentComplete:
+        kind === "serialization" &&
+        values.every(
+          (value) =>
+            value.status === "resolved" &&
+            value.fieldsComplete === true &&
+            value.fields !== undefined,
+        )
+          ? true
+          : undefined,
       guards: [],
       transforms: [
         ...merged.transforms,
@@ -710,7 +865,7 @@ class ValueFlowAnalyzer implements ValueFlow {
         this.astValue(nodeKey, ast.right, depth + 1),
       ];
       return {
-        ...join(values, nodeKey),
+        ...join(values, nodeKey, undefined, true),
         // A logical selection is not a direct source reference, even when
         // both alternatives are scalar or their object shape is unknown.
         fieldsComplete: false,
@@ -921,17 +1076,31 @@ class ValueFlowAnalyzer implements ValueFlow {
       isObject(ast.consequent) &&
       isObject(ast.alternate)
     ) {
+      const condition = this.astValue(nodeKey, ast.test, depth + 1);
       const values = [
-        this.astValue(nodeKey, ast.test, depth + 1),
         this.astValue(nodeKey, ast.consequent, depth + 1),
         this.astValue(nodeKey, ast.alternate, depth + 1),
       ];
+      const selected = join(values, nodeKey, undefined, true);
+      if (
+        selected.projectionAlternatives &&
+        !projectionShapeFits([...selected.projectionAlternatives, condition])
+      )
+        return this.unknown(nodeKey, "code_value_shape_limit", [
+          selected,
+          condition,
+        ]);
       return {
-        ...join(values, nodeKey),
+        ...join([condition, selected], nodeKey),
+        projectionAlternatives: selected.projectionAlternatives,
+        projectionDependencies: selected.projectionAlternatives
+          ? [unknownProjection(condition)]
+          : undefined,
         guards: [],
         fieldsComplete: false,
         valueId: hash([
           "conditional_selection",
+          condition.valueId,
           values.map((value) => value.valueId),
         ]),
       };
@@ -1258,6 +1427,8 @@ class ValueFlowAnalyzer implements ValueFlow {
         this.nodeValue(edge.from, path, edge.output, depth + 1),
       ),
       nodeKey,
+      undefined,
+      true,
     );
   }
 
@@ -1360,6 +1531,21 @@ class ValueFlowAnalyzer implements ValueFlow {
       else if (isStaticIntervalWait(node) && port === 0)
         result = this.input(nodeKey, path, depth + 1);
       else if (
+        isStaticItemLimit(node) &&
+        port === 0 &&
+        this.context.edges.filter((edge) => edge.to === node.key).length ===
+          1 &&
+        this.context.edges.every(
+          (edge) =>
+            (edge.to !== node.key || edge.input === 0) &&
+            (edge.from !== node.key || edge.output === 0),
+        ) &&
+        !this.context.unsupportedEdges.some(
+          (edge) => edge.to === node.key || edge.from === node.key,
+        )
+      )
+        result = this.input(nodeKey, path, depth + 1);
+      else if (
         node.type === prefix + "aggregate" &&
         node.typeVersion === 1 &&
         port === 0
@@ -1396,7 +1582,7 @@ class ValueFlowAnalyzer implements ValueFlow {
           this.input(nodeKey, [], depth + 1),
         ]);
       else {
-        const ai = aiPromptInputs(node);
+        const ai = aiPromptInputs(node, this.context);
         const service = ai
           ? undefined
           : this.serviceValue(node, path, depth + 1);
@@ -1407,7 +1593,12 @@ class ValueFlowAnalyzer implements ValueFlow {
             ...ai.inputs.map((input) =>
               input.value === undefined
                 ? this.unknown(node.key, "ai_prompt_value_unresolved")
-                : this.resolveValue(node.key, input.value, {}, depth + 1),
+                : this.resolveValue(
+                    input.nodeKey ?? node.key,
+                    input.value,
+                    {},
+                    depth + 1,
+                  ),
             ),
           ]);
           result.guards = [];
@@ -2361,12 +2552,166 @@ class ValueFlowAnalyzer implements ValueFlow {
     depth: number,
   ): AbstractValue {
     if (!path.length) return value;
-    const unresolved = (): AbstractValue => ({
-      ...this.unknown(nodeKey, "field_projection_partial", [value]),
-      presence: "unknown",
-      guards: [],
-      valueId: hash(["unresolved_projection", value.valueId, path]),
-    });
+    const alternatives =
+      value.projectionAlternatives ??
+      (value.projectionDependencies?.length
+        ? [{ ...value, projectionDependencies: undefined }]
+        : undefined);
+    if (alternatives) {
+      if (!this.bounded(nodeKey, depth))
+        return this.unknown(nodeKey, "flow_budget_exceeded", [value]);
+      const projected = join(
+        alternatives.map((alternative) =>
+          alternative.fields ||
+          alternative.representativeElement ||
+          alternative.projectionAlternatives ||
+          alternative.origins.some(
+            (origin) => origin.descendantPath && !origin.projectionUnknown,
+          )
+            ? this.project(alternative, path, nodeKey, depth + 1)
+            : unknownProjection(
+                this.unknown(nodeKey, "field_projection_partial", [
+                  alternative,
+                ]),
+              ),
+        ),
+        nodeKey,
+        "field_projection_partial",
+        true,
+      );
+      const dependencies = value.projectionDependencies ?? [];
+      if (!dependencies.length) return projected;
+      if (!projectionShapeFits([projected, ...dependencies]))
+        return this.unknown(nodeKey, "code_value_shape_limit", [
+          projected,
+          ...dependencies,
+        ]);
+      return {
+        ...join([projected, ...dependencies], nodeKey),
+        projectionAlternatives: projected.projectionAlternatives,
+        projectionDependencies: projected.projectionAlternatives
+          ? dependencies
+          : undefined,
+        fieldsComplete: false,
+        guards: [],
+      };
+    }
+    const selectedElement = (
+      selected: AbstractValue,
+      identity: unknown,
+    ): AbstractValue => {
+      const origins = selected.origins.map((origin) =>
+        origin.kind === "literal"
+          ? origin
+          : {
+              ...origin,
+              includesDescendants: true as const,
+              descendantPath: origin.descendantPath ?? [],
+            },
+      );
+      return {
+        ...preserveValueShape(
+          this.unknown(nodeKey, "code_collection_index_unverified", [selected]),
+          selected,
+        ),
+        origins,
+        constant: undefined,
+        guards: [],
+        presence: "unknown",
+        representativeSelection: true,
+        valueId: hash([
+          "code_collection_selection",
+          selected.valueId,
+          origins,
+          identity,
+        ]),
+      };
+    };
+    if (value.representativeElement && /^(?:0|[1-9]\d*)$/.test(path[0]!)) {
+      // The source wildcard is already part of the representative. Consume the
+      // requested output index without appending it to the source path again.
+      return selectedElement(
+        this.project(
+          value.representativeElement,
+          path.slice(1),
+          nodeKey,
+          depth + 1,
+        ),
+        [value.valueId, path],
+      );
+    }
+    if (value.representativeSelection) {
+      const unmarked = { ...value };
+      delete unmarked.representativeSelection;
+      return selectedElement(this.project(unmarked, path, nodeKey, depth + 1), [
+        value.valueId,
+        path,
+      ]);
+    }
+    const unresolved = (): AbstractValue => {
+      const result: AbstractValue = {
+        ...this.unknown(nodeKey, "field_projection_partial", [value]),
+        presence: "unknown",
+        guards: [],
+        valueId: hash(["unresolved_projection", value.valueId, path]),
+      };
+      result.origins = result.origins.map((origin) =>
+        origin.includesDescendants &&
+        origin.descendantPath &&
+        !origin.projectionUnknown
+          ? { ...origin, descendantPath: [...origin.descendantPath, ...path] }
+          : origin,
+      );
+      const candidates = result.origins.filter(
+        (origin) => origin.kind !== "literal",
+      );
+      if (
+        candidates.length &&
+        candidates.every(
+          (origin) => origin.includesDescendants && origin.descendantPath,
+        ) &&
+        value.sensitivityBasis.some((basis) => basis.startsWith("trusted_")) &&
+        value.sensitivityBasis.every(
+          (basis) =>
+            basis.startsWith("trusted_") || basis === "literal_definition",
+        )
+      ) {
+        // Source annotations are initially aggregated into a whole collection.
+        // Re-select them after a known member read so a secret sibling does not
+        // contaminate a selected ordinary field. Non-annotation candidates are
+        // never removed here, and unresolved contents remain explicitly unknown.
+        const annotations = (this.options.sourceAnnotations ?? [])
+          .slice(0, valueFlowLimits.annotations)
+          .filter((annotation) =>
+            candidates.some(
+              (origin) =>
+                annotation.nodeKey === origin.nodeKey &&
+                safeParts(parts(annotation.fieldPath)) &&
+                originIncludesField(
+                  origin,
+                  pointer(parts(annotation.fieldPath)),
+                ),
+            ),
+          );
+        result.sensitivityClasses = unique<Sensitivity>([
+          "unknown",
+          ...value.sensitivityClasses.filter(
+            (kind) => kind === "public_literal",
+          ),
+          ...annotations.map((annotation) => annotation.sensitivity),
+        ]).sort((a, b) => severity(b) - severity(a));
+        result.sensitivity = result.sensitivityClasses[0]!;
+        result.sensitivityBasis = unique([
+          ...value.sensitivityBasis.filter(
+            (basis) => basis === "literal_definition",
+          ),
+          ...annotations.map(
+            (annotation) => "trusted_" + annotation.provenance + "_annotation",
+          ),
+        ]);
+      }
+      return result;
+    };
     if (value.fieldsComplete === false && !value.fields) return unresolved();
     if (value.fields) {
       // A bounded prefix does not establish absence, and a later expression
@@ -2424,6 +2769,7 @@ class ValueFlowAnalyzer implements ValueFlow {
       projected,
       nodeKey,
       value.status !== "resolved" ? "field_projection_partial" : undefined,
+      true,
     );
   }
 
@@ -2446,7 +2792,7 @@ class ValueFlowAnalyzer implements ValueFlow {
     const host: BoundedCodeHost = {
       evaluate: (value) => this.astValue(node.key, value, depth + 1),
       literal: (value) => this.literal(node.key, value, "", depth + 1),
-      union: (values) => join(values, node.key),
+      union: (values) => join(values, node.key, undefined, true),
       project: (value, selected) =>
         safeParts(selected)
           ? this.project(value, selected, node.key, depth + 1)
@@ -2483,6 +2829,7 @@ class ValueFlowAnalyzer implements ValueFlow {
       const ast = parse(source, {
         ecmaVersion: "latest",
         allowReturnOutsideFunction: true,
+        allowAwaitOutsideFunction: true,
       }) as unknown;
       if (!isObject(ast)) return simple;
       const output = analyzeBoundedCode(ast, host);
@@ -2526,6 +2873,7 @@ class ValueFlowAnalyzer implements ValueFlow {
       const ast = parse(node.parameters.jsCode, {
         ecmaVersion: "latest",
         allowReturnOutsideFunction: true,
+        allowAwaitOutsideFunction: true,
       }) as unknown;
       if (
         !isObject(ast) ||

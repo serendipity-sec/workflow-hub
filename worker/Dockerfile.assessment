@@ -1,4 +1,4 @@
-ARG RUNTIME_IMAGE=workflow-worker-assessment-runtime:0.7.0
+ARG RUNTIME_IMAGE=workflow-worker-assessment-runtime:0.9.0
 FROM ${RUNTIME_IMAGE}
 WORKDIR /opt/worker
 COPY dist/ ./dist/

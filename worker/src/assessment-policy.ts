@@ -58,10 +58,19 @@ export function assessDestination(
       policyRuleId: null,
     };
   const policyRuleId = key(`egress:${policy.id}`);
+  // This node/sink policy forbids the known class regardless of which
+  // destination the runtime eventually selects. An unknown address must not
+  // erase an independently observed class violation.
+  const classViolation = dataClasses.some(
+    (value) =>
+      value !== "unknown" && !policy.allowedDataClasses.includes(value),
+  );
   if (destination === null)
     return {
-      status: "unknown",
-      codes: ["destination_unresolved"],
+      status: classViolation ? "disallowed" : "unknown",
+      codes: [
+        classViolation ? "data_class_not_allowed" : "destination_unresolved",
+      ],
       policyRuleId,
     };
   const actual = canonicalDestination(sink, destination);
@@ -70,29 +79,34 @@ export function assessDestination(
   );
   if (actual === undefined || expected.some((value) => value === undefined))
     return {
-      status: "unknown",
-      codes: ["destination_format_unknown"],
+      status: classViolation ? "disallowed" : "unknown",
+      codes: [
+        classViolation
+          ? "data_class_not_allowed"
+          : "destination_format_unknown",
+      ],
       policyRuleId,
     };
   const listed = expected.includes(actual);
   if (policy.mode === "allowlist" && !listed)
     return {
       status: "disallowed",
-      codes: ["destination_not_allowlisted"],
+      codes: [
+        "destination_not_allowlisted",
+        ...(classViolation ? ["data_class_not_allowed"] : []),
+      ],
       policyRuleId,
     };
   if (policy.mode === "denylist" && listed)
     return {
       status: "disallowed",
-      codes: ["destination_denylisted"],
+      codes: [
+        "destination_denylisted",
+        ...(classViolation ? ["data_class_not_allowed"] : []),
+      ],
       policyRuleId,
     };
-  if (
-    dataClasses.some(
-      (value) =>
-        value !== "unknown" && !policy.allowedDataClasses.includes(value),
-    )
-  )
+  if (classViolation)
     return {
       status: "disallowed",
       codes: ["data_class_not_allowed"],

@@ -132,7 +132,7 @@ test("every base and extension finding is accounted for, with info observations 
       }),
     ),
   );
-  assert.equal(result.files[0].extensionRules.length, 18);
+  assert.equal(result.files[0].extensionRules.length, 19);
   assert.deepEqual(
     new Set(result.files[0].extensionRules.map((rule) => rule.ruleId)),
     new Set(assessmentExtensionRules),

@@ -13,7 +13,12 @@ import {
 import { compareDefinitions, applyRemediation } from "./assessment-change.js";
 import { parseEvidenceBytes } from "./assessment-evidence.js";
 import { sha256 } from "./worker-io.js";
-import { inspectFile, presentInspection } from "./inspection.js";
+import {
+  inspectFile,
+  inspectionSchema,
+  presentInspection,
+} from "./inspection.js";
+import { buildCoverageExplanation } from "./coverage-causes.js";
 import { buildServiceReport } from "./service-report.js";
 import {
   parseTask,
@@ -28,6 +33,29 @@ async function main(args: string[], signal: AbortSignal): Promise<void> {
     image: process.env.WORKER_ASSESSMENT_IMAGE,
     signal,
   };
+  if (
+    args[0] === "coverage" &&
+    (args.length === 2 || args.length === 3) &&
+    args[1]
+  ) {
+    const report = JSON.parse(
+      (await readLocalFile(args[1], assessmentLimits.resultBytes)).toString(
+        "utf8",
+      ),
+    );
+    const inspection = args[2]
+      ? inspectionSchema.parse(
+          JSON.parse(
+            (await readLocalFile(args[2], 6 * 1024 * 1024)).toString("utf8"),
+          ),
+        )
+      : undefined;
+    const result = buildCoverageExplanation(report, inspection?.llm);
+    process.stdout.write(JSON.stringify(result) + "\n");
+    if (result.error || result.fileFailures || result.toolFailures)
+      process.exitCode = 1;
+    return;
+  }
   if (
     args[0] === "inspect" &&
     args.length >= 2 &&

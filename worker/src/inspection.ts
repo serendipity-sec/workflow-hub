@@ -12,7 +12,7 @@ import type { LlmOptions } from "./llm-review.js";
 
 export const inspectionSchema = z
   .strictObject({
-    inspectionVersion: z.literal("1.0.0"),
+    inspectionVersion: z.enum(["1.0.0", "1.1.0"]),
     inputSha256: z.string().regex(/^[a-f0-9]{64}$/),
     assessment: assessmentReportSchema,
     serviceReport: serviceReportSchema,
@@ -21,6 +21,7 @@ export const inspectionSchema = z
   .refine(
     (value) =>
       value.inputSha256 === value.assessment.inputSha256 &&
+      value.inspectionVersion === value.serviceReport.serviceReportVersion &&
       value.serviceReport.inputSha256 === value.inputSha256 &&
       value.llm.inputSha256 === value.inputSha256 &&
       JSON.stringify(value.serviceReport) ===
@@ -43,7 +44,7 @@ export async function presentInspection(
   const serviceReport = buildServiceReport(assessment);
   const llm = await reviewWithLlm(assessment, options);
   return inspectionSchema.parse({
-    inspectionVersion: "1.0.0",
+    inspectionVersion: serviceReport.serviceReportVersion,
     inputSha256: assessment.inputSha256,
     assessment,
     serviceReport,

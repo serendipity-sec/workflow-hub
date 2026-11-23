@@ -1,0 +1,268 @@
+{
+  "schemaVersion": "1.0.0",
+  "engineVersion": "0.9.0",
+  "validatedOn": "2026-11-23",
+  "outcome": "checks_passed",
+  "baselineCommit": "cf2f5beb941e05cb2fbdac5874be4d06ee9f7f40",
+  "image": "sha256:656841169282828902dfbb709350aace09bf8076e18bbed58211d85b2763a66a",
+  "workflowExecution": "public_and_uploaded_workflows_not_run",
+  "actualTeamApiIntegration": "not_run",
+  "productScope": {
+    "profile": "initial_static_v1",
+    "environmentInput": "not_requested",
+    "environmentNotices": "usage_precautions",
+    "piiScope": "existing_detectors_context_completeness_excluded",
+    "unknownSecurityPaths": "review_required",
+    "rawAssessmentStatus": "preserved"
+  },
+  "compatibility": {
+    "currentInspectionVersion": "1.1.0",
+    "currentServiceReportVersion": "1.1.0",
+    "historicalInspectionVersion": "1.0.0",
+    "historicalNativeReportsReproduced": 8,
+    "oldLlmContextBinding": "preserved"
+  },
+  "sources": {
+    "src/advanced-risks.ts": "9fb00fc6a6a894dcd1486d8d507499c45679f6437d2a8f4f0633949a929bfcf0",
+    "src/ai-flow.ts": "fd752a07ca36f105ab91d78255a52241557c8a7cd6c16223d8cf0826e0bf8d3b",
+    "src/analysis.ts": "5b4b7679af83ef8522aa39aa53f3e114162f53963d0d5c8a927ca7823fad331a",
+    "src/analyzer.ts": "913dc6ec510895df73104277ed62c52e4601e1027f8e8bfdcfe4b01e7b15e40a",
+    "src/api-client.ts": "758705f5e03b7d2d7fdf02f3887d0eb83be3cbc7de5cc2a73705d9bdf673c718",
+    "src/assessment-change.ts": "6c19b63ecfcd12fa0e4a8f362a4f4aa1f644f46b52175f67e6a9f655854e87ef",
+    "src/assessment-compare.ts": "c122baf69dd243f0a8566d3185bfa421de7d009ab1ccd923639981c76c4b95d9",
+    "src/assessment-contract.ts": "8ae19e99df5c86544a0c44ae74efa159a2fe5eb4b0efe4b341ea6dfbd691dee2",
+    "src/assessment-engine.ts": "aa5d4b32a345af24365324dbe987ce1b287707fd5ad0172bff8e9fd57e395a03",
+    "src/assessment-entry.ts": "7afe34bc3938688b289d5cadac7934d2a256b7bfa73d10634e770fcf88b9db70",
+    "src/assessment-environment.ts": "fa4efd076be01fcc951eb55a528d1826bb1b7f4e1919e377404d13abbeb0a5b1",
+    "src/assessment-evidence.ts": "824d889edc7e40de655099c006003573609e1f4ff337be3693f8bcb177cf99c8",
+    "src/assessment-policy.ts": "d120e34ab110b27d2a1c6dd19678e70712f89ec5b92f9e12acc9d1379da510d5",
+    "src/assessment-runner.ts": "72ab2fc6e638c449fe89c3ffe2f4edf6cf57c9b683f4b238ab48dc21b0c32d5e",
+    "src/assessment-subworkflows.ts": "e2a0d961a94dc4890f9660005f6a16f65aedbaca017834f9749e7d3c5bc18e70",
+    "src/assessment-summary.ts": "ba9a46063eeaefad9601a4d554e7b98a1007e3be081efb014c3317505b1b4c83",
+    "src/binary-provenance.ts": "e5e4039e9f71edcdf869e469b7ece64824041e4b152e9ae004c5b8f7f14e67c6",
+    "src/bounded-code.ts": "343d9d7a3267209d0468672eac7739849ce5cdd0f93b2ca4af7e8fd7eb23a707",
+    "src/cli.ts": "e4e201052875f3e020f91ad16f6701ca0f339b05c50b7d2d7ba46854a36c800c",
+    "src/compare.ts": "8ad9c98bb033ad3ebc2ebe368e99239de1590c3f76f37c13d579514f4b429e0b",
+    "src/contract.ts": "858c9260a69a08b5e1826f02d7d26bb51bf9d3dd7480f793afb06fe3618e3d98",
+    "src/coverage-causes.ts": "769526fd5f9df878450974a95a3d3ac2c87bf8e54fc82830238553aff4bb82eb",
+    "src/coverage-policy.ts": "b809a98c292638f201db00c08fea00ab1d7cd5a071901ea2a59f4ae10dee78f5",
+    "src/definition-risks.ts": "f1c2696b2cf264c7e9e8d16a7fac4083dc9c1b6852b4fe5ded30303a9edd392e",
+    "src/extended-sinks.ts": "e298adbf1e94f690ca5e499263de74f9d565df382f58745856dc2b0c1c244d34",
+    "src/gitleaks.ts": "706b17d774df0bc25dcfc3ca21a2baaf855359ad5ca7a4f8767e43a613ecaede",
+    "src/inspection.ts": "1beeb0eb6ec7406178765b0364e617f38d24588c76448392adb5e7f90c765f34",
+    "src/llm-review.ts": "a0c7a14cc618e482ecf61828e8f4250dcc69290e3d57f0c6dcf4ca422cc187db",
+    "src/n8n.ts": "a434fa55a775411a0da86cf75265581cd5819437a0743d98fafaaee0dc30807d",
+    "src/native-inspection.ts": "7de3f269b17c37ad0d6aab9a46cc21b65c26e0db60020638dbbe9533a16c315c",
+    "src/runner.ts": "0b230a41f8db490a819574ee24e2d758262b04f2836077d6f220ba6413f0d1ee",
+    "src/service-report.ts": "9b117541abdb2cf8c8e8eb5779712950e0d23aec507055c3a15b37a25acb5034",
+    "src/service-scope.ts": "e4762e08e1bc6e71d4d647c354ab2c76ceec27099da68746c25285dd42490fe9",
+    "src/static-analyzer.ts": "3bf95583bbdffbcdee8be5817496d426f723c37aa6778a823da91a09f880355b",
+    "src/static-compare.ts": "2102d27fb2a73d745635a1780393e728273c95ee1753bd26a58ef832e745a179",
+    "src/static-content.ts": "5d697582822c664f2c4d55a9732c48bdb02a4f84a293ca17a8ee545e4bb99ee5",
+    "src/static-context.ts": "43a510a5c33a610f0d39f1a44f193aedbc9918adad3137e615a64197ee810cb2",
+    "src/static-contract.ts": "4394a441e8b543183ce30a2f2e89f290390200b9e3f2acc68cabc402e4ec39b1",
+    "src/static-engine.ts": "f23cf90a52bfacfc78d89e00955b55d28d46ef3ddc11ed125298684860eb593c",
+    "src/static-flow.ts": "a8f11b665e3e5a4f86d00eef50cb5c39d55d6025745b76516b20e593fa5b701e",
+    "src/static-runner.ts": "f69dbad5b9ba0ae1747a760fe68fbf577a1afd63369d3d4f61ed997a60e6267a",
+    "src/static-settings.ts": "5fe86ee52cbf5b8ea24280521390de67a5653ddd8d99d8cadaa51c0d80f10a5c",
+    "src/subprocess.ts": "bdea0b752abb871d9bd33f552f1232382bafff35fd324c4b56f5d965084a0289",
+    "src/value-flow.ts": "8c7a31094a1ff9c52377fddde6aa45e176f77a014c260ccfe1ba7d512da92b3c",
+    "src/value-shape.ts": "2024e4d4f22cd23652d18f4af7a32aaa02745ba13c5ab43de3f05acaf65550f5",
+    "src/worker-io.ts": "8301288a8ed3d4c40d35d1d5ee90d82e7b7d919bda090480a00f266991ae8b79",
+    "package.json": "cacb9c9015d6c028396d938866cea137cc75c5076487cf9ac25ea42368ce4669",
+    "package-lock.json": "ab0a42e2afb1da5dfef9300e1326d2ff0a537405462fd30b5722ac1919b678a2",
+    "Dockerfile.assessment": "e83ece4b02441555d6f762bbde5dddfb54a4e6ea4a291121f5fa5f9e5a0ab12d",
+    "Dockerfile.assessment-runtime": "e03213f7e2365ca2299bb53953c4d0ffd5d3bd8cba9a8e194d4f96c794667217",
+    "validation/compare-coverage-causes.mjs": "3ddf6b5457ca8c71b88e50d8e17d9dabc732332069339ec31f83829ae3dae899",
+    "validation/verify-service-scope.mjs": "a2eea9322785b7cfb9870041ad915a474a8adc53ef23462153f9bdd4ebe66d60",
+    "validation/verify-inspection.mjs": "1093e2f69234e2712d346fa32d8f4df61442c460bc78d49a61b775436c6521c0",
+    "validation/verify-public-regressions.mjs": "4a32c856d87dc39efa48fb207547f6d9013ef926a07035e2ec2dc23e1438f340"
+  },
+  "receipts": {
+    "validation/assessment-runtime-0.9.0-results.json": "3a7c32b8db34b3ceff59c16b6ce9c97b2623d73e4bb2fe8e66a4a089ed66133c",
+    "validation/public-assessment-0.9.0-results.json": "fdde0cdba7bfa6e1aa49f8997b886abb127be9d1bc43c799204d496c6697ea5a",
+    "validation/public-additional-0.9.0-results.json": "37192eb7479eb5bb5be7b151a607565193013069a4e9d39aee96ff5945c9e1c7",
+    "validation/inspection-0.9.0-results.json": "3072dfa35911964fecfc23597e604a5efb59ee947a87e96b19fd6058a263a932",
+    "validation/coverage-causes-0.9.0-results.json": "3c2659cbf63c44635d9357368acaa72dba33fe2e62e64257887ea5061f0000a3",
+    "validation/public-regressions-0.9.0-results.json": "401c1f0ac499b00764b59ccee0ed6f27dae2b4e561fe9d59a3120591978cc87e",
+    "validation/service-scope-regressions-0.9.0-results.json": "eb65aad1a48e62dc0cb660978f92f7bcfc54c7f9d4c253a3375062f76ef5a3bd",
+    "validation/public-service-path-0.9.0-results.json": "477cf4eef593f5e87af068f21c1e83463167e6a968726eb1244f1b90c8359ce8",
+    "validation/static-corpus-0.9.0-results.json": "873bad163ca05bb19a6a6c62c376e71ff94f78ddcfe93fb72ce71a3b249dd553",
+    "validation/legacy-0.9.0-results.json": "64ea87ffaffb4d2002c0231664f8580f804b0a767a0025b3fc1020d38ec2447d",
+    "validation/native-profile-0.9.0-results.json": "494cdafb2f43f47a334a49a12f57ff1146495e55e51d46165799bf455023c730",
+    "validation/public-assessment-0.9.0-first-pass-results.json": "3c525693c0a21e83a0b377663e18b82afe6e91970694dcb89247fa6328447bf0"
+  },
+  "checks": {
+    "workerTests": 586,
+    "failed": 0,
+    "skipped": 0,
+    "rootToolingTests": 6,
+    "format": true,
+    "lint": true,
+    "typecheck": true,
+    "build": true,
+    "rootCheck": true,
+    "staticCorpus": {
+      "cases": 27,
+      "factDenominator": 23,
+      "stateCases": 4,
+      "assertedTP": 13,
+      "assertedTN": 10,
+      "assertedFP": 0,
+      "assertedFN": 0,
+      "analysisErrors": 2,
+      "unsupportedTargetCases": 1,
+      "partialTargetCases": 4,
+      "passed": 27,
+      "assertionFailures": 0
+    },
+    "legacyCases": 12,
+    "nativeProfileAssertions": 44,
+    "runtime": {
+      "assessmentCases": 8,
+      "analyzedFiles": 9,
+      "isolationChecks": 9,
+      "failureChecks": 4,
+      "cleanup": "no_new_containers"
+    },
+    "publicRegressionAssertions": 54,
+    "serviceScopeRegressionAssertions": 86,
+    "serviceRevisionComparisons": 3,
+    "independentReview": {
+      "method": "current_session_independent_cross_review",
+      "remainingP1P2": 0,
+      "overlapsMainSuite": true,
+      "aiCases": 75,
+      "additionalAiBoundaryCases": 19,
+      "codeCases": 43,
+      "additionalCodeBoundaryCases": 16,
+      "serviceCases": 20
+    },
+    "separateCliReview": {
+      "status": "not_run",
+      "priorAttempt": "blocked_before_execution",
+      "handling": "latest_user_commit_push_instruction_applied_with_current_session_independent_review",
+      "claimedExecuted": false
+    }
+  },
+  "public": {
+    "samples": 25,
+    "rawStatuses": {
+      "analyzed": 0,
+      "partial": 25,
+      "unsupported": 0,
+      "error": 0
+    },
+    "returnedToolStatuses": 75,
+    "finalToolErrors": 0,
+    "serviceAnalysisStatuses": {
+      "review_required": 25
+    },
+    "serviceCardOccurrences": {
+      "findings": 462,
+      "observations": 1120,
+      "analysisGaps": 2654,
+      "environmentChecks": 774,
+      "scopeNotes": 356
+    },
+    "highRiskFindingOccurrences": 56,
+    "generalAccuracy": "not_measured",
+    "behaviorPreserved": "not_verified",
+    "diagnosticClassification": {
+      "before": {
+        "statuses": {
+          "analyzed": 0,
+          "partial": 25,
+          "unsupported": 0,
+          "error": 0
+        },
+        "counts": {
+          "environment_evidence": 479,
+          "definition_input": 26,
+          "analyzer_extension": 1645,
+          "mixed_provenance": 676,
+          "scope_boundary": 343,
+          "unclassified": 0
+        },
+        "affectedSamples": {
+          "environment_evidence": 25,
+          "definition_input": 8,
+          "analyzer_extension": 25,
+          "mixed_provenance": 25,
+          "scope_boundary": 25,
+          "unclassified": 0
+        },
+        "diagnosticOccurrences": 3169,
+        "toolFailures": 0,
+        "fileFailures": 0
+      },
+      "after": {
+        "statuses": {
+          "analyzed": 0,
+          "partial": 25,
+          "unsupported": 0,
+          "error": 0
+        },
+        "counts": {
+          "environment_evidence": 774,
+          "definition_input": 40,
+          "analyzer_extension": 1828,
+          "mixed_provenance": 785,
+          "scope_boundary": 356,
+          "unclassified": 0
+        },
+        "affectedSamples": {
+          "environment_evidence": 25,
+          "definition_input": 11,
+          "analyzer_extension": 25,
+          "mixed_provenance": 25,
+          "scope_boundary": 25,
+          "unclassified": 0
+        },
+        "diagnosticOccurrences": 3783,
+        "toolFailures": 0,
+        "fileFailures": 0
+      },
+      "baselineReclassifiedWithCurrentRegistry": true,
+      "countsAreVulnerabilities": false
+    }
+  },
+  "firstPassFailure": {
+    "recordPreserved": "validation/public-assessment-0.9.0-first-pass-results.json",
+    "failedToolResults": [
+      {
+        "id": 15403,
+        "tools": [
+          {
+            "tool": "gitleaks",
+            "status": "error",
+            "version": "8.30.1",
+            "code": "tool_failed"
+          }
+        ]
+      }
+    ],
+    "rerun": "all_original_15_inputs_same_image_sequential",
+    "finalToolErrors": 0,
+    "rootCause": "not_established",
+    "notCountedAsFirstPassSuccess": true
+  },
+  "llm": {
+    "newCalls": 0,
+    "offlinePresentations": 25,
+    "historicalLiveEvidence": "validation/llm-public-three-0.8.0-results.json",
+    "historicalCalls": 3,
+    "historicalEvidenceNotClaimedAsCurrentContext": true,
+    "analysisGapsResolvedByModel": false
+  },
+  "limitations": [
+    "arbitrary_code_control_flow_and_mutations_not_fully_modeled",
+    "console_local_argument_alias_provenance_gap_retained",
+    "dynamic_sql_and_unreviewed_connector_operations",
+    "referenced_child_definition_not_inspected",
+    "binary_bytes_and_runtime_values_not_provided",
+    "model_runtime_behavior_not_proven",
+    "public_or_modified_workflow_behavior_not_executed",
+    "actual_team_api_not_integrated"
+  ]
+}

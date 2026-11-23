@@ -2,9 +2,13 @@
 
 Workflow Hub의 `worker/`에서 n8n JSON을 정적으로 분석합니다. 결과에 적용된 규칙과 분석 범위를 기록합니다. 설계 기준은 [보안 설계](../docs/SECURITY_DESIGN.md)와 [Workflow Hub PR #7](https://github.com/serendipity-sec/workflow-hub/pull/7)입니다.
 
-현재 서비스용 진입점은 **`inspect`**입니다. 0.7.0의 10개 범주 정적 검사, 고정 한국어 기능·위험·조치 설명, 선택적 OpenRouter GLM 설명을 한 결과로 제공합니다. `inspect workflow.json --llm`은 승인한 범위에서 최소화한 근거를 모델에 보내며, 생략하면 외부 LLM 호출 없이 동작합니다. [서비스 결과와 연결 문서](docs/integration-handoff.md), [결과 표시 계약](docs/service-report.md), [LLM 설정과 경계](docs/llm-review.md)를 확인하세요.
+현재 서비스용 진입점은 **`inspect`**입니다. 0.9.0의 10개 범주 정적 검사, 고정 한국어 기능·위험·조치 설명, 선택적 OpenRouter GLM 설명을 한 결과로 제공합니다. `inspect workflow.json --llm`은 승인한 범위에서 최소화한 근거를 모델에 보내며, 생략하면 외부 LLM 호출 없이 동작합니다. [서비스 결과와 연결 문서](docs/integration-handoff.md), [결과 표시 계약](docs/service-report.md), [LLM 설정과 경계](docs/llm-review.md)를 확인하세요.
 
 [0.7.0 구현·검증 기록](docs/service-inspection-0.7.0.md)에 공개 25개 시험, 실제 LLM 호출, 수정 프로필과 남은 조건을 정리했습니다. `partial`을 제거한 범용 완전 분석기로 소개하지 않습니다.
+
+0.8.0은 [원인별 분류](docs/coverage-causes.md), [Set·Switch·Aggregate](docs/data-effects.md), [Code 배열·예외·await](docs/bounded-code-collections.md), [AI 도구 예제 스키마](docs/ai-example-schema.md)를 보완합니다. [동일 공개 25개의 재검사와 남은 조건](docs/partial-causes-0.8.0.md)을 확인하세요. `node dist/cli.js coverage assessment.json [inspection.json]`으로 환경 근거·정의 누락·구현 확장·혼합 원인·지원 범위를 따로 확인합니다. 원래 판정은 보존합니다.
+
+0.9.0은 실행 환경·권한·정책을 사용자 입력 대신 사용 전 주의사항으로 제공하고, 개인정보 문맥 모델의 언어·완전성만 서비스 미완료 사유에서 제외합니다. 기존 개인정보·비밀정보 탐지는 유지합니다. [Code 내장 함수](docs/code-builtins.md), [로컬 데이터 효과와 오류 출력](docs/data-effects.md), [AI 문서·임베딩·벡터 저장소 경로](docs/ai-flow.md)와 마지막 Code 노드의 부수 효과 검사를 보완합니다. 원시 `partial`은 보존하고, 실제 미해석 경로·고위험 후보·정책 차단은 서비스 1.1.0 결과의 검토 필요 상태로 전달합니다. [변경·검증 기록](docs/service-scope-0.9.0.md)을 확인하세요.
 
 검사 엔진의 **`assess`**는 계속 사용할 수 있습니다. 필드 흐름·커넥터 전송·실제 NLP/Python AST·SQL AST·정적 AI 연결·정책·환경/패키지 근거·자식 정의·수정안을 연결합니다. Docker에서 네트워크·파일 쓰기·자원을 제한합니다. [통합 검사 실행법과 지원 범위](docs/assessment.md), [0.6.0의 Code·커넥터·AI 확장](docs/static-expansion.md), [SEC 사례 25개 대응표](docs/assessment-evidence.md)를 확인하세요. 실제 팀 API는 연결하지 않았습니다.
 

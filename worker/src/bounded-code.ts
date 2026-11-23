@@ -1,4 +1,6 @@
 import type { AbstractValue } from "./value-flow.js";
+import { preserveValueShape } from "./value-shape.js";
+import { createHash } from "node:crypto";
 import { tokenizer, type Token } from "acorn";
 
 type Ast = Record<string, unknown>;
@@ -420,13 +422,18 @@ export function analyzeBoundedCode(
         );
     }
     if (
+      ([
+        "FunctionDeclaration",
+        "FunctionExpression",
+        "ArrowFunctionExpression",
+      ].includes(String(value.type)) &&
+        value.async === true) ||
       [
         "ForStatement",
         "ForInStatement",
         "WhileStatement",
         "DoWhileStatement",
         "SwitchStatement",
-        "AwaitExpression",
         "YieldExpression",
         "ClassDeclaration",
         "WithStatement",
@@ -576,6 +583,13 @@ export function analyzeBoundedCode(
             depth: depth + 1,
           })),
         );
+      if (value.representativeElement)
+        pending.push({ value: value.representativeElement, depth: depth + 1 });
+      for (const alternative of [
+        ...(value.projectionAlternatives ?? []),
+        ...(value.projectionDependencies ?? []),
+      ])
+        pending.push({ value: alternative, depth: depth + 1 });
     }
     return true;
   };
@@ -606,6 +620,94 @@ export function analyzeBoundedCode(
       type: "ArrayExpression",
       elements: items.map(marker),
     });
+  };
+  const candidate = (value: AbstractValue, index = false): AbstractValue => {
+    const origins = value.origins.map((origin) =>
+      origin.kind === "literal"
+        ? origin
+        : {
+            ...origin,
+            includesDescendants: true as const,
+            descendantPath: origin.projectionUnknown
+              ? origin.descendantPath
+              : [...(origin.descendantPath ?? []), ...(index ? [null] : [])],
+          },
+    );
+    return {
+      ...value,
+      origins,
+      valueId: createHash("sha256")
+        .update(
+          JSON.stringify(["code_collection_candidate", value.valueId, origins]),
+        )
+        .digest("hex"),
+    };
+  };
+  const collection = (
+    item: AbstractValue,
+    code = "code_collection_cardinality_unverified",
+  ): AbstractValue => {
+    if (!shapeFits([item])) {
+      opaque = true;
+      return unknown("code_value_shape_limit", [item]);
+    }
+    const representative = candidate(item);
+    return {
+      ...unknown(code, [representative]),
+      representativeElement: representative,
+      constant: undefined,
+      fields: undefined,
+      fieldsComplete: false,
+      fullObject: true,
+      guards: [],
+      valueId: createHash("sha256")
+        .update(
+          JSON.stringify(["code_collection_summary", representative.valueId]),
+        )
+        .digest("hex"),
+    };
+  };
+  const builtinResult = (values: AbstractValue[]): AbstractValue => ({
+    ...unknown("code_builtin_result_unverified", values),
+    constant: undefined,
+    fields: undefined,
+    fieldsComplete: false,
+    fullObject: false,
+    presence: "unknown",
+    guards: [],
+  });
+  const knownCollection = (value: AbstractValue): boolean =>
+    Boolean(value.representativeElement) ||
+    (value.fullObject &&
+      value.fieldsComplete === true &&
+      Boolean(value.fields) &&
+      Object.keys(value.fields!).every((key) =>
+        /^\/(?:0|[1-9]\d*)$/.test(key),
+      )) ||
+    (value.fullObject &&
+      value.diagnosticCodes.includes("string_split_cardinality_unverified")) ||
+    Boolean(value.projectionAlternatives?.every(knownCollection));
+  const projectField = (value: AbstractValue, key: string): AbstractValue => {
+    const projected = host.project(value, [key]);
+    if (
+      specialKeys.has(key) ||
+      projected.status === "resolved" ||
+      !value.diagnosticCodes.includes("code_collection_shape_unverified")
+    )
+      return projected;
+    // An unknown representative has no proven array index or object shape.
+    // A subsequent named read can still be a sensitive field candidate. Reuse
+    // the existing field-name classifier without inventing an exact source
+    // index: origins remain the known collection prefix and status stays partial.
+    const classified = host.project(madeObject({ [key]: projected }), [key]);
+    return {
+      ...classified,
+      constant: undefined,
+      fields: undefined,
+      fieldsComplete: false,
+      presence: "unknown",
+      guards: [],
+    };
   };
   const embedReferences = (ast: Ast, state: State): void => {
     const pending: unknown[] = [ast];
@@ -649,11 +751,14 @@ export function analyzeBoundedCode(
                     depth + 1,
                   );
                   return {
-                    ...unknown("code_branch_field_optional", [possible]),
+                    ...preserveValueShape(
+                      unknown("code_branch_field_optional", [possible]),
+                      possible,
+                    ),
                     presence: "unknown" as const,
-                    fields: possible.fields,
-                    fieldsComplete: possible.fieldsComplete,
-                    fullObject: possible.fullObject,
+                    representativeSelection: true,
+                    constant: undefined,
+                    guards: [],
                   };
                 })();
         }
@@ -673,16 +778,48 @@ export function analyzeBoundedCode(
     return value;
   };
   const element = (value: AbstractValue): AbstractValue => {
-    if (value.fields) {
+    if (value.projectionAlternatives) {
+      const possible = choice(value.projectionAlternatives.map(element));
+      const dependencies = value.projectionDependencies ?? [];
+      return dependencies.length
+        ? {
+            ...preserveValueShape(
+              unknown("code_collection_shape_unverified", [
+                possible,
+                ...dependencies,
+              ]),
+              possible,
+            ),
+            projectionDependencies: [
+              ...(possible.projectionDependencies ?? []),
+              ...dependencies,
+            ],
+          }
+        : possible;
+    }
+    if (value.representativeElement)
+      return structuredClone(value.representativeElement);
+    const candidateSubtree = {
+      ...candidate(value, true),
+      constant: undefined,
+      guards: [],
+      fieldsComplete: false,
+    };
+    if (value.fields && value.fieldsComplete === true) {
       const entries = Object.entries(value.fields).filter(([key]) =>
         /^\/\d+$/.test(key),
       );
       if (entries.length && !value.diagnosticCodes.includes("flow_field_limit"))
-        return choice(entries.map(([, item]) => item));
+        return choice(entries.map(([, item]) => candidate(item)));
       if (!Object.keys(value.fields).length)
-        return unknown("code_collection_empty_or_unavailable", [value]);
+        return unknown("code_collection_empty_or_unavailable", [
+          candidateSubtree,
+        ]);
     }
-    return unknown("code_collection_shape_unverified", [value]);
+    // Unknown reindexing may select any descendant. Preserve the same bounded
+    // candidate-subtree marker used by Aggregate so explicit source policy
+    // classifications survive later scalar projections without asserting /0.
+    return unknown("code_collection_shape_unverified", [candidateSubtree]);
   };
   const mergeState = (base: State, branches: State[]): void => {
     for (const branch of branches)
@@ -841,6 +978,42 @@ export function analyzeBoundedCode(
     }
     if (ast.type === "Literal") return host.evaluate(ast);
     if (
+      ast.type === "NewExpression" &&
+      object(ast.callee) &&
+      ast.callee.type === "Identifier" &&
+      ast.callee.name === "Date" &&
+      !state.env.has("Date") &&
+      !functions.has("Date") &&
+      Array.isArray(ast.arguments) &&
+      ast.arguments.length <= 1 &&
+      ast.arguments.every(
+        (argument) => object(argument) && argument.type !== "SpreadElement",
+      )
+    )
+      return builtinResult(
+        ast.arguments.length
+          ? ast.arguments.map((argument) =>
+              expression(argument as Ast, state, depth + 1),
+            )
+          : [host.literal(undefined)],
+      );
+    if (ast.type === "AwaitExpression" && object(ast.argument)) {
+      const input = expression(ast.argument, state, depth + 1);
+      const value = unknown("code_await_result_unverified", [input]);
+      // Thenable resolution, rejection and scheduling remain unknown. Merely
+      // parsing n8n's async wrapper does not run the operation or prove success.
+      return {
+        ...value,
+        constant: undefined,
+        fields: undefined,
+        fieldsComplete: false,
+        fullObject: true,
+        presence: "unknown",
+        trust: "unknown",
+        guards: [],
+      };
+    }
+    if (
       ast.type === "ChainExpression" ||
       ast.type === "ParenthesizedExpression"
     ) {
@@ -943,7 +1116,7 @@ export function analyzeBoundedCode(
           );
       }
       return spread
-        ? unknown("code_array_spread_shape_unverified", values)
+        ? collection(choice(values), "code_array_spread_shape_unverified")
         : array(values);
     }
     if (ast.type === "MemberExpression" && object(ast.object)) {
@@ -977,10 +1150,16 @@ export function analyzeBoundedCode(
       }
       const receiver = expression(ast.object, state, depth + 1);
       const key = keyOf(ast);
-      if (key !== undefined) return host.project(receiver, [key]);
+      if (key !== undefined) return projectField(receiver, key);
       const index = object(ast.property)
         ? expression(ast.property, state, depth + 1)
         : host.literal(undefined);
+      if (
+        index.status === "resolved" &&
+        (typeof index.constant === "string" ||
+          typeof index.constant === "number")
+      )
+        return projectField(receiver, String(index.constant));
       return unknown("code_dynamic_index_unresolved", [receiver, index]);
     }
     if (
@@ -992,17 +1171,117 @@ export function analyzeBoundedCode(
       const method = keyOf(callee);
       if (
         callee.type === "MemberExpression" &&
+        callee.computed !== true &&
+        object(callee.object) &&
+        callee.object.type === "Identifier" &&
+        typeof callee.object.name === "string" &&
+        !state.env.has(callee.object.name) &&
+        !functions.has(callee.object.name) &&
+        ast.arguments.every(
+          (argument) => object(argument) && argument.type !== "SpreadElement",
+        )
+      ) {
+        const owner = callee.object.name;
+        const count = ast.arguments.length;
+        const accepted =
+          (owner === "Math" &&
+            ((["floor", "ceil", "round", "trunc", "abs"].includes(
+              method ?? "",
+            ) &&
+              count === 1) ||
+              (["min", "max"].includes(method ?? "") &&
+                count > 0 &&
+                count <= 16))) ||
+          (owner === "Date" &&
+            ((method === "parse" && count === 1) ||
+              (method === "now" && count === 0))) ||
+          (owner === "Number" &&
+            ["isFinite", "isInteger", "isNaN", "isSafeInteger"].includes(
+              method ?? "",
+            ) &&
+            count === 1);
+        if (accepted)
+          return builtinResult(
+            count
+              ? ast.arguments.map((argument) =>
+                  expression(argument as Ast, state, depth + 1),
+                )
+              : [host.literal(undefined)],
+          );
+      }
+      if (
+        callee.type === "MemberExpression" &&
+        callee.computed !== true &&
+        object(callee.object) &&
+        ["join", "slice", "pop", "match"].includes(method ?? "") &&
+        ast.arguments.every(
+          (argument) => object(argument) && argument.type !== "SpreadElement",
+        )
+      ) {
+        const receiver = expression(callee.object, state, depth + 1);
+        const args = ast.arguments.map((argument) =>
+          expression(argument as Ast, state, depth + 1),
+        );
+        if (method === "join" && args.length <= 1 && knownCollection(receiver))
+          return builtinResult([receiver, ...args]);
+        if (
+          method === "slice" &&
+          args.length <= 2 &&
+          knownCollection(receiver)
+        ) {
+          const selected = collection(element(receiver));
+          if (!args.length) return selected;
+          const dependency = builtinResult(args);
+          return {
+            ...preserveValueShape(
+              unknown("code_collection_cardinality_unverified", [
+                selected,
+                dependency,
+              ]),
+              selected,
+            ),
+            projectionDependencies: [dependency],
+          };
+        }
+        // pop mutates its receiver. Only a fresh, unaliased split result is
+        // accepted; general array aliases keep the existing opaque profile.
+        if (
+          method === "pop" &&
+          !args.length &&
+          callee.object.type === "CallExpression" &&
+          object(callee.object.callee) &&
+          callee.object.callee.type === "MemberExpression" &&
+          callee.object.callee.computed !== true &&
+          keyOf(callee.object.callee) === "split" &&
+          knownCollection(receiver)
+        )
+          return builtinResult([receiver]);
+        if (
+          method === "match" &&
+          args.length === 1 &&
+          object(ast.arguments[0]) &&
+          ast.arguments[0].type === "Literal" &&
+          object(ast.arguments[0].regex)
+        )
+          return collection(builtinResult([receiver, ...args]));
+        if (method === "slice" && args.length <= 2)
+          return host.evaluate({
+            ...ast,
+            callee: { ...callee, object: marker(receiver) },
+            arguments: args.map(marker),
+          });
+        opaque = true;
+        return unknown("code_call_effect_unresolved", [receiver, ...args]);
+      }
+      if (
+        callee.type === "MemberExpression" &&
         object(callee.object) &&
         callee.object.type === "Identifier" &&
         callee.object.name === "$input" &&
         method === "all" &&
         !ast.arguments.length
       ) {
-        const value = array([madeObject({ json: host.input() })]);
-        const partial = unknown("code_collection_cardinality_unverified", [
-          value,
-        ]);
-        return { ...partial, fields: value.fields, fieldsComplete: false };
+        return collection(madeObject({ json: host.input() }));
       }
       if (
         callee.type === "MemberExpression" &&
@@ -1036,24 +1315,64 @@ export function analyzeBoundedCode(
       if (
         callee.type === "MemberExpression" &&
         object(callee.object) &&
-        ["map", "filter", "forEach"].includes(method ?? "") &&
+        method === "filter" &&
         ast.arguments.length === 1 &&
         object(ast.arguments[0]) &&
-        ["ArrowFunctionExpression", "FunctionExpression"].includes(
-          String(ast.arguments[0].type),
-        )
+        ast.arguments[0].type === "Identifier" &&
+        ast.arguments[0].name === "Boolean" &&
+        !state.env.has("Boolean") &&
+        !functions.has("Boolean")
       ) {
+        // Truthiness does not validate, sanitize or establish any field. Keep
+        // one representative of all possible survivors; filtering shifts the
+        // indices, so the original array's exact fields cannot be retained.
+        const receiver = expression(callee.object, state, depth + 1);
+        return collection(element(receiver));
+      }
+      if (
+        callee.type === "MemberExpression" &&
+        object(callee.object) &&
+        ["map", "filter", "forEach", "some", "every", "flatMap"].includes(
+          method ?? "",
+        ) &&
+        ast.arguments.length === 1 &&
+        object(ast.arguments[0]) &&
+        (["ArrowFunctionExpression", "FunctionExpression"].includes(
+          String(ast.arguments[0].type),
+        ) ||
+          (ast.arguments[0].type === "Identifier" &&
+            typeof ast.arguments[0].name === "string" &&
+            functions.has(ast.arguments[0].name) &&
+            !state.env.has(ast.arguments[0].name)))
+      ) {
+        const callback =
+          ast.arguments[0].type === "Identifier"
+            ? functions.get(String(ast.arguments[0].name))!
+            : ast.arguments[0];
         const receiver = expression(callee.object, state, depth + 1);
         const item = element(receiver);
         const args = [item];
-        if (
-          Array.isArray(ast.arguments[0].params) &&
-          ast.arguments[0].params.length > 1
-        )
+        if (Array.isArray(callback.params) && callback.params.length > 1)
           args.push(unknown("code_collection_index_unverified"));
-        captureConstants(ast.arguments[0], state);
-        const mapped = callFunction(ast.arguments[0], args, state, depth + 1);
-        if (method === "filter") return { ...receiver, guards: [] };
+        if (Array.isArray(callback.params) && callback.params.length > 2)
+          args.push(receiver);
+        // Named helpers retain their defining environment. Re-capturing here
+        // would incorrectly turn the caller's shadowed variable into a closure.
+        if (ast.arguments[0].type !== "Identifier")
+          captureConstants(callback, state);
+        const mapped = callFunction(callback, args, state, depth + 1);
+        if (method === "filter") {
+          return collection(item);
+        }
+        if (method === "some" || method === "every")
+          return {
+            ...host.union([receiver, mapped]),
+            constant: undefined,
+            fields: undefined,
+            fieldsComplete: false,
+            fullObject: false,
+            guards: [],
+          };
         if (method === "forEach") {
           opaque = true;
           return unknown("code_callback_mutation_unresolved", [
@@ -1061,11 +1380,17 @@ export function analyzeBoundedCode(
             mapped,
           ]);
         }
-        const result = array([mapped]);
-        const partial = unknown("code_collection_cardinality_unverified", [
-          result,
-        ]);
-        return { ...partial, fields: result.fields, fieldsComplete: false };
+        // flatMap may return an array or a scalar. Preserve both the returned
+        // value and a possible element until the runtime shape is known; this
+        // cannot be used to prove a particular index or remove sensitivity.
+        const mappedItem =
+          method === "flatMap"
+            ? unknown("code_flatmap_shape_unverified", [
+                mapped,
+                element(mapped),
+              ])
+            : mapped;
+        return collection(mappedItem);
       }
       const simple =
         callee.type === "Identifier" &&
@@ -1109,14 +1434,67 @@ export function analyzeBoundedCode(
               };
         return host.evaluate({ ...ast, callee: rewritten, arguments: args });
       }
-      // Date formatting remains in the existing declared pure-clock profile.
+      // Date/clock formatting must observe the bounded local environment too.
+      // Passing the original AST to the expression-only host loses local
+      // constructor and formatting arguments (including captured parameters).
       if (
         callee.type === "MemberExpression" &&
         object(callee.object) &&
         (callee.object.type === "NewExpression" ||
           ["$now", "$today"].includes(String(callee.object.name)))
-      )
-        return host.evaluate(ast);
+      ) {
+        const receiver = expression(callee.object, state, depth + 1);
+        const args = ast.arguments
+          .filter(object)
+          .map((argument) =>
+            expression(
+              argument.type === "SpreadElement" && object(argument.argument)
+                ? argument.argument
+                : argument,
+              state,
+              depth + 1,
+            ),
+          );
+        const nativeDate =
+          callee.object.type === "NewExpression" &&
+          object(callee.object.callee) &&
+          callee.object.callee.type === "Identifier" &&
+          callee.object.callee.name === "Date" &&
+          !state.env.has("Date") &&
+          !functions.has("Date") &&
+          Array.isArray(callee.object.arguments) &&
+          callee.object.arguments.length <= 1 &&
+          callee.object.arguments.every(
+            (argument) => object(argument) && argument.type !== "SpreadElement",
+          ) &&
+          [
+            "toDateString",
+            "toISOString",
+            "toUTCString",
+            "toJSON",
+            "toLocaleDateString",
+            "toLocaleString",
+            "toLocaleTimeString",
+          ].includes(method ?? "");
+        const n8nClock =
+          callee.object.type === "Identifier" &&
+          ["$now", "$today"].includes(String(callee.object.name)) &&
+          !state.env.has(String(callee.object.name)) &&
+          ["toFormat", "toISO", "toISODate", "toLocaleString"].includes(
+            method ?? "",
+          );
+        if (
+          callee.computed !== true &&
+          (nativeDate || n8nClock) &&
+          ast.arguments.length <= 2 &&
+          ast.arguments.every(
+            (argument) => object(argument) && argument.type !== "SpreadElement",
+          )
+        )
+          return builtinResult([receiver, ...args]);
+        opaque = true;
+        return unknown("code_call_effect_unresolved", [receiver, ...args]);
+      }
       opaque = true;
       return unknown(
         "code_call_effect_unresolved",
@@ -1124,6 +1502,27 @@ export function analyzeBoundedCode(
           .filter(object)
           .map((arg) => expression(arg, state, depth + 1)),
       );
+    }
+    if (ast.type === "NewExpression") {
+      opaque = true;
+      return unknown("code_expression_profile_unresolved", [
+        ...(object(ast.callee)
+          ? [expression(ast.callee, state, depth + 1)]
+          : []),
+        ...(Array.isArray(ast.arguments)
+          ? ast.arguments
+              .filter(object)
+              .map((argument) =>
+                expression(
+                  argument.type === "SpreadElement" && object(argument.argument)
+                    ? argument.argument
+                    : argument,
+                  state,
+                  depth + 1,
+                ),
+              )
+          : []),
+      ]);
     }
     if (
       [
@@ -1221,6 +1620,72 @@ export function analyzeBoundedCode(
     }
     opaque = true;
     unknown("code_assignment_target_unresolved", [value]);
+  };
+  const isolatedJsonParseTry = (item: Ast, state: State): boolean => {
+    if (
+      item.finalizer != null ||
+      !object(item.block) ||
+      !Array.isArray(item.block.body) ||
+      item.block.body.length !== 1 ||
+      !object(item.block.body[0]) ||
+      !object(item.handler) ||
+      !object(item.handler.body) ||
+      !Array.isArray(item.handler.body.body) ||
+      state.env.has("JSON") ||
+      functions.has("JSON")
+    )
+      return false;
+    const statement = item.block.body[0];
+    let call: unknown;
+    if (statement.type === "ReturnStatement") call = statement.argument;
+    else if (
+      statement.type === "ExpressionStatement" &&
+      object(statement.expression) &&
+      statement.expression.type === "AssignmentExpression" &&
+      statement.expression.operator === "=" &&
+      object(statement.expression.left) &&
+      statement.expression.left.type === "Identifier" &&
+      state.env.get(String(statement.expression.left.name))?.mutable === true
+    )
+      call = statement.expression.right;
+    if (
+      !object(call) ||
+      call.type !== "CallExpression" ||
+      !object(call.callee) ||
+      call.callee.type !== "MemberExpression" ||
+      call.callee.computed === true ||
+      !object(call.callee.object) ||
+      call.callee.object.type !== "Identifier" ||
+      call.callee.object.name !== "JSON" ||
+      keyOf(call.callee) !== "parse" ||
+      !Array.isArray(call.arguments) ||
+      call.arguments.length !== 1 ||
+      !object(call.arguments[0]) ||
+      !["Identifier", "Literal"].includes(String(call.arguments[0].type))
+    )
+      return false;
+    if (item.handler.param == null) return true;
+    if (
+      !object(item.handler.param) ||
+      item.handler.param.type !== "Identifier" ||
+      typeof item.handler.param.name !== "string"
+    )
+      return false;
+    const caughtName = item.handler.param.name;
+    const pending: unknown[] = [...item.handler.body.body];
+    while (pending.length) {
+      const node = pending.pop();
+      if (!object(node)) continue;
+      // Any use or rebinding remains in the general exception profile. The
+      // exception object is not known, and must not be confused with an outer
+      // same-named binding or treated as a public literal.
+      if (node.type === "Identifier" && node.name === caughtName) return false;
+      for (const child of Object.values(node)) {
+        if (Array.isArray(child)) pending.push(...child);
+        else if (object(child)) pending.push(child);
+      }
+    }
+    return true;
   };
   const execute = (body: unknown[], state: State, depth = 0): void => {
     if (depth > 12) {
@@ -1351,7 +1816,12 @@ export function analyzeBoundedCode(
         object(item.block) &&
         Array.isArray(item.block.body)
       ) {
-        exceptionFlow = true;
+        // One JSON.parse call commits its sole identifier assignment only
+        // after it succeeds. Its catch therefore starts from the pre-call
+        // state. Multi-statement try blocks may have partial writes and retain
+        // the general opaque exception profile.
+        const isolatedParse = isolatedJsonParseTry(item, state);
+        if (!isolatedParse) exceptionFlow = true;
         const normal = clone(state),
           failed = clone(state);
         execute(item.block.body, normal, depth + 1);
@@ -1361,6 +1831,7 @@ export function analyzeBoundedCode(
           Array.isArray(item.handler.body.body)
         ) {
           if (
+            !isolatedParse &&
             object(item.handler.param) &&
             item.handler.param.type === "Identifier" &&
             typeof item.handler.param.name === "string"
@@ -1528,6 +1999,8 @@ export function analyzeBoundedCode(
     ]);
   let output: AbstractValue;
   if (returned.fields?.["/json"]) output = returned.fields["/json"];
+  else if (returned.representativeElement?.fields?.["/json"])
+    output = returned.representativeElement.fields["/json"];
   else if (
     returned.fields &&
     Object.keys(returned.fields).length &&
@@ -1544,10 +2017,5 @@ export function analyzeBoundedCode(
       host.input(),
     ]);
   const partial = unknown("code_bounded_flow_partial", [output]);
-  return {
-    ...partial,
-    fields: output.fields,
-    fieldsComplete: output.fieldsComplete,
-    fullObject: output.fullObject,
-  };
+  return preserveValueShape(partial, output);
 }

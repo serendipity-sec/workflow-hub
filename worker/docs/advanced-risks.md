@@ -38,10 +38,13 @@ LangChain `toolCode` 1/1.1/1.2/1.3의 JavaScript도 같은 AST 호출 분석을 
 
 - `require('child_process')`와 구조 분해·변수 별칭을 거친 exec/execSync/execFile/spawn 계열.
 - `eval`, `Function`, `fetch` 및 해당 전역의 직접 별칭.
+- 0.9.0은 가려지지 않은 `globalThis`의 고정 멤버와 구조분해 별칭, `this.helpers`의 알려진 HTTP 요청 함수를 같은 후보로 추적한다. 동적 멤버명은 실행 함수를 확정하지 않고 미해석 진단으로 남긴다.
 - http/https/axios/undici 모듈 호출, fs 모듈 호출과 외부 인자 후보.
 - 단순 변수 대입을 거친 입력, 조건·반복문에서 남을 수 있는 외부 값의 가능성.
 
 모든 Code 호출은 실제 도달성과 실행 권한을 확인하지 않은 **후보**다. 함수·입력 이름이 가려진 경우 원래 워크플로 입력으로 단정하지 않는다. 복잡한 별칭, 동적 모듈, `.apply`·리플렉션·런타임 재정의, 라이브러리 내부와 일반적인 프로그램 제어 흐름은 완전 분석하지 않으며 `javascript_semantics_partially_analyzed`를 남긴다.
+
+0.9.0은 다른 노드에서 값을 요청하지 않아도 모든 활성 JavaScript Code 본문을 먼저 정적 해석한다. 마지막 Code에서 상수만 반환하더라도 앞선 호출·대입·구문 오류·처리 한도는 구체적인 분석 공백으로 남긴다. 일반적인 JavaScript 완전성 안내만 서비스 범위 설명으로 옮기고, 이 구체 진단은 검토 필요로 유지한다. `console["log"]` 같은 고정 계산 멤버는 직접 전달한 비밀·개인정보 후보를 찾지만, `const p = $json.body.password; console.log(p)`의 로그 인자 로컬 환경은 아직 완전 추적하지 못한다. 이 경우 값 출처·Code 부수 효과 공백을 유지하며 위험 없음으로 표시하지 않는다.
 
 `shell:false`와 argv 배열은 셸 문자열 결합과 구분하지만, 외부 값이 프로그램 옵션으로 해석될 가능성은 별도 후보로 남긴다. 이를 명령 실행 안전 판정으로 표시하지 않는다. Python Code 분석은 별도 프로필의 책임이다.
 

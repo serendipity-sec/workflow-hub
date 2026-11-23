@@ -4,6 +4,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { resolve, join, dirname } from "node:path";
 import { presentInspection, inspectionSchema } from "../dist/inspection.js";
 import { llmDefaults } from "../dist/llm-review.js";
+import { buildCoverageExplanation } from "../dist/coverage-causes.js";
 
 assert.ok(
   process.argv[2] && process.argv[3],
@@ -54,12 +55,24 @@ for (const sample of manifest.samples.slice(0, limit)) {
   await writeFile(join(directory, `${sample.id}.inspection.json`), output, {
     mode: 0o600,
   });
+  const coverage = buildCoverageExplanation(report, inspection.llm);
+  const coverageBytes = Buffer.from(JSON.stringify(coverage, null, 2) + "\n");
+  await writeFile(
+    join(directory, `${sample.id}.coverage.llm.json`),
+    coverageBytes,
+    { mode: 0o600 },
+  );
   const result = {
     id: sample.id,
     inputSha256: sample.sha256,
     assessmentSha256: hash(bytes),
     inspectionSha256: hash(output),
     inspectionArtifact: `${sample.id}.inspection.json`,
+    coverageArtifact: `${sample.id}.coverage.llm.json`,
+    coverageArtifactSha256: hash(coverageBytes),
+    selectedDiagnosticActions:
+      coverage.llmAssistance.selectedDiagnosticActions.length,
+    llmResolvedAnalysisGap: coverage.llmAssistance.analysisGapResolved,
     engineVersion: report.engineVersion,
     assessmentStatus: report.status,
     executionStatus: inspection.serviceReport.executionStatus,

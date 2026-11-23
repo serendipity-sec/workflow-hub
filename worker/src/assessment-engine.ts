@@ -69,7 +69,7 @@ function flowCoverage(context: Context, flow: ValueFlow): RuleResult {
   return {
     ruleId,
     category: "egress",
-    profileVersion: "1.3.0",
+    profileVersion: "1.5.0",
     findings: [],
     diagnostics,
     coverage: diagnostics.length
@@ -171,6 +171,17 @@ export async function assessBytes(
             : [],
         ) ?? [];
       const flow = buildValueFlow(input.context, { sourceAnnotations });
+      // A terminal Code node can leak or execute data even when nobody reads
+      // its return value. Analyze every active JS body before consumers spend
+      // the shared budget; the bounded interpreter never executes the source.
+      for (const node of input.context.nodes)
+        if (
+          !node.disabled &&
+          node.type === "n8n-nodes-base.code" &&
+          [1, 2].includes(node.typeVersion) &&
+          (node.parameters.language ?? "javaScript") === "javaScript"
+        )
+          flow.output(node.key, "");
       const base = analyzeStatic(input.bytes, tools.gitleaks);
       const extensionRules = [
         ...analyzeExtendedSinks(input.context, flow, localEvidence),
@@ -231,7 +242,7 @@ export async function assessBytes(
         );
     const report = {
       assessmentVersion: "1.0.0",
-      engineVersion: "0.7.0",
+      engineVersion: "0.9.0",
       inputSha256,
       execution: "not_run",
       boundary: { kind: "caller_managed", isolationVerified: false },

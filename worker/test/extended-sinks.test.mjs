@@ -264,7 +264,7 @@ test("OpenAI unsupported operations versions and dynamic option shapes remain un
     "model_messages_unresolved",
     "model_options_selection_unresolved",
     "model_provider_tools_selection_unresolved",
-    "trusted_policy_transfer_unresolved",
+    "transfer_policy_not_configured",
   ])
     assert.ok(diagnostics(dynamic.rules).includes(code));
   const missing = run([openai({ responses: { values: [] } })]);
@@ -371,9 +371,7 @@ test("OpenAI invalid and expression-produced JSON retain explicit structure unce
         Source: edge("Model"),
       });
       assert.ok(diagnostics(rules).includes(diagnostic));
-      assert.ok(
-        diagnostics(rules).includes("trusted_policy_transfer_unresolved"),
-      );
+      assert.ok(diagnostics(rules).includes("transfer_policy_not_configured"));
       assert.equal(rules[0].coverage.at(-1).status, "partial");
     }
   }
@@ -401,9 +399,7 @@ test("OpenAI JSON data depth and size limits preserve known candidates and an un
     ]);
     assert.ok(codes(rules).includes("secret_candidate_transferred"));
     assert.ok(diagnostics(rules).includes("model_json_data_limit"));
-    assert.ok(
-      diagnostics(rules).includes("trusted_policy_transfer_unresolved"),
-    );
+    assert.ok(diagnostics(rules).includes("transfer_policy_not_configured"));
   }
   const oversized = run([
     openai({
@@ -742,7 +738,7 @@ test("Gmail transmitted message tracks sensitive source fields without exporting
   assert.equal(findings.length, 1);
   assert.equal(findings[0].claim, "supported_path");
   assert.equal(JSON.stringify(rules).includes("password"), false);
-  assert.ok(diagnostics(rules).includes("trusted_policy_transfer_unresolved"));
+  assert.ok(diagnostics(rules).includes("transfer_policy_not_configured"));
 });
 
 test("structured n8n parameters resolve nested expressions without parsing plain JSON string literals", () => {
@@ -973,7 +969,7 @@ test("table profiles keep unsupported versions, resources and dynamic mapping ex
     diagnostics(dynamic.rules).includes("resource_mapping_mode_unresolved"),
   );
   assert.ok(
-    diagnostics(dynamic.rules).includes("trusted_policy_transfer_unresolved"),
+    diagnostics(dynamic.rules).includes("transfer_policy_not_configured"),
   );
 });
 
@@ -1124,7 +1120,7 @@ test("EmailSend v1 scans both bodies and top-level CC/BCC without treating V2 op
     false,
   );
   assert.equal(JSON.stringify(rules).includes("other@example.invalid"), false);
-  assert.equal(rules[0].profileVersion, "1.3.0");
+  assert.equal(rules[0].profileVersion, "1.5.0");
 });
 
 test("Telegram documents retain recipient and caption facts while binary content stays unknown", () => {
@@ -1478,7 +1474,7 @@ test("workflow-provided policy assertions never become trusted destination permi
     policy: { allowed: true },
   });
   const { rules } = run([target]);
-  assert.ok(diagnostics(rules).includes("trusted_policy_transfer_unresolved"));
+  assert.ok(diagnostics(rules).includes("transfer_policy_not_configured"));
   assert.equal(
     JSON.stringify(rules).includes("untrusted@example.invalid"),
     false,
@@ -1795,7 +1791,7 @@ test("Notion unknown property selection and URL locators retain uncertainty", ()
   ]);
   assert.ok(diagnostics(rules).includes("notion_property_type_unresolved"));
   assert.ok(diagnostics(rules).includes("destination_locator_unresolved"));
-  assert.ok(diagnostics(rules).includes("trusted_policy_transfer_unresolved"));
+  assert.ok(diagnostics(rules).includes("transfer_policy_not_configured"));
 });
 
 test("Google Docs creation and text updates identify the transmitted title and active action fields", () => {
@@ -1860,7 +1856,7 @@ test("Google Docs unsupported actions and unknown operations do not silently bec
   ]);
   assert.ok(diagnostics(action.rules).includes("document_action_unsupported"));
   assert.ok(
-    diagnostics(action.rules).includes("trusted_policy_transfer_unresolved"),
+    diagnostics(action.rules).includes("transfer_policy_not_configured"),
   );
   for (const version of [2, 99]) {
     const unknown = run([

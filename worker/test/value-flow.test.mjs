@@ -1615,10 +1615,10 @@ test("bounded let, string methods and JSON parse retain sensitive data through b
   assert.ok(result.sensitivityClasses.includes("pii_candidate"));
   assert.notEqual(result.status, "resolved");
   const fixed = run.resolve("={{ $json.fixed }}");
-  assert.equal(fixed.status, "partial");
-  assert.ok(fixed.sensitivityClasses.includes("pii_candidate"));
+  assert.equal(fixed.status, "resolved");
+  assert.deepEqual(fixed.sensitivityClasses, ["public_literal"]);
   assert.ok(
-    run.flow.diagnostics.some(
+    !run.flow.diagnostics.some(
       ({ code }) => code === "code_try_state_unresolved",
     ),
   );
@@ -2177,7 +2177,7 @@ test("AST, source-size and syntax limits retain observed candidates without prec
     [
       prefix +
         "const phone='unused'; await unavailable(); return {json:{v:x}};",
-      "code_parse_unavailable",
+      "code_call_effect_unresolved",
     ],
   ]) {
     const run = boundedCode(source);

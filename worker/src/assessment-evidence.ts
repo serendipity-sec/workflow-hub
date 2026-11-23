@@ -41,6 +41,7 @@ const sinkSchema = z.enum([
   "log",
   "ai_tool",
   "ai_model",
+  "ai_vector_store",
 ]);
 const publicUrl = z
   .url()

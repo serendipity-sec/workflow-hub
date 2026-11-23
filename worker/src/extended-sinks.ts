@@ -14,6 +14,7 @@ import type { Context } from "./static-context.js";
 import { locationFor, stableId } from "./static-contract.js";
 import type { Finding, RuleResult, StaticLocation } from "./static-contract.js";
 import type { AbstractValue, ValueFlow } from "./value-flow.js";
+import { originIncludesField } from "./value-flow.js";
 
 const base = "n8n-nodes-base.";
 const root: StaticLocation = { nodeKey: null, pointer: "/nodes" };
@@ -41,7 +42,7 @@ function makeRule(ruleId: string, category: "egress" | "output"): RuleResult {
   return {
     ruleId,
     category,
-    profileVersion: "1.3.0",
+    profileVersion: "1.5.0",
     coverage: [],
     findings: [],
     diagnostics: [],
@@ -1699,11 +1700,7 @@ export function transferDataClasses(
     const matching = evidence?.classifications?.filter((item) => {
       if (item.nodeKey !== origin.nodeKey) return false;
       const field = canonicalEvidenceField(item.field);
-      return (
-        field === origin.fieldPath ||
-        (origin.includesDescendants === true &&
-          field.startsWith(origin.fieldPath + "/"))
-      );
+      return originIncludesField(origin, field);
     });
     if (matching?.length)
       for (const item of matching) values.add(item.dataClass);
@@ -1731,7 +1728,8 @@ export function transferDataClasses(
       value.status !== "resolved")
   )
     values.add("unknown");
-  if (value.fullObject && !value.fields) values.add("unknown");
+  if (value.fullObject && !value.fields && !value.contentComplete)
+    values.add("unknown");
   // A known sensitive part must not hide an unclassified origin in a join.
   if (
     unclassified &&
@@ -1864,7 +1862,14 @@ function policy(
       assessment.codes,
     );
   if (assessment.status === "unknown")
-    scope.diagnostic("trusted_policy_transfer_unresolved");
+    scope.diagnostic(
+      assessment.codes.some(
+        (code) =>
+          code === "policy_not_provided" || code === "policy_rule_missing",
+      )
+        ? "transfer_policy_not_configured"
+        : "trusted_policy_transfer_unresolved",
+    );
 }
 
 function outgoing(
@@ -2190,13 +2195,19 @@ function logFields(
         item.type === "CallExpression" &&
         isObject(item.callee) &&
         item.callee.type === "MemberExpression" &&
-        item.callee.computed === false &&
         isObject(item.callee.object) &&
         item.callee.object.type === "Identifier" &&
         item.callee.object.name === "console" &&
         isObject(item.callee.property) &&
         ["log", "info", "warn", "error", "debug", "table", "dir"].includes(
-          String(item.callee.property.name),
+          String(
+            item.callee.computed === true &&
+              item.callee.property.type === "Literal"
+              ? item.callee.property.value
+              : item.callee.computed === false
+                ? item.callee.property.name
+                : undefined,
+          ),
         )
       ) {
         for (const arg of Array.isArray(item.arguments) ? item.arguments : [])
@@ -2217,9 +2228,9 @@ function logFields(
     }
     if (pending.length) scope.diagnostic("javascript_ast_limit");
     for (const arg of argumentsToInspect.slice(0, 128)) {
-      const value = flow.resolve(
+      const value = flow.resolveExpression(
         node.key,
-        "={{ " + source.slice(arg.start, arg.end) + " }}",
+        source.slice(arg.start, arg.end),
       );
       const kinds = data(
         scope,

@@ -134,7 +134,7 @@ function rule(ruleId: string, category: "sql" | "code_execution"): RuleResult {
   return {
     ruleId,
     category,
-    profileVersion: "1.3.0",
+    profileVersion: "1.5.0",
     coverage: [],
     findings: [],
     diagnostics: [],
@@ -894,6 +894,10 @@ function javascriptRules(context: Context, flow: ValueFlow): RuleResult {
       scope.finish();
       continue;
     }
+    if (!toolCode) {
+      const body = flow.output(node.key, "");
+      for (const code of body.diagnosticCodes) scope.diagnostic(code);
+    }
     const textFor = (ast: Record<string, unknown>): string =>
       typeof ast.start === "number" && typeof ast.end === "number"
         ? source.slice(ast.start, ast.end)
@@ -1033,17 +1037,33 @@ function javascriptRules(context: Context, flow: ValueFlow): RuleResult {
         ],
       };
     };
+    const childModule = (
+      parent: Binding | undefined,
+      key: string | undefined,
+    ): Binding | undefined => {
+      if (!parent?.module || !key) return undefined;
+      if (parent.module === "global_object")
+        return ["eval", "Function", "fetch"].includes(key)
+          ? { module: "global", member: key }
+          : undefined;
+      if (parent.module === "n8n_this")
+        return key === "helpers" ? { module: "n8n_helpers" } : undefined;
+      return { module: parent.module, member: key };
+    };
     const moduleFor = (
       ast: Record<string, unknown>,
       bindings: Map<string, Binding>,
     ): Binding | undefined => {
+      if (ast.type === "ThisExpression") return { module: "n8n_this" };
       if (ast.type === "Identifier" && typeof ast.name === "string")
         return (
           bindings.get(ast.name) ??
-          (["eval", "Function", "fetch", "require"].includes(ast.name) &&
-          !bindings.has(ast.name)
-            ? { module: "global", member: ast.name }
-            : undefined)
+          (ast.name === "globalThis" && !bindings.has(ast.name)
+            ? { module: "global_object" }
+            : ["eval", "Function", "fetch", "require"].includes(ast.name) &&
+                !bindings.has(ast.name)
+              ? { module: "global", member: ast.name }
+              : undefined)
         );
       if (
         ast.type === "CallExpression" &&
@@ -1061,9 +1081,7 @@ function javascriptRules(context: Context, flow: ValueFlow): RuleResult {
       )
         return { module: ast.arguments[0].value.replace(/^node:/, "") };
       if (ast.type === "MemberExpression" && isObject(ast.object)) {
-        const parent = moduleFor(ast.object, bindings);
-        if (parent?.module)
-          return { module: parent.module, member: member(ast) };
+        return childModule(moduleFor(ast.object, bindings), member(ast));
       }
     };
     const visit = (
@@ -1144,22 +1162,18 @@ function javascriptRules(context: Context, flow: ValueFlow): RuleResult {
               isObject(property.value) &&
               property.value.type === "Identifier" &&
               typeof property.value.name === "string"
-            )
+            ) {
+              const key =
+                property.computed !== true &&
+                typeof property.key.name === "string"
+                  ? property.key.name
+                  : property.key.type === "Literal" &&
+                      typeof property.key.value === "string"
+                    ? property.key.value
+                    : undefined;
               bindings.set(property.value.name, {
-                module: binding.module,
-                member:
-                  typeof property.key.name === "string"
-                    ? property.key.name
-                    : typeof property.key.value === "string"
-                      ? property.key.value
-                      : undefined,
+                ...childModule(binding, key),
                 value: (() => {
-                  const key =
-                    typeof property.key.name === "string"
-                      ? property.key.name
-                      : typeof property.key.value === "string"
-                        ? property.key.value
-                        : undefined;
                   if (!key || !binding.value) return undefined;
                   const part =
                     "/" + key.replace(/~/g, "~0").replace(/\//g, "~1");
@@ -1178,6 +1192,7 @@ function javascriptRules(context: Context, flow: ValueFlow): RuleResult {
                       };
                 })(),
               });
+            }
       }
       if (
         ast.type === "AssignmentExpression" &&
@@ -1380,6 +1395,13 @@ function javascriptRules(context: Context, flow: ValueFlow): RuleResult {
             );
         } else if (
           global === "fetch" ||
+          (target?.module === "n8n_helpers" &&
+            [
+              "httpRequest",
+              "httpRequestWithAuthentication",
+              "request",
+              "requestWithAuthentication",
+            ].includes(target.member ?? "")) ||
           ["http", "https", "axios", "undici"].includes(target?.module ?? "")
         ) {
           scope.add(

@@ -46,6 +46,52 @@ const evidence = (changes = {}, extra = {}) =>
     },
     inputSha256,
   );
+
+test("a known forbidden class remains disallowed with an unknown or malformed destination", () => {
+  for (const sink of ["http", "ai_model", "ai_vector_store"]) {
+    const supplied = evidence({
+      egress: [
+        {
+          id: "fixed-sink",
+          nodeKey,
+          sink,
+          mode: "allowlist",
+          destinations: ["https://example.invalid"],
+          allowedDataClasses: ["public"],
+          purpose: "synthetic transfer boundary",
+        },
+      ],
+    });
+    for (const destination of [null, "=unresolved-destination"]) {
+      const denied = assessDestination(supplied, nodeKey, sink, destination, [
+        "secret",
+        "unknown",
+      ]);
+      assert.equal(denied.status, "disallowed");
+      assert.deepEqual(denied.codes, ["data_class_not_allowed"]);
+      assert.equal(
+        assessDestination(supplied, nodeKey, sink, destination, ["unknown"])
+          .status,
+        "unknown",
+      );
+      assert.equal(
+        assessDestination(supplied, nodeKey, sink, destination, ["public"])
+          .status,
+        "unknown",
+      );
+    }
+    assert.equal(
+      assessDestination(undefined, nodeKey, sink, null, ["secret"]).status,
+      "unknown",
+    );
+    assert.equal(
+      assessDestination(supplied, hash("different-node"), sink, null, [
+        "secret",
+      ]).status,
+      "unknown",
+    );
+  }
+});
 const review = {
   inputSha256,
   sourceId: source.id,

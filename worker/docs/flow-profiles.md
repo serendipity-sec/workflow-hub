@@ -1,6 +1,6 @@
 # 정적 흐름 검사 프로필
 
-현재 규칙 프로필 버전은 **1.3.0**이다. 고정 interval Wait 1/1.1의 성공 출력 입력 보존을 경로 추적에 추가했다. webhook/form 재개·동적 시간·잘못된 단위와 실행 옵션은 여전히 미확인이다. 1.0.0·1.1.0·1.2.0 결과와 의미가 같은 검사로 비교하지 않는다. 상세 지원과 고정 소스는 [값 흐름](value-flow.md#waitaggregate외부-트리거의-추가-프로파일)을 따른다.
+현재 규칙 프로필 버전은 **1.4.0**이다. Set·Switch·Aggregate의 제한된 로컬 데이터 효과와 선언 연결을 추가했다. 1.3.0에서 추가한 고정 interval Wait 1/1.1 지원도 유지한다. webhook/form 재개·동적 시간·잘못된 단위와 실행 옵션은 여전히 미확인이다. 과거 프로필과 의미가 같은 검사로 비교하지 않는다. 상세 지원과 고정 소스는 [데이터 처리 효과](data-effects.md), [값 흐름](value-flow.md#waitaggregate외부-트리거의-추가-프로파일)을 따른다.
 
 `src/static-flow.ts`는 JSON 정의만 읽으며 표현식·SQL·HTTP 요청을 실행하지 않는다. 네 가지 규칙은 독립된 범위·근거·진단을 반환한다. 아래 지원은 파일에서 확인한 설정과 제한된 선언 경로에 대한 것이며 실제 공격 성공·데이터 유출·실행 환경의 안전 판정이 아니다.
 
@@ -16,10 +16,11 @@
 - 지원 표현식은 `$json`의 점 표기 필드와 `$('Node').first().json`의 점 표기 필드다. 일반 JavaScript, 배열 접근, 변환 함수는 해석하지 않는다.
 - HTTP URL과 응답 필드의 표현식은 n8n의 `=` 접두사가 있을 때만 해석한다. Postgres 쿼리는 별도 처리기가 원문 안의 `{{...}}`도 치환하므로 두 의미를 구분한다.
 - URL의 숫자·축약 IPv4 표기는 WHATWG URL 정규화 후 비교한다. 현재 로컬 주소 프로필은 IPv4의 0/8, 사설·공유·루프백·링크로컬 범위와 `localhost`, IPv6의 미지정·루프백·unique-local·link-local 및 해당 IPv4-mapped 표기다. 전체 특수 주소·DNS·클라우드 메타데이터 인증 정책 목록은 아니다. HTTP/HTTPS 외 고정 스킴은 미지원으로 남긴다.
-- 현재 아이템 참조는 단일 입력의 IF 2/2.1/2.2/2.3과 No Operation 1만 통과시킨다. IF의 두 정상 출력은 원래 아이템을 전달하지만, IF 2.3의 filter 3을 기존 숫자 보호로 승격하지 않는다. HTTP/DB 노드의 출력 JSON을 이전 Webhook 입력과 같다고 가정하지 않는다.
+- 현재 아이템 참조는 단일 입력의 IF 2/2.1/2.2/2.3, No Operation 1, 고정 interval Wait 1/1.1과 아래 검증된 Switch rules 출력을 통과시킨다. IF와 Switch의 정상 출력은 원래 JSON 아이템을 전달하지만 Switch 조건이나 IF 2.3의 filter 3을 기존 숫자 보호로 승격하지 않는다. HTTP/DB 노드의 출력 JSON을 이전 Webhook 입력과 같다고 가정하지 않는다.
 - 직접 원본 참조는 이름으로 지정한 Webhook과 실제 선언 연결 경로를 확인한다. 노드 이름은 내부 조회에만 쓰고 결과에 복사하지 않는다.
 - Code, Merge, 미지원 노드의 효과는 해당 규칙의 미지원 범위로 남긴다. 이 때문에 별도로 확인된 URL·SQL 설정 근거를 지우지 않는다.
 - Sticky Note 1의 정상적인 독립 주석, Manual Trigger 1, Schedule Trigger 1/1.1/1.2/1.3/1.4, No Operation 1에는 근거 없는 `opaque_node_effects`를 만들지 않는다. 정확한 버전·포트·표준 실행 옵션을 확인하며, 가짜 Sticky Note 연결이나 Trigger 입력 포트, 미래 버전은 미검토로 남긴다. Schedule은 시간 메타데이터를 내보내고 Manual은 빈 아이템을 시작하므로, 이 제외가 Webhook 입력 전달이나 데이터 민감성 분석을 의미하지 않는다. 다른 해당 sink가 없으면 `not_applicable`이다. 주석 문자열의 비밀/개인정보 검사는 별도 내용 규칙에서 유지한다.
+- Set 3–3.5의 manual/raw, Switch 3–3.5의 rules, Aggregate 1은 [데이터 처리 효과 프로필](data-effects.md)에 따라 설정·표현식·버전·포트·실행 옵션을 검증한다. 이 프로필은 HTTP·SQL·응답의 외부 효과를 추가하지 않는 제한된 데이터 처리를 구분하고, 직접 원본 참조의 선언 경로를 실제로 통과시킨다. Switch만 현재 JSON 입력을 보존하며 Set/Aggregate의 변환 결과를 원래 Webhook 값과 같다고 가정하지 않는다. 미검토 connector·AI·Code의 효과 진단은 일괄 제거하지 않는다.
 - Code 로그 검사는 Acorn AST로 `console.log/info/warn/error/debug/dir/table`에 직접 전달한 `$json`, `$input.all/first/last()` 및 이 값의 `JSON.stringify`만 찾는다. 주석·문자열 안의 가짜 호출을 제외하며 코드를 실행하지 않는다. 별칭·변수 추적·수신자 이름의 재정의·실제 로깅 여부·데이터 민감도는 해결하지 않아 후보와 부분 분석 진단을 함께 남긴다. 이 검사로 Code 노드의 데이터 변환을 해석했다고 처리하지 않는다.
 - SQL의 IF 보호 판정은 기존에 검증한 `SELECT column FROM table WHERE column = {{ reference }}` 단일 조회 형태와 IF 2.2의 단일 엄격 숫자 동등 조건에 한정한다. 실제 출처·필드가 같고 경로를 보호해야 한다. 무관한 IF, 느슨한 형변환, 일반 SQL 표현식은 보호로 인정하지 않는다.
 - 쿼리 문자열의 직접 삽입은 별도 Query Parameters 설정이 있어도 경고한다. 이 일반 규칙의 경고 소실은 바인딩 수정 효과나 정상 기능 보존의 증명이 아니다. 기존 정밀 SQL 분석·재검사 기록은 그대로 보존한다.
