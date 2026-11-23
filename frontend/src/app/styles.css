@@ -1,84 +1,358 @@
+/*
+ * Design tokens and the page frame: a frosted glass panel on a soft grey
+ * backdrop, white glass cards, black highlight cards, pill buttons.
+ * Component styles live next to their components (shared/ui, features/*).
+ */
 :root {
-  font-family: Inter, 'Segoe UI', system-ui, sans-serif;
-  color: #19342e;
-  background: #f4f6f1;
+  font-family:
+    Inter,
+    'Pretendard',
+    'Segoe UI',
+    system-ui,
+    -apple-system,
+    'Malgun Gothic',
+    sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  line-height: 1.7;
+  line-height: 1.65;
+
+  --bg: #e4e4e7;
+  --ink: #141416;
+  --ink-2: #3c3c42;
+  --muted: #7b7b84;
+  --line: #e4e4e7;
+  --line-strong: #c4c4cb;
+  --dark: #1b1b1e;
+  --danger: #b3261e;
+
+  --glass: rgba(255, 255, 255, 0.5);
+  --glass-strong: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.85);
+
+  --r-sm: 12px;
+  --r-md: 20px;
+  --r-lg: 28px;
+  --r-pill: 999px;
+  --shadow:
+    0 1px 2px rgba(40, 40, 50, 0.04), 0 12px 32px rgba(40, 40, 50, 0.07);
+  --shadow-lg:
+    0 40px 90px rgba(50, 50, 60, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+
+  color: var(--ink);
+  background: var(--bg);
 }
 * {
   box-sizing: border-box;
 }
 body {
   margin: 0;
+  min-height: 100vh;
+  padding: clamp(10px, 2.4vw, 32px);
+  /* Korean wraps between words, never inside one; long file names still break. */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  background: linear-gradient(165deg, #f3f3f4 0%, #e5e5e8 55%, #d9d9de 100%)
+    fixed;
 }
-main {
-  max-width: 1080px;
-  margin: 0 auto;
-  padding: 72px 24px;
-}
-header {
-  padding-bottom: 36px;
+h1,
+h2,
+h3 {
+  letter-spacing: -0.03em;
+  line-height: 1.2;
 }
 h1 {
-  font-size: clamp(2rem, 5vw, 3.5rem);
-  line-height: 1.2;
-  letter-spacing: -0.04em;
-}
-h2 {
-  line-height: 1.4;
-}
-.eyebrow {
-  font-size: 0.8rem;
+  font-size: clamp(1.7rem, 4vw, 2.5rem);
   font-weight: 700;
-  letter-spacing: 0.18em;
+  margin: 0 0 8px;
 }
-.grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 24px;
+p {
+  margin: 0 0 12px;
 }
-.panel {
-  background: white;
-  padding: 28px;
-  border: 1px solid #d7e0d8;
-  border-radius: 16px;
-}
-.tag {
-  background: #e9f3eb;
-  padding: 6px 12px;
-  border-radius: 24px;
-  font-size: 0.8rem;
+a {
+  color: inherit;
+  text-underline-offset: 3px;
 }
 .muted {
-  color: #5a6963;
+  color: var(--muted);
   font-size: 0.95rem;
 }
-button {
-  border: 0;
-  border-radius: 8px;
-  padding: 12px 20px;
-  background: #255b49;
-  color: white;
-  font: inherit;
-  cursor: pointer;
-}
-button:disabled {
-  opacity: 0.6;
-  cursor: wait;
-}
-button:focus-visible {
-  outline: 3px solid #c8832a;
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--ink);
   outline-offset: 3px;
 }
 [role='alert'] {
-  color: #a32b2b;
+  color: var(--danger);
+}
+.stack {
+  display: grid;
+  gap: 20px;
+  align-content: start;
+}
+
+/* ---------- Backdrop: soft objects seen through the glass ---------- */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.backdrop span {
+  position: absolute;
+  display: block;
+}
+.bd-pebble {
+  left: 9%;
+  top: 5%;
+  width: 240px;
+  height: 160px;
+  border-radius: 52% 48% 46% 54% / 60% 58% 42% 40%;
+  background: radial-gradient(circle at 34% 28%, #ffffff, #dcdce0 72%);
+  box-shadow:
+    inset -14px -18px 34px rgba(60, 60, 70, 0.14),
+    0 34px 60px rgba(50, 50, 60, 0.16);
+}
+.bd-ribs {
+  right: 12%;
+  top: 1%;
+  width: 380px;
+  height: 210px;
+  border-radius: 50% 50% 46% 54% / 70% 66% 34% 30%;
+  background: repeating-radial-gradient(
+    circle at 70% 130%,
+    #f6f6f7 0 9px,
+    #dcdce0 9px 13px
+  );
+  box-shadow: 0 30px 60px rgba(50, 50, 60, 0.12);
+}
+.bd-block {
+  left: 2%;
+  bottom: 4%;
+  width: 230px;
+  height: 200px;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 18% 28%, #9c9ca3 0 2px, transparent 3px),
+    radial-gradient(circle at 44% 18%, #b4b4ba 0 2.5px, transparent 3.5px),
+    radial-gradient(circle at 72% 34%, #8a8a92 0 2px, transparent 3px),
+    radial-gradient(circle at 30% 62%, #a8a8af 0 3px, transparent 4px),
+    radial-gradient(circle at 64% 70%, #96969d 0 2px, transparent 3px),
+    radial-gradient(circle at 84% 84%, #b4b4ba 0 2.5px, transparent 3.5px),
+    linear-gradient(145deg, #fbfbfb, #dedee2);
+  box-shadow:
+    inset -10px -14px 26px rgba(60, 60, 70, 0.12),
+    0 34px 60px rgba(50, 50, 60, 0.16);
+  transform: rotate(-6deg);
+}
+.bd-ring {
+  right: 4%;
+  bottom: 3%;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  border: 62px solid #f1f1f3;
+  box-shadow:
+    inset 8px 10px 22px rgba(60, 60, 70, 0.16),
+    inset -8px -8px 18px rgba(255, 255, 255, 0.95),
+    0 34px 60px rgba(50, 50, 60, 0.16);
+}
+
+/* ---------- Frosted glass frame: top bar + content ---------- */
+.shell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1240px;
+  min-height: calc(100vh - 2 * clamp(10px, 2.4vw, 32px));
+  margin: 0 auto;
+  padding: 18px 22px 28px;
+  border-radius: 44px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(30px) saturate(1.15);
+  -webkit-backdrop-filter: blur(30px) saturate(1.15);
+  box-shadow: var(--shadow-lg);
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .shell {
+    background: rgba(250, 250, 251, 0.92);
+  }
+}
+.shell-main {
+  min-width: 0;
+  padding: 12px 6px 8px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  padding: 10px 12px 10px 16px;
+  border-radius: var(--r-pill);
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: var(--ink);
+  color: #fff;
+}
+.nav {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.nav a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: var(--r-pill);
+  color: var(--ink-2);
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+.nav a:hover {
+  background: rgba(255, 255, 255, 0.85);
+}
+.nav a.active {
+  background: var(--ink);
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(20, 20, 24, 0.22);
+}
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 4px 4px 8px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.6);
+}
+.profile-who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.profile-email {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  color: var(--ink-2);
+}
+.auth-note {
+  margin: 0;
+  padding: 0 8px;
+}
+
+/* ---------- Centered message card (login required, not found) ---------- */
+.notice {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  max-width: 520px;
+  margin: 48px auto;
+  text-align: left;
+}
+.notice-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 8px;
+  border-radius: 16px;
+  background: var(--ink);
+  color: #fff;
+}
+.notice h1 {
+  font-size: 1.5rem;
+}
+.notice p {
+  margin: 0;
+}
+.notice .btn {
+  margin-top: 12px;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 960px) {
+  .backdrop .bd-ribs,
+  .backdrop .bd-block {
+    display: none;
+  }
+  .bd-pebble {
+    width: 170px;
+    height: 112px;
+  }
+  .bd-ring {
+    width: 200px;
+    height: 200px;
+    border-width: 44px;
+  }
+  .shell {
+    gap: 14px;
+    padding: 14px 14px 22px;
+    border-radius: 32px;
+  }
+  .topbar {
+    border-radius: 26px;
+  }
 }
 @media (max-width: 700px) {
-  .grid {
-    grid-template-columns: 1fr;
+  .profile-email {
+    display: none;
   }
-  main {
-    padding-top: 36px;
+  .nav {
+    order: 3;
+    flex-basis: 100%;
+  }
+  .brand {
+    flex: 1;
+  }
+}
+@media (max-width: 400px) {
+  .brand-name {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav a {
+    transition: none;
   }
 }
