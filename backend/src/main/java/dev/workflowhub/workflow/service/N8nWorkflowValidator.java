@@ -5,6 +5,9 @@ import java.util.Set;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.JsonToken;
+import tools.jackson.core.ObjectReadContext;
 import tools.jackson.core.StreamReadConstraints;
 import tools.jackson.core.StreamReadFeature;
 import tools.jackson.core.exc.StreamConstraintsException;
@@ -24,6 +27,8 @@ public class N8nWorkflowValidator {
 
   private final WorkflowLimits limits;
   private final JsonMapper mapper;
+  // 깊이 초과를 가리는 용도로만 쓰는 파서 공장. 본 파싱과 같은 인코딩 감지를 쓰되 깊이 제약만 푼다.
+  private final JsonFactory depthProbe;
 
   public N8nWorkflowValidator(WorkflowLimits limits) {
     this.limits = limits;
@@ -33,6 +38,11 @@ public class N8nWorkflowValidator {
         JsonMapper.builder(JsonFactory.builder().streamReadConstraints(constraints).build())
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
             .enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
+            .build();
+    this.depthProbe =
+        JsonFactory.builder()
+            .streamReadConstraints(
+                StreamReadConstraints.builder().maxNestingDepth(Integer.MAX_VALUE).build())
             .build();
   }
 
@@ -47,8 +57,8 @@ public class N8nWorkflowValidator {
       root = mapper.readTree(content);
     } catch (StreamConstraintsException e) {
       // 문자열·이름 길이 같은 다른 제약도 같은 예외를 던지고 Jackson은 종류를 구분하는 타입을 주지 않는다.
-      // 예외 문구에 기대지 않도록 실패한 경우에만 바이트의 괄호 깊이를 직접 세어 깊이 초과를 가린다.
-      if (maxBracketDepth(content) > limits.maxDepth()) {
+      // 예외 문구에 기대지 않도록 실패한 경우에만 토큰을 따라가며 깊이 초과를 가린다.
+      if (exceedsDepthLimit(content)) {
         throw limitExceeded("Workflow nesting depth exceeds the limit (" + limits.maxDepth() + ")");
       }
       throw invalid("File is not valid JSON");
@@ -126,30 +136,26 @@ public class N8nWorkflowValidator {
     return count;
   }
 
-  /** 문자열 밖의 중괄호와 대괄호를 센 최대 중첩 깊이. UTF-8에서 따옴표와 역슬래시는 여러 바이트 문자의 일부가 될 수 없어 바이트 단위로 세어도 안전하다. */
-  private static int maxBracketDepth(byte[] content) {
+  /**
+   * 토큰을 따라가며 중첩이 깊이 한도를 넘는지 본다. 원문 바이트를 직접 세지 않고 파서로 읽으므로 본 파싱과 같은 인코딩(UTF-8·UTF-16·UTF-32 자동 감지)으로
+   * 해석하며, 문자열 안의 괄호와 이스케이프도 파서가 처리한다. 한도를 넘는 순간 멈추고, 그 전에 입력이 깨지면 깊이 초과가 아니다.
+   */
+  private boolean exceedsDepthLimit(byte[] content) {
     int depth = 0;
-    int max = 0;
-    boolean inString = false;
-    boolean escaped = false;
-    for (byte b : content) {
-      if (inString) {
-        if (escaped) {
-          escaped = false;
-        } else if (b == '\\') {
-          escaped = true;
-        } else if (b == '"') {
-          inString = false;
+    try (JsonParser parser = depthProbe.createParser(ObjectReadContext.empty(), content)) {
+      for (JsonToken token = parser.nextToken(); token != null; token = parser.nextToken()) {
+        if (token.isStructStart()) {
+          if (++depth > limits.maxDepth()) {
+            return true;
+          }
+        } else if (token.isStructEnd()) {
+          depth--;
         }
-      } else if (b == '"') {
-        inString = true;
-      } else if (b == '{' || b == '[') {
-        max = Math.max(max, ++depth);
-      } else if (b == '}' || b == ']') {
-        depth--;
       }
+    } catch (JacksonException e) {
+      // 깊이에 닿기 전에 입력이 깨졌다.
     }
-    return max;
+    return false;
   }
 
   private static boolean isNonBlankText(JsonNode value) {

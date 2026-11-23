@@ -185,6 +185,18 @@ class N8nWorkflowValidatorTests {
             WorkflowUploadException.class, e -> assertThat(e.code()).isEqualTo("INVALID_WORKFLOW"));
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"UTF-8", "UTF-16", "UTF-16LE", "UTF-16BE", "UTF-32LE", "UTF-32BE"})
+  void classifiesADepthOverrunTheSameWayWhateverEncodingTheParserDetects(String charset) {
+    // U+227B는 UTF-16LE에서 바이트 7B 22(중괄호와 따옴표), UTF-16BE에서 22 7B다. 바이트를 그대로 세면 따옴표 상태가 뒤집힌다.
+    String tricky = "\u227b";
+    String deep = "{\"" + tricky + "\":" + "{\"a\":".repeat(80) + "1" + "}".repeat(81);
+
+    assertLimitExceeded(
+            () -> validator.validate(deep.getBytes(java.nio.charset.Charset.forName(charset))))
+        .hasMessageContaining("nesting depth exceeds the limit (64)");
+  }
+
   @Test
   void bracketsInsideStringsDoNotCountAsDepth() {
     // 문자열 안의 괄호와 이스케이프된 따옴표는 깊이에 영향을 주지 않는다.

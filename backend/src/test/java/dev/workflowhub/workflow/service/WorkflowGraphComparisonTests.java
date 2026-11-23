@@ -362,6 +362,25 @@ class WorkflowGraphComparisonTests {
   }
 
   @Test
+  void keepsTheBaseVersionPrefixForADeepUtf16Base() {
+    // 한도(깊이 10)를 넘는 UTF-16 기준 파일도 깊이 초과로 분류되고 기준 버전 접두사가 붙는다.
+    String deep = "{\"\u227b\":" + "{\"a\":".repeat(20) + "1" + "}".repeat(21);
+
+    assertThatThrownBy(
+            () ->
+                smallLimits.compare(
+                    deep.getBytes(StandardCharsets.UTF_16LE),
+                    AT_LIMIT.getBytes(StandardCharsets.UTF_8)))
+        .isInstanceOfSatisfying(
+            WorkflowUploadException.class,
+            e -> {
+              assertThat(e.code()).isEqualTo("WORKFLOW_LIMIT_EXCEEDED");
+              assertThat(e.getMessage())
+                  .isEqualTo("Base version: Workflow nesting depth exceeds the limit (10)");
+            });
+  }
+
+  @Test
   void aStructurallyInvalidBaseKeepsItsOwnErrorCode() {
     String invalid = "{\"nodes\":[],\"connections\":{}}";
 
