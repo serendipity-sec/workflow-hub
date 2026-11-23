@@ -85,6 +85,7 @@ class WorkflowVersionTests {
   @BeforeEach
   void clean() {
     jdbc.sql("TRUNCATE workflow_hub.workflows CASCADE").update();
+    jdbc.sql("DELETE FROM workflow_hub.pending_objects").update();
     store.reset();
     clearInvocations(store);
   }
@@ -394,12 +395,16 @@ class WorkflowVersionTests {
         .andExpect(status().isServiceUnavailable())
         .andExpect(jsonPath("$.code").value("STORAGE_UNAVAILABLE"));
     assertThat(versionLabels(v1)).containsExactly("v1");
+    // 저장 결과가 불확실한 실패는 기록을 남겨 정리 작업이 다시 지우게 한다.
+    assertThat(pendingCount()).isEqualTo(1);
     store.failPuts = false;
 
     mvc.perform(registration(v1, comparisonId, "MINOR", "retry-put").with(user(OWNER)))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.data.versionLabel").value("v1.1"));
     assertThat(versionLabels(v1)).containsExactlyInAnyOrder("v1", "v1.1");
+    // 성공한 등록은 자기 기록을 남기지 않는다. 남은 기록은 실패한 첫 시도의 것뿐이다.
+    assertThat(pendingCount()).isEqualTo(1);
   }
 
   @Test
@@ -467,6 +472,10 @@ class WorkflowVersionTests {
     } finally {
       pool.shutdownNow();
     }
+  }
+
+  private long pendingCount() {
+    return jdbc.sql("SELECT COUNT(*) FROM workflow_hub.pending_objects").query(Long.class).single();
   }
 
   private void expire(UUID comparisonId) {

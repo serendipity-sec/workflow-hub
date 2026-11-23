@@ -36,3 +36,6 @@ app:
     bucket: ${WORKFLOW_BUCKET:}
     attempt-timeout: ${S3_ATTEMPT_TIMEOUT:20s}
     call-timeout: ${S3_CALL_TIMEOUT:60s}
+    pending-object-grace: ${PENDING_OBJECT_GRACE:30m}
+    cleanup-retry-delay: ${CLEANUP_RETRY_DELAY:5m}
+    cleanup-interval: ${PENDING_OBJECT_CLEANUP_INTERVAL:10s}

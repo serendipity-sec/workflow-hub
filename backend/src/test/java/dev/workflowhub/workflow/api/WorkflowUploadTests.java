@@ -349,7 +349,7 @@ class WorkflowUploadTests {
 
     assertThat(output.getAll())
         .contains("event=workflow.upload.db_failed")
-        .contains("event=workflow.upload.orphan_delete_failed objectKey=workflows/");
+        .contains("event=workflow.object_cleanup.discard_failed objectKey=workflows/");
   }
 
   @Test

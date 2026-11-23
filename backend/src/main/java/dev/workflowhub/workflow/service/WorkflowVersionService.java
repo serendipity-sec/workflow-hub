@@ -33,18 +33,21 @@ public class WorkflowVersionService {
   private final WorkflowObjectStore store;
   private final WorkflowComparisonFiles files;
   private final WorkflowGraphComparison graphs;
+  private final WorkflowObjectCleanup cleanup;
 
   public WorkflowVersionService(
       JdbcClient jdbc,
       TransactionTemplate transactions,
       WorkflowObjectStore store,
       WorkflowComparisonFiles files,
-      WorkflowGraphComparison graphs) {
+      WorkflowGraphComparison graphs,
+      WorkflowObjectCleanup cleanup) {
     this.jdbc = jdbc;
     this.transactions = transactions;
     this.store = store;
     this.files = files;
     this.graphs = graphs;
+    this.cleanup = cleanup;
   }
 
   public Comparison compare(String owner, String workflowPath, String versionPath, byte[] file) {
@@ -95,11 +98,13 @@ public class WorkflowVersionService {
     String objectKey = "workflows/" + workflowId + "/" + versionId + ".json";
     // 저장소에 넘기는 같은 배열로 계산한다.
     var identity = WorkflowFileIdentity.of(bytes);
+    // S3에 쓰기 전에 정리 대상으로 남긴다. 저장과 커밋 사이에 프로세스가 중단돼도 재시작 후 찾을 수 있다.
+    cleanup.record(objectKey);
     try {
       store.put(objectKey, bytes);
     } catch (RuntimeException e) {
       log.error("event=workflow.version.storage_failed objectKey={}", objectKey, e);
-      discardVersionObject(objectKey);
+      // 응답만 유실되고 저장은 끝났거나 늦게 끝날 수 있다. 기록을 남겨 두면 대기 시간 뒤 정리 작업이 지운다.
       return replay(owner, key, fingerprint)
           .orElseThrow(
               () ->
@@ -126,6 +131,8 @@ public class WorkflowVersionService {
                 String label = number.next(updateType).label();
                 insertVersion(workflowId, versionId, label, objectKey, identity);
                 recordRequest(owner, key, fingerprint, workflowId, versionId);
+                // 커밋되면 버전 행이 객체를 가리키므로 정리 대상에서 뺀다. 롤백되면 이 삭제도 취소돼 기록이 남는다.
+                cleanup.releaseForCommit(objectKey);
                 wroteRows.set(true);
                 return new UploadResult(workflowId, versionId, label);
               });
@@ -138,18 +145,18 @@ public class WorkflowVersionService {
           committed = confirmCommit(owner, key, fingerprint);
         } catch (WorkflowUploadException conflict) {
           // 같은 키가 다른 입력으로 이미 커밋되어 있으면 이 요청의 행은 남지 않았다.
-          discardVersionObject(objectKey);
+          cleanup.discard(objectKey);
           throw conflict;
         }
         if (committed.isPresent()) {
           if (!committed.get().versionId().equals(versionId)) {
             // 같은 키의 다른 요청이 먼저 커밋했으므로 이 요청의 객체는 어떤 행도 가리키지 않는다.
-            discardVersionObject(objectKey);
+            cleanup.discard(objectKey);
           }
           return committed.get();
         }
       } else {
-        discardVersionObject(objectKey);
+        cleanup.discard(objectKey);
         if (e instanceof DuplicateKeyException) {
           var winner = replay(owner, key, fingerprint);
           if (winner.isPresent()) {
@@ -161,7 +168,7 @@ public class WorkflowVersionService {
     }
 
     if (!wroteRows.get()) {
-      discardVersionObject(objectKey);
+      cleanup.discard(objectKey);
     } else {
       log.info(
           "event=workflow.version.committed workflowId={} versionId={} version={} comparisonId={}",
@@ -309,14 +316,6 @@ public class WorkflowVersionService {
     } catch (RuntimeException e) {
       log.error("event=workflow.version.commit_check_failed", e);
       return Optional.empty();
-    }
-  }
-
-  private void discardVersionObject(String objectKey) {
-    try {
-      store.delete(objectKey);
-    } catch (RuntimeException e) {
-      log.error("event=workflow.version.orphan_delete_failed objectKey={}", objectKey, e);
     }
   }
 

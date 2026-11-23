@@ -9,6 +9,9 @@ public class InMemoryWorkflowObjectStore implements WorkflowObjectStore {
   public volatile boolean failPuts;
   public volatile boolean failDeletes;
 
+  /** put이 끝난 직후 실행한다. 저장과 커밋 사이에 다른 작업이 끼어드는 상황을 만든다. */
+  public volatile Runnable afterPut;
+
   @Override
   public void put(String key, byte[] content) {
     if (failPuts) {
@@ -16,6 +19,10 @@ public class InMemoryWorkflowObjectStore implements WorkflowObjectStore {
     }
     if (objects.putIfAbsent(key, content.clone()) != null) {
       throw new IllegalStateException("object already exists");
+    }
+    Runnable hook = afterPut;
+    if (hook != null) {
+      hook.run();
     }
   }
 
@@ -44,5 +51,6 @@ public class InMemoryWorkflowObjectStore implements WorkflowObjectStore {
     objects.clear();
     failPuts = false;
     failDeletes = false;
+    afterPut = null;
   }
 }

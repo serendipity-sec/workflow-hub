@@ -69,6 +69,8 @@ S3는 Block Public Access를 활성화하고 개발/운영 리소스를 구분�
 
 런타임 역할에는 해당 버킷의 `workflows/*` 객체에 대한 `s3:PutObject`, `s3:DeleteObject`, `s3:GetObject`가 필요하다. 삭제 권한은 참조 없는 업로드 파일과 만료된 비교본을 정리할 때 사용한다. 비교 ID는 24시간 뒤 만료되며, 백엔드에서 `workflows/comparisons/` 임시 파일을 주기적으로 삭제하고 실패하면 재시도한다. 실제 삭제 시점은 정리 작업의 실행과 S3 응답에 달려 있다.
 
+참조 없는 업로드 객체는 `pending_objects` 기록을 바탕으로 백엔드가 자동 정리한다. 기록 생성 후 `PENDING_OBJECT_GRACE`(기본 30m)가 지나야 정리하며, 이 값은 요청 하나의 최대 소요(S3 호출 제한 `S3_CALL_TIMEOUT` 포함)보다 충분히 길어야 하며, `S3_CALL_TIMEOUT`의 2배보다 짧으면 앱이 시작되지 않는다. 대기 시간이 지나면 요청이 아직 진행 중이어도 정리 작업이 객체를 지우고, 그 요청은 커밋하지 않고 `503 STORAGE_UNAVAILABLE`로 실패하므로 같은 `Idempotency-Key`로 다시 시도한다. 삭제 실패 시 `CLEANUP_RETRY_DELAY`(기본 5m) 뒤 다시 시도하고, 정리 작업은 `PENDING_OBJECT_CLEANUP_INTERVAL`(기본 10s) 간격으로 실행된다. 삭제가 계속 실패해도 시도 횟수 제한이나 알림은 없으며, 남은 행은 `workflow_hub.pending_objects`와 `workflow.object_cleanup.delete_failed` 로그로 확인한다. 이 정리는 S3 versioning을 끈 버킷을 전제로 한다(개발 버킷은 versioning을 쓰지 않기로 했으며, 실제 상태는 개발 S3 검증 때 확인해 기록한다). 이 기능을 넣기 전에 남은 고아 객체나 대기 시간 뒤에 늦게 완료된 쓰기는 자동 정리되지 않는다.
+
 버킷 versioning을 켜면 삭제 마커 뒤에 이전 객체 버전이 남는다. 임시 파일 접두사에는 이전 객체 버전을 제거할 수명 주기 규칙을 적용하고, 보관 기간을 배포 정책에 반영한다. 규칙의 범위를 `workflows/comparisons/`로 제한해 정식 버전 경로에 임시 파일 보관 기한이 적용되지 않게 한다.
 
 자동 테스트는 합성 JSON과 mock 저장소를 사용해 다운로드 바이트 보존과 권한 거부를 확인한다. AWS 클라이언트 호출은 mock으로 확인한다. 실제 개발용 비공개 S3 연동은 미검증이며, 해당 환경의 런타임 역할로 합성 JSON을 업로드한 뒤 같은 버전을 다운로드해 원본 바이트 일치 여부와 결과를 별도로 기록한다.
@@ -77,7 +79,7 @@ S3는 Block Public Access를 활성화하고 개발/운영 리소스를 구분�
 
 `.env.example`의 기본값은 `false`다. 로컬에서 `API_DOCS_ENABLED=true`로 백엔드를 실행하면 `http://localhost:8080/swagger-ui.html`에서 Swagger UI를, `/v3/api-docs`에서 OpenAPI JSON을 볼 수 있다. 운영 환경에서는 설정하지 않아 노출되지 않는다. API 명세의 기준은 컨트롤러의 OpenAPI 어노테이션이며, 업로드 호출 예시는 UI의 `POST /api/workflows`에 있다.
 
-모든 응답에는 `X-Request-Id` 헤더가 있고 오류 본문에는 같은 값이 `requestId`로 들어간다. 로그는 `[requestId] event=workflow.upload.committed ...`처럼 `event=` 키로 검색한다. 문제가 생기면 응답의 `requestId`로 `grep`해서 해당 요청의 전체 경로를 본다. 업로드 후 DB 기록이 실패해 남은 S3 객체는 `event=workflow.upload.orphan_delete_failed`의 `objectKey`로 찾는다. 파일 내용, 제목, 토큰은 로그에 남지 않는다.
+모든 응답에는 `X-Request-Id` 헤더가 있고 오류 본문에는 같은 값이 `requestId`로 들어간다. 로그는 `[requestId] event=workflow.upload.committed ...`처럼 `event=` 키로 검색한다. 문제가 생기면 응답의 `requestId`로 `grep`해서 해당 요청의 전체 경로를 본다. 업로드 후 DB 기록이 실패해 남은 S3 객체는 `workflow_hub.pending_objects`의 기록으로 자동 정리되며, 정리 결과는 `event=workflow.object_cleanup.deleted`·`kept_referenced`·`delete_failed`·`discard_failed`·`run_failed`의 `objectKey`로 확인한다. 삭제가 계속 실패하면 `workflow.object_cleanup.discard_failed`나 `workflow.object_cleanup.delete_failed`의 키와 `pending_objects`의 남은 행을 함께 본다. 파일 내용, 제목, 토큰은 로그에 남지 않는다.
 
 SQL 로그가 필요하면 `LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_JDBC_CORE=DEBUG`를 임시로 설정한다. 바인딩 값이 보일 수 있으니 운영에서는 쓰지 않는다.
 
