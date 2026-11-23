@@ -46,4 +46,9 @@ describe('validateTitle', () => {
     expect(validateTitle('a'.repeat(MAX_TITLE_LENGTH))).toBeNull();
     expect(validateTitle('a'.repeat(MAX_TITLE_LENGTH + 1))).toMatch(/200/);
   });
+
+  it('counts code points like the server, so emoji count once', () => {
+    expect(validateTitle('😀'.repeat(MAX_TITLE_LENGTH))).toBeNull();
+    expect(validateTitle('😀'.repeat(MAX_TITLE_LENGTH + 1))).toMatch(/200/);
+  });
 });

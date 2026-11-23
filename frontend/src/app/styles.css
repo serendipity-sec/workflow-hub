@@ -311,8 +311,8 @@ input:focus-visible {
 
 /* ---------- Responsive ---------- */
 @media (max-width: 960px) {
-  .bd-ribs,
-  .bd-block {
+  .backdrop .bd-ribs,
+  .backdrop .bd-block {
     display: none;
   }
   .bd-pebble {

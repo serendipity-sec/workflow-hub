@@ -20,8 +20,13 @@ export function validateUploadFile(
   return null;
 }
 
+/** The server counts Unicode code points, not UTF-16 units (emoji count once). */
+function countCodePoints(text: string): number {
+  return Array.from(text).length;
+}
+
 export function validateTitle(title: string): string | null {
-  if (title.length > MAX_TITLE_LENGTH) {
+  if (countCodePoints(title) > MAX_TITLE_LENGTH) {
     return `제목은 ${MAX_TITLE_LENGTH}자 이하로 입력해 주세요.`;
   }
   return null;

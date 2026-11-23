@@ -9,7 +9,6 @@ import { PageHeader } from '../../shared/ui/PageHeader';
 import { uploadWorkflow } from './api';
 import { describeWorkflowError } from './errorMessages';
 import {
-  MAX_TITLE_LENGTH,
   UPLOAD_NOTICE,
   validateTitle,
   validateUploadFile,
@@ -22,18 +21,30 @@ export function WorkflowUploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  // One key per distinct input: a retry of the same upload must not create a duplicate.
-  const idempotencyKey = useRef(crypto.randomUUID());
+  // The key follows what is actually sent (trimmed title + file). A retry of the
+  // same upload keeps it, so a lost response cannot create a duplicate workflow.
+  const lastSubmit = useRef<{ fingerprint: string; key: string } | null>(null);
+
+  function keyFor(submittedTitle: string, chosen: File): string {
+    const fingerprint = JSON.stringify([
+      submittedTitle,
+      chosen.name,
+      chosen.size,
+      chosen.lastModified,
+    ]);
+    if (lastSubmit.current?.fingerprint !== fingerprint) {
+      lastSubmit.current = { fingerprint, key: crypto.randomUUID() };
+    }
+    return lastSubmit.current.key;
+  }
 
   function changeTitle(event: ChangeEvent<HTMLInputElement>) {
     setTitle(event.target.value);
-    idempotencyKey.current = crypto.randomUUID();
     setError('');
   }
 
   function changeFile(event: ChangeEvent<HTMLInputElement>) {
     setFile(event.target.files?.[0] ?? null);
-    idempotencyKey.current = crypto.randomUUID();
     setError('');
   }
 
@@ -46,11 +57,12 @@ export function WorkflowUploadPage() {
     }
     setSubmitting(true);
     setError('');
+    const submittedTitle = title.trim();
     try {
       const result = await uploadWorkflow({
-        title: title.trim(),
+        title: submittedTitle,
         file,
-        idempotencyKey: idempotencyKey.current,
+        idempotencyKey: keyFor(submittedTitle, file),
       });
       void navigate(`/workflows/${result.workflowId}`);
     } catch (uploadError) {
@@ -72,7 +84,6 @@ export function WorkflowUploadPage() {
             <input
               type="text"
               value={title}
-              maxLength={MAX_TITLE_LENGTH}
               placeholder="비워 두면 워크플로 JSON의 이름을 사용합니다"
               onChange={changeTitle}
             />

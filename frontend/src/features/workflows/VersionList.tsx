@@ -43,15 +43,18 @@ export function VersionList({ workflowId }: { workflowId: string }) {
         각 버전은 등록 당시의 원본 그대로 내려받을 수 있습니다.
       </p>
 
-      {state.status === 'loading' && <LoadingState />}
+      {/* Mounted before the fetch starts so screen readers announce the result. */}
+      <div aria-live="polite">
+        {state.status === 'loading' && <LoadingState />}
+        {state.status === 'ready' && state.items.length === 0 && (
+          <EmptyState title="등록된 버전이 없습니다." />
+        )}
+      </div>
       {state.status === 'error' && (
         <ErrorState
           message={describeWorkflowError(state.error)}
           onRetry={retry}
         />
-      )}
-      {state.status === 'ready' && state.items.length === 0 && (
-        <EmptyState title="등록된 버전이 없습니다." />
       )}
       {state.status === 'ready' && state.items.length > 0 && (
         <>

@@ -30,20 +30,23 @@ export function WorkflowListPage() {
         }
       />
 
-      {state.status === 'loading' && <LoadingState />}
+      {/* Mounted before the fetch starts so screen readers announce the result. */}
+      <div aria-live="polite">
+        {state.status === 'loading' && <LoadingState />}
+        {state.status === 'ready' && state.items.length === 0 && (
+          <EmptyState title="아직 등록한 워크플로가 없습니다.">
+            <p className="muted">
+              n8n에서 내보낸 JSON 파일을 올려 시작해 보세요.
+            </p>
+            <ButtonLink to="/workflows/new">첫 워크플로 등록</ButtonLink>
+          </EmptyState>
+        )}
+      </div>
       {state.status === 'error' && (
         <ErrorState
           message={describeWorkflowError(state.error)}
           onRetry={retry}
         />
-      )}
-      {state.status === 'ready' && state.items.length === 0 && (
-        <EmptyState title="아직 등록한 워크플로가 없습니다.">
-          <p className="muted">
-            n8n에서 내보낸 JSON 파일을 올려 시작해 보세요.
-          </p>
-          <ButtonLink to="/workflows/new">첫 워크플로 등록</ButtonLink>
-        </EmptyState>
       )}
       {state.status === 'ready' && state.items.length > 0 && (
         <>
