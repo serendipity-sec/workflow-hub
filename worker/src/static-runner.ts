@@ -6,7 +6,7 @@ import type { GitleaksOptions, GitleaksResult } from "./gitleaks.js";
 import { WorkflowError } from "./n8n.js";
 import { createContext } from "./static-context.js";
 import { staticError } from "./static-engine.js";
-import { staticReportSchema } from "./static-contract.js";
+import { staticReportSchema, staticLimits } from "./static-contract.js";
 import type { StaticReport } from "./static-contract.js";
 import {
   checkActive,
@@ -64,7 +64,7 @@ export async function runStaticChild(
     if (signal?.aborted) abort();
     const consume = (chunk: Buffer, keep: boolean) => {
       total += chunk.length;
-      if (total > limits.resultBytes) stop("analyzer_output_limit");
+      if (total > staticLimits.resultBytes) stop("analyzer_output_limit");
       else if (keep && !failure) chunks.push(chunk);
     };
     child.stdout.on("data", (chunk: Buffer) => consume(chunk, true));

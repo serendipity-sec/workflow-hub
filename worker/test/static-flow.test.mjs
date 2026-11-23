@@ -502,7 +502,7 @@ test("reviewed annotation and elementary trigger versions do not invent opaque s
         nodes: [node("Basic", type, version)],
         connections: {},
       });
-      assert.ok(result.every((rule) => rule.profileVersion === "1.2.0"));
+      assert.ok(result.every((rule) => rule.profileVersion === "1.3.0"));
       assert.ok(
         result.every((rule) => rule.diagnostics.length === 0),
         `${type}@${version}`,

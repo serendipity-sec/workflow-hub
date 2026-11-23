@@ -1696,13 +1696,24 @@ export function transferDataClasses(
   const values = new Set<DataClass>();
   let unclassified = false;
   for (const origin of value.origins) {
-    const exact = evidence?.classifications?.filter(
-      (item) =>
-        item.nodeKey === origin.nodeKey &&
-        canonicalEvidenceField(item.field) === origin.fieldPath,
-    );
-    if (exact?.length) for (const item of exact) values.add(item.dataClass);
+    const matching = evidence?.classifications?.filter((item) => {
+      if (item.nodeKey !== origin.nodeKey) return false;
+      const field = canonicalEvidenceField(item.field);
+      return (
+        field === origin.fieldPath ||
+        (origin.includesDescendants === true &&
+          field.startsWith(origin.fieldPath + "/"))
+      );
+    });
+    if (matching?.length)
+      for (const item of matching) values.add(item.dataClass);
     else if (origin.kind !== "literal") unclassified = true;
+    // A subtree candidate can contain any known classified descendant, while
+    // its actual selected element and all unclassified descendants stay unknown.
+    if (origin.includesDescendants) {
+      unclassified = true;
+      values.add("unknown");
+    }
   }
   // Policies are sets, not a severity ranking: a secret can be permitted while
   // personal data is forbidden in the same object or serialized string.

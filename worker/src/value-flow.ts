@@ -17,6 +17,9 @@ export type Sensitivity =
 export type Origin = {
   nodeKey: string;
   fieldPath: string;
+  // Candidate subtree retained by Aggregate selection/reindexing. Never an
+  // assertion of a descendant's exact output position or presence.
+  includesDescendants?: true;
   kind:
     | "webhook"
     | "literal"
@@ -94,6 +97,23 @@ export interface ValueFlow {
   resolveExpression(nodeKey: string, expression: string): AbstractValue;
   output(nodeKey: string, fieldPath: string, port?: number): AbstractValue;
   readonly diagnostics: FlowDiagnostic[];
+}
+
+/** Wait interval success preserves input items; webhook/form resume does not. */
+export function isStaticIntervalWait(node: NormalizedNode): boolean {
+  return (
+    node.type === "n8n-nodes-base.wait" &&
+    [1, 1.1].includes(node.typeVersion) &&
+    (node.parameters.resume === undefined ||
+      node.parameters.resume === "timeInterval") &&
+    (node.parameters.amount === undefined ||
+      (typeof node.parameters.amount === "number" &&
+        Number.isFinite(node.parameters.amount) &&
+        node.parameters.amount >= 0)) &&
+    (node.parameters.unit === undefined ||
+      (typeof node.parameters.unit === "string" &&
+        ["seconds", "minutes", "hours", "days"].includes(node.parameters.unit)))
+  );
 }
 
 export const valueFlowLimits = {
@@ -1267,7 +1287,8 @@ class ValueFlowAnalyzer implements ValueFlow {
         (node.raw.onError !== undefined &&
           node.raw.onError !== "stopWorkflow") ||
         node.raw.alwaysOutputData === true ||
-        node.raw.executeOnce === true
+        node.raw.executeOnce === true ||
+        node.raw.rewireOutputLogTo !== undefined
       )
         result = this.unknown(nodeKey, "node_execution_semantics_unresolved");
       else if (
@@ -1336,6 +1357,14 @@ class ValueFlowAnalyzer implements ValueFlow {
         port === 0
       )
         result = this.input(nodeKey, path, depth + 1);
+      else if (isStaticIntervalWait(node) && port === 0)
+        result = this.input(nodeKey, path, depth + 1);
+      else if (
+        node.type === prefix + "aggregate" &&
+        node.typeVersion === 1 &&
+        port === 0
+      )
+        result = this.aggregateValue(node, path, depth + 1);
       else if (
         node.type === prefix + "set" &&
         [1, 2, 3, 3.1, 3.2, 3.3, 3.4, 3.5].includes(node.typeVersion) &&
@@ -1361,6 +1390,11 @@ class ValueFlowAnalyzer implements ValueFlow {
         port === 0
       )
         result = this.codeValue(node, path, depth + 1);
+      else if (port !== 0)
+        result = this.unknown(nodeKey, "service_output_port_unresolved", [
+          this.source(node, path, "node_output", depth + 1),
+          this.input(nodeKey, [], depth + 1),
+        ]);
       else {
         const ai = aiPromptInputs(node);
         const service = ai
@@ -1419,6 +1453,51 @@ class ValueFlowAnalyzer implements ValueFlow {
         node.key,
         depth + 1,
       );
+    const emailTrigger =
+      (node.type === prefix + "gmailTrigger" &&
+        [1, 1.1, 1.2, 1.3, 1.4].includes(node.typeVersion)) ||
+      (node.type === prefix + "emailReadImap" &&
+        [1, 2, 2.1, 2.2].includes(node.typeVersion));
+    const externalTrigger =
+      emailTrigger ||
+      (node.type === prefix + "telegramTrigger" &&
+        [1, 1.1, 1.2, 1.3, 1.4, 1.5].includes(node.typeVersion)) ||
+      (node.type === prefix + "formTrigger" &&
+        [2, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6].includes(node.typeVersion));
+    if (externalTrigger) {
+      const source = this.source(node, path, "node_output", depth + 1);
+      source.trust = "external";
+      if (
+        emailTrigger &&
+        (!path.length ||
+          path.some((part) =>
+            /^(?:from|to|cc|bcc|sender|replyTo|text|html|snippet)$/i.test(part),
+          )) &&
+        !source.sensitivityBasis.some((basis) => basis.startsWith("trusted_"))
+      ) {
+        source.sensitivityClasses = unique([
+          ...source.sensitivityClasses,
+          "pii_candidate",
+        ]);
+        source.sensitivity =
+          source.sensitivity === "secret_candidate"
+            ? "secret_candidate"
+            : "pii_candidate";
+        source.sensitivityBasis.push("service_email_schema_candidate");
+      }
+      return {
+        ...this.unknown(
+          node.key,
+          this.context.edges.some((edge) => edge.to === node.key)
+            ? "trigger_input_connection_unresolved"
+            : "trigger_payload_schema_unverified",
+          [source],
+        ),
+        guards: [],
+        fullObject: path.length === 0,
+        fieldsComplete: false,
+      };
+    }
     const operation = node.parameters.operation;
     const gmail =
       node.type === prefix + "gmail" &&
@@ -1505,6 +1584,265 @@ class ValueFlowAnalyzer implements ValueFlow {
         fieldsComplete: false,
       };
     return;
+  }
+
+  private aggregateValue(
+    node: NormalizedNode,
+    path: string[],
+    depth: number,
+  ): AbstractValue {
+    const parameters = node.parameters;
+    const options = isObject(parameters.options) ? parameters.options : {};
+    const unresolved = (code: string): AbstractValue =>
+      this.unknown(node.key, code, [this.input(node.key, [], depth + 1)]);
+    if (
+      (parameters.options !== undefined && !isObject(parameters.options)) ||
+      Object.entries(options).some(
+        ([key, value]) =>
+          ![
+            "disableDotNotation",
+            "mergeLists",
+            "keepMissing",
+            "includeBinaries",
+            "keepOnlyUnique",
+          ].includes(key) || typeof value !== "boolean",
+      )
+    )
+      return unresolved("aggregate_options_unresolved");
+    const candidateSubtree = (value: AbstractValue): AbstractValue => ({
+      ...value,
+      origins: value.origins.map((origin) =>
+        origin.kind === "literal"
+          ? origin
+          : { ...origin, includesDescendants: true },
+      ),
+    });
+    // A representative element carries every possible input's classification.
+    // Its index, presence, cardinality and branch guards are not established.
+    const collection = (value: AbstractValue): AbstractValue => ({
+      ...this.unknown(node.key, "collection_cardinality_unverified", [value]),
+      constant: undefined,
+      guards: [],
+      presence: "unknown",
+      fullObject: true,
+      fields: undefined,
+      fieldsComplete: false,
+      valueId: hash(["aggregate_collection", node.key, value.valueId]),
+    });
+    const keys = (value: unknown): string[] | undefined => {
+      const entries =
+        typeof value === "string"
+          ? value
+              .split(",")
+              .map((entry) => entry.trim())
+              .filter(Boolean)
+          : Array.isArray(value)
+            ? value
+            : undefined;
+      if (
+        !entries ||
+        entries.length > valueFlowLimits.fields ||
+        entries.some(
+          (entry) =>
+            typeof entry !== "string" ||
+            entry.startsWith("=") ||
+            !safeParts([entry]),
+        )
+      )
+        return;
+      return entries as string[];
+    };
+    const mode =
+      parameters.aggregate === undefined
+        ? "aggregateIndividualFields"
+        : parameters.aggregate;
+    if (mode === "aggregateAllItemData") {
+      const destination =
+        parameters.destinationFieldName === undefined
+          ? "data"
+          : parameters.destinationFieldName;
+      const include = keys(
+        parameters.fieldsToInclude === undefined
+          ? ""
+          : parameters.fieldsToInclude,
+      );
+      const exclude = keys(
+        parameters.fieldsToExclude === undefined
+          ? ""
+          : parameters.fieldsToExclude,
+      );
+      if (
+        typeof destination !== "string" ||
+        destination.startsWith("=") ||
+        !safeParts([destination]) ||
+        !include ||
+        !exclude
+      )
+        return unresolved("aggregate_fields_unresolved");
+      const accepts = (key: string): boolean =>
+        (!include.length || include.includes(key)) && !exclude.includes(key);
+      const item = (field: string[]): AbstractValue => {
+        if (field.length)
+          return accepts(field[0]!)
+            ? this.input(node.key, field, depth + 1)
+            : empty(node.key, undefined, true);
+        if (include.length) {
+          const selected = include
+            .filter(accepts)
+            .map((key) => this.input(node.key, [key], depth + 1));
+          return selected.length
+            ? join(selected, node.key)
+            : this.literal(node.key, {});
+        }
+        const value = this.input(node.key, [], depth + 1);
+        return exclude.length
+          ? this.unknown(node.key, "aggregate_excluded_unknown_fields", [value])
+          : value;
+      };
+      if (path.length && path[0] !== destination)
+        return empty(node.key, undefined, true);
+      if (path.length > 1 && /^(?:0|[1-9]\d*)$/.test(path[1]!)) {
+        const value = item(path.slice(2));
+        const selected =
+          path.length > 2 || include.length || !exclude.length
+            ? candidateSubtree(value)
+            : value;
+        return { ...collection(selected), fullObject: value.fullObject };
+      }
+      const whole = item([]);
+      // With exclude-only on an unknown input shape, the remaining root fields
+      // are not known. Do not widen that root to include removed descendants.
+      const value = collection(
+        include.length || !exclude.length ? candidateSubtree(whole) : whole,
+      );
+      return path.length
+        ? value
+        : {
+            ...value,
+            fields: { [pointer([destination])]: value },
+            fieldsComplete: true,
+          };
+    }
+    if (mode !== "aggregateIndividualFields")
+      return unresolved("aggregate_mode_unresolved");
+    const configured = isObject(parameters.fieldsToAggregate)
+      ? parameters.fieldsToAggregate.fieldToAggregate
+      : undefined;
+    if (
+      !Array.isArray(configured) ||
+      !configured.length ||
+      configured.length > valueFlowLimits.fields
+    )
+      return unresolved("aggregate_fields_unresolved");
+    const mappings: {
+      output: string[];
+      input: string[];
+      literalInput: string;
+    }[] = [];
+    const runtimeKeys = new Set<string | undefined>();
+    for (const field of configured) {
+      if (
+        !isObject(field) ||
+        typeof field.fieldToAggregate !== "string" ||
+        !field.fieldToAggregate ||
+        field.fieldToAggregate.startsWith("=") ||
+        (field.renameField !== undefined &&
+          typeof field.renameField !== "boolean") ||
+        (field.outputFieldName !== undefined &&
+          typeof field.outputFieldName !== "string")
+      )
+        return unresolved("aggregate_fields_unresolved");
+      const runtimeKey =
+        field.renameField === true
+          ? field.outputFieldName
+          : field.fieldToAggregate;
+      if (runtimeKeys.has(runtimeKey))
+        return unresolved("aggregate_duplicate_field_unresolved");
+      runtimeKeys.add(runtimeKey);
+      const input =
+        options.disableDotNotation === true
+          ? [field.fieldToAggregate]
+          : field.fieldToAggregate.split(".");
+      const outputName = field.outputFieldName || input.at(-1)!;
+      if (typeof outputName !== "string" || outputName.startsWith("="))
+        return unresolved("aggregate_fields_unresolved");
+      const output =
+        options.disableDotNotation === true
+          ? [outputName]
+          : outputName.split(".");
+      if (
+        !safeParts(input) ||
+        !safeParts(output) ||
+        [...input, ...output].some((part) => /[\[\]]/.test(part)) ||
+        mappings.some(
+          (entry) =>
+            pointer(entry.output) === pointer(output) ||
+            pointer(entry.output).startsWith(pointer(output) + "/") ||
+            pointer(output).startsWith(pointer(entry.output) + "/"),
+        )
+      )
+        return unresolved("aggregate_fields_unresolved");
+      mappings.push({ input, output, literalInput: field.fieldToAggregate });
+    }
+    const fields: Record<string, AbstractValue> = Object.create(null);
+    for (const entry of mappings) {
+      const read = (tail: string[]): AbstractValue => {
+        const nested = this.input(
+          node.key,
+          [...entry.input, ...tail],
+          depth + 1,
+        );
+        // lodash.get prefers an existing literal dotted key before treating
+        // the name as a nested path. Unknown item shapes can contain either.
+        return entry.input.length > 1
+          ? this.unknown(
+              node.key,
+              "aggregate_dotted_key_resolution_unverified",
+              [
+                nested,
+                this.input(node.key, [entry.literalInput, ...tail], depth + 1),
+              ],
+            )
+          : nested;
+      };
+      const value = read([]);
+      const descendants = candidateSubtree(value);
+      fields[pointer(entry.output)] = collection(descendants);
+      if (pointer(path).startsWith(pointer(entry.output) + "/")) {
+        const tail = path.slice(entry.output.length);
+        if (!/^(?:0|[1-9]\d*)$/.test(tail[0]!))
+          return unresolved("aggregate_array_property_unresolved");
+        const element =
+          options.mergeLists === true
+            ? this.unknown(node.key, "aggregate_flatten_shape_unverified", [
+                descendants,
+                read(tail.slice(1)),
+                read(["0", ...tail.slice(1)]),
+              ])
+            : options.keepMissing !== true &&
+                tail.length > 1 &&
+                /^(?:0|[1-9]\d*)$/.test(tail[1]!)
+              ? this.unknown(
+                  node.key,
+                  "aggregate_null_filter_alignment_unverified",
+                  [descendants, read(tail.slice(1))],
+                )
+              : read(tail.slice(1));
+        return {
+          ...collection(candidateSubtree(element)),
+          fullObject: element.fullObject,
+        };
+      }
+    }
+    const value = {
+      ...join(Object.values(fields), node.key),
+      constant: undefined,
+      fullObject: true,
+      fields,
+      fieldsComplete: true,
+      guards: [],
+    };
+    return this.project(value, path, node.key, depth + 1);
   }
 
   private setValue(

@@ -76,3 +76,53 @@ regexes = [
   '''^\s*"shapeKey": "62c84498b6df54812fc931fdc97c23ec921dca3a3b1a8558711df3006ca511e2",?\s*$''',
   '''^\s*"shapeKey": "fa64e59a878ad38732304f8406cb7c0b892b750b2f28399c402f7f8eaf40de36",?\s*$''',
 ]
+
+# Exact synthetic identifiers from the validated 0.7.0 runtime and LLM adapter fixture.
+# No credential values or general hash patterns are exempted.
+
+[[rules.allowlists]]
+condition = "AND"
+paths = ['''^worker/validation/llm-synthetic-0\.7\.0-results\.json$''']
+regexTarget = "line"
+regexes = [
+  '''^\s*"analysisKey": "89913f4502bcdbdb784a68dbcf2fdbb4c85450c6dfc7c6502fa33310921cfaf7",?\s*$''',
+]
+
+[[rules.allowlists]]
+condition = "AND"
+paths = ['''^worker/validation/assessment-runtime-0\.7\.0-results\.json$''']
+regexTarget = "line"
+regexes = [
+  '''^\s*"advisoryKey": "1eaff43b29c0b79e6191fd50efa574e867fcfd5ec5e99734eb4a7b8fb5fb379e",?\s*$''',
+  '''^\s*"analysisKey": "0f6bd75d0d4fc498c9740766d1f5a409fff868bce4419156e6d3b14c5e55ced6",?\s*$''',
+  '''^\s*"analysisKey": "49898bd41cc00519380393939f70b5cb40e3dc1ad3634363c84fff4061681074",?\s*$''',
+  '''^\s*"analysisKey": "4a385811ee725a25bef9ed8fde5b65382ab2a909972919f00f1276902a537dd4",?\s*$''',
+  '''^\s*"analysisKey": "4c795544be801d332df9d79fe37d426f9606d3467ce91f868c66b3afbb076183",?\s*$''',
+  '''^\s*"analysisKey": "66d6f0976505eb57d75cc6c740424f0e83ac07ff44de58ba27193181f2b0f678",?\s*$''',
+  '''^\s*"analysisKey": "bbb16ee93117456772a9eb0ba04baa8ce3f489e79546e5311d8d6a4a09b2f494",?\s*$''',
+  '''^\s*"analysisKey": "bca29b2cfefe834d2429991e5422eccd0ff92a59c2dc83819732030ed091bdba",?\s*$''',
+  '''^\s*"analysisKey": "fa12fc67a9a50ba52524898103c9e55cffffbc0903134e00f2cfdefd20e59eab",?\s*$''',
+  '''^\s*"analysisKey": "fee863f5126fd8d4ba891dc3d7f6c655ffcca918415e01c4dfe29a8393ebe231",?\s*$''',
+  '''^\s*"childAnalysisKey": "49898bd41cc00519380393939f70b5cb40e3dc1ad3634363c84fff4061681074",?\s*$''',
+  '''^\s*"dist/api-client\.js": "bd8d36f7e35fba4c05780a1295b07a92f5b7246b76d8194091ca60c92ba7c6ab",?\s*$''',
+  '''^\s*"nodeKey": "07ed6ccf6bf6393d18684d1d4f774639d44c7d2d2895fd30491ccc50614ed4ea",?\s*$''',
+  '''^\s*"nodeKey": "11b39c93777e8f1f3983bdba7c72b22fe68cfea20c677e9de53e17cb7dbfb19f",?\s*$''',
+  '''^\s*"nodeKey": "18885f27b5af9012df19e496460f9294d5ab76128824c6f993787004f6d9a7db",?\s*$''',
+  '''^\s*"nodeKey": "1d75a9d31af0696dc310aba9fdd6eb192f54d716c143ee00f6ecac37003c03b8",?\s*$''',
+  '''^\s*"nodeKey": "2e2c9540ec00acc8271a2db4e376c5d34b350edd4bbb340107fdb96a8bf3d53d",?\s*$''',
+  '''^\s*"nodeKey": "2e53bdcd0740867b597599e733c04a994f55fb17c89a61595183a001742e5705",?\s*$''',
+  '''^\s*"nodeKey": "36ecb4f8669133ce744c21982ba4abe2ecd7086e1dc2226ccd6f266f3a5005f8",?\s*$''',
+  '''^\s*"nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",?\s*$''',
+  '''^\s*"nodeKey": "54bf0ebbfb3e0e37f0176d95b0419f19c437e15cd2730ae68ab20e47dd553369",?\s*$''',
+  '''^\s*"nodeKey": "5c39123805ffb4e2f01ba096f17a5b18afb43c4f223afa4ba2d5a3f31cf74e09",?\s*$''',
+  '''^\s*"nodeKey": "5e2c614c23f02239bc03c6c04fcb681950f9e72bf8fdff6be79c79841cbb10c0",?\s*$''',
+  '''^\s*"nodeKey": "8d5eaa4f55ecbf84b66a0e3e953fa850842cb2ca07a7242b997c0373a81634d3",?\s*$''',
+  '''^\s*"nodeKey": "b80a37564fbb3c0753202a1f92d5da8ccfb906b244f2842bba2232cea9883abd",?\s*$''',
+  '''^\s*"nodeKey": "be176b0015c424b78e9f343f8bc3014a7a701cc2eb9000b6acbc04d67dbecb8f",?\s*$''',
+  '''^\s*"nodeKey": "d6e645b7d2b2da646d44130464143171935ffa47558b4e36c05df175de7197ba",?\s*$''',
+  '''^\s*"nodeKey": "fa7fe67124e94375d97e50896e0c32f44b03bb7ed5e9fb026341b55da724126b",?\s*$''',
+  '''^\s*"packageKey": "b28492657c10839a41bae10184e286eb1b9e98acc82cee3a97981fd4dd5b4a9f",?\s*$''',
+  '''^\s*"parentAnalysisKey": "bbb16ee93117456772a9eb0ba04baa8ce3f489e79546e5311d8d6a4a09b2f494",?\s*$''',
+  '''^\s*"policyKey": "4baa36e54b68dd6a14914a8555f207441ae12721f6f9a28ac120c83baee28780",?\s*$''',
+  '''^\s*"sourceKey": "bf4e65b0435a4d3945f9e634a883bdf44fbcdfd0f259484975a8fc91e1285e39",?\s*$''',
+]

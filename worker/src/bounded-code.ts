@@ -493,6 +493,33 @@ export function analyzeBoundedCode(
   let nextObjectId = 0;
   let shapeWork = 0;
   const functions = new Map<string, Ast>();
+  const functionConstants = new WeakMap<Ast, Map<string, Binding>>();
+  const captureConstants = (fn: Ast, state: State): void => {
+    const selfName =
+      fn.type === "FunctionExpression" && object(fn.id)
+        ? fn.id.name
+        : undefined;
+    const captured = [...state.env].filter(
+      ([name, binding]) =>
+        name !== selfName &&
+        !binding.mutable &&
+        !binding.owned &&
+        !binding.value.fullObject &&
+        !binding.value.fields &&
+        binding.value.status === "resolved" &&
+        binding.value.constant !== undefined,
+    );
+    // Only lexical immutable primitive values are supported. Mutable bindings
+    // and object captures retain the opaque profile; caller parameters cannot
+    // substitute for a function's defining environment.
+    if (captured.length <= 128)
+      functionConstants.set(
+        fn,
+        new Map(
+          captured.map(([name, binding]) => [name, structuredClone(binding)]),
+        ),
+      );
+  };
   const embeddedObjects = new Set<number>();
   const diagnosticValues: AbstractValue[] = [];
   const observedValues: AbstractValue[] = [];
@@ -694,15 +721,32 @@ export function analyzeBoundedCode(
     const parameters = new Set(
       fn.params.filter(object).map((param) => param.name),
     );
+    const selfName =
+      fn.type === "FunctionExpression" && object(fn.id)
+        ? fn.id.name
+        : undefined;
+    const lexicalConstants =
+      functionConstants.get(fn) ?? new Map<string, Binding>();
+    let selfReferenced = false;
     const pending: unknown[] = [fn.body];
     while (pending.length) {
       const part = pending.pop();
       if (!object(part)) continue;
       if (
         part.type === "Identifier" &&
+        typeof selfName === "string" &&
+        part.name === selfName &&
+        !parameters.has(selfName)
+      ) {
+        selfReferenced = true;
+        continue;
+      }
+      if (
+        part.type === "Identifier" &&
         typeof part.name === "string" &&
         state.env.has(part.name) &&
-        !parameters.has(part.name)
+        !parameters.has(part.name) &&
+        !lexicalConstants.has(part.name)
       ) {
         opaque = true;
         return unknown("code_closure_capture_unresolved", [
@@ -724,6 +768,18 @@ export function analyzeBoundedCode(
       }
     }
     const child = clone(state);
+    for (const [name, binding] of lexicalConstants)
+      child.env.set(name, structuredClone(binding));
+    if (selfReferenced && typeof selfName === "string") {
+      // The named function's own binding is not the caller's same-named
+      // primitive. Keep it unknown while still observing the bounded body,
+      // including sensitive properties read through callback arguments.
+      child.env.set(selfName, {
+        value: unknown("code_function_self_binding_unresolved"),
+        mutable: false,
+        owned: false,
+      });
+    }
     child.returns = [];
     child.stopped = false;
     for (const [index, param] of fn.params.entries()) {
@@ -742,23 +798,27 @@ export function analyzeBoundedCode(
         owned: false,
       });
     }
+    const closureBefore = new Map(
+      [...child.env].map(([name, binding]) => [name, binding.value.valueId]),
+    );
     if (fn.body.type === "BlockStatement" && Array.isArray(fn.body.body))
       execute(fn.body.body, child, depth + 1);
     else child.returns.push(expression(fn.body, child, depth + 1));
     // Writes through a closure are outside the pure helper profile.
-    for (const [name, before] of state.env) {
+    for (const [name, before] of closureBefore) {
       if (
         !fn.params.some((param) => object(param) && param.name === name) &&
-        child.env.get(name)?.value.valueId !== before.value.valueId
+        child.env.get(name)?.value.valueId !== before
       ) {
         opaque = true;
         return unknown("code_closure_mutation_unresolved", [
-          before.value,
+          ...(state.env.get(name) ? [state.env.get(name)!.value] : []),
           ...child.returns,
           ...[...child.env.values()].map((binding) => binding.value),
         ]);
       }
     }
+    if (selfReferenced) opaque = true;
     return choice(child.returns);
   };
   const expression = (ast: Ast, state: State, depth = 0): AbstractValue => {
@@ -956,7 +1016,8 @@ export function analyzeBoundedCode(
       if (
         callee.type === "Identifier" &&
         typeof callee.name === "string" &&
-        functions.has(callee.name)
+        functions.has(callee.name) &&
+        !state.env.has(callee.name)
       ) {
         for (const arg of ast.arguments)
           if (object(arg)) embedReferences(arg, state);
@@ -990,6 +1051,7 @@ export function analyzeBoundedCode(
           ast.arguments[0].params.length > 1
         )
           args.push(unknown("code_collection_index_unverified"));
+        captureConstants(ast.arguments[0], state);
         const mapped = callFunction(ast.arguments[0], args, state, depth + 1);
         if (method === "filter") return { ...receiver, guards: [] };
         if (method === "forEach") {
@@ -1182,6 +1244,7 @@ export function analyzeBoundedCode(
         !state.env.has(item.id.name)
       ) {
         functions.set(item.id.name, item);
+        captureConstants(item, state);
         continue;
       }
       if (
@@ -1212,6 +1275,7 @@ export function analyzeBoundedCode(
               continue;
             }
             functions.set(declaration.id.name, declaration.init);
+            captureConstants(declaration.init, state);
             continue;
           }
           const value = object(declaration.init)

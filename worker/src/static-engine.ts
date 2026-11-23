@@ -11,6 +11,7 @@ import {
   reportStatus,
   staticReportSchema,
   staticResultVersions,
+  staticLimits,
 } from "./static-contract.js";
 import type { StaticReport } from "./static-contract.js";
 import { sha256 } from "./worker-io.js";
@@ -89,7 +90,7 @@ export function analyzeStatic(
       status: reportStatus(rules),
       rules,
     };
-    if (Buffer.byteLength(JSON.stringify(report)) > limits.resultBytes)
+    if (Buffer.byteLength(JSON.stringify(report)) > staticLimits.resultBytes)
       return staticError(inputSha256, "analyzer_output_limit");
     const validated = staticReportSchema.safeParse(report);
     return validated.success

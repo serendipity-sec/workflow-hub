@@ -107,6 +107,7 @@ type Kind = (typeof kinds)[number];
 // package names, parameter values and recipients never enter this summary.
 const profiles: Record<string, [Kind, Role[]]> = {
   webhook: ["webhook", ["trigger"]],
+  formTrigger: ["webhook", ["trigger"]],
   scheduleTrigger: ["schedule", ["trigger"]],
   cron: ["schedule", ["trigger"]],
   manualTrigger: ["manual", ["trigger"]],
@@ -122,6 +123,10 @@ const profiles: Record<string, [Kind, Role[]]> = {
   switch: ["condition", ["branch"]],
   set: ["mapping", ["transform"]],
   noOp: ["mapping", ["transform"]],
+  // The inventory uses a broad data-processing category. Detailed wait/resume
+  // and aggregate semantics remain the responsibility of value-flow profiles.
+  wait: ["mapping", ["transform"]],
+  aggregate: ["mapping", ["transform"]],
   merge: ["merge", ["transform"]],
   code: ["code", ["transform", "execute"]],
   function: ["code", ["transform", "execute"]],
@@ -136,6 +141,7 @@ const profiles: Record<string, [Kind, Role[]]> = {
   notion: ["document", ["read", "write"]],
   googleDocs: ["document", ["read", "write"]],
   googleSheets: ["document", ["read", "write"]],
+  airtable: ["document", ["read", "write"]],
   googleGemini: ["ai", ["send", "transform"]],
   executeWorkflow: ["subworkflow", ["execute"]],
   executeWorkflowTrigger: ["subworkflow", ["trigger"]],

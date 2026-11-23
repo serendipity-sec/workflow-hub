@@ -74,7 +74,7 @@ test("ID-less workflow summaries preserve bytes and expose only structural facts
   });
   const report = await assessBytes(input, { collectTools: tools, now });
   assert.notEqual(report.status, "error", JSON.stringify(report));
-  assert.equal(report.engineVersion, "0.6.0");
+  assert.equal(report.engineVersion, "0.7.0");
   assert.equal(report.inputSha256, hash(input));
   const summary = report.files[0].functionSummary;
   assert.deepEqual(
@@ -126,6 +126,48 @@ test("assessment rule completeness is versioned while historical reports remain 
     (r) => r.ruleId !== "N8N_AI_PROMPT_DATA",
   );
   assert.equal(assessmentReportSchema.safeParse(missing).success, false);
+});
+
+test("flow profile inventory names form, wait, aggregate and record-store capabilities without asserting complete analysis", async () => {
+  const input = bytes(
+    document(
+      node("SYNTHETIC_PRIVATE_FORM", "formTrigger", 2.2),
+      node("SYNTHETIC_PRIVATE_WAIT", "wait", 1.1, {
+        resume: "timeInterval",
+        amount: 1,
+        unit: "seconds",
+      }),
+      node("SYNTHETIC_PRIVATE_AGGREGATE", "aggregate", 1, {
+        aggregate: "aggregateAllItemData",
+      }),
+      node("SYNTHETIC_PRIVATE_STORE", "airtable", 2.1, {
+        resource: "record",
+        operation: "search",
+      }),
+      node("SYNTHETIC_PRIVATE_UNKNOWN", "unrecognizedSyntheticConnector", 1),
+    ),
+  );
+  const report = await assessBytes(input, { collectTools: tools, now });
+  assert.notEqual(report.status, "error");
+  const summary = report.files[0].functionSummary;
+  assert.deepEqual(
+    summary.nodes.map(({ kind, roles }) => ({ kind, roles })),
+    [
+      { kind: "webhook", roles: ["trigger"] },
+      { kind: "mapping", roles: ["transform"] },
+      { kind: "mapping", roles: ["transform"] },
+      { kind: "document", roles: ["read", "write"] },
+      { kind: "unknown", roles: ["unknown"] },
+    ],
+  );
+  assert.equal(summary.meaning, "declared_structure_only");
+  assert.ok(summary.limitations.includes("node_roles_are_capabilities"));
+  assert.ok(summary.limitations.includes("business_purpose_not_verified"));
+  assert.ok(summary.limitations.includes("unknown_node_capabilities"));
+  assert.equal(report.status, "partial");
+  assert.equal(report.execution, "not_run");
+  assert.ok(!JSON.stringify(summary).includes("SYNTHETIC_PRIVATE"));
+  assert.equal(report.inputSha256, hash(input));
 });
 
 test("input failures provide safe parser codes and locations before collecting tools", async () => {

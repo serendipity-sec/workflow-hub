@@ -18,8 +18,6 @@ assert.ok(
 const directory = await realpath(resolve(process.argv[2]));
 const dockerExecutable = process.env.WORKER_DOCKER_PATH;
 const image = process.env.WORKER_ASSESSMENT_IMAGE;
-assert.ok(dockerExecutable && isAbsolute(dockerExecutable));
-assert.match(image ?? "", /^sha256:[a-f0-9]{64}$/);
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const manifestBytes = await readFile(join(directory, "downloads.json"));
 assert.ok(manifestBytes.length <= 128 * 1024);
@@ -28,11 +26,18 @@ assert.ok(
   Array.isArray(manifest.samples) &&
     manifest.samples.length > 0 &&
     manifest.samples.length <= 30,
+  "A nonempty collected sample set is required",
+);
+assert.ok(
+  !manifest.failures?.length,
+  "Collection failures must not disappear from the validation denominator",
 );
 assert.equal(
   new Set(manifest.samples.map((sample) => sample.id)).size,
   manifest.samples.length,
 );
+assert.ok(dockerExecutable && isAbsolute(dockerExecutable));
+assert.match(image ?? "", /^sha256:[a-f0-9]{64}$/);
 const artifactHashes = {};
 for (const name of (await readdir(new URL("../dist/", import.meta.url)))
   .filter((name) => name.endsWith(".js"))
@@ -236,8 +241,15 @@ const output = {
       .filter((tool) => tool.status !== "completed").length,
     toolInvocations: results.flatMap((result) => result.tools).length,
     filesRejectedBeforeToolInspection: results.filter(
-      (result) => result.status === "error",
+      (result) =>
+        result.status === "error" && result.errorCode === "invalid_input",
     ).length,
+    otherAssessmentFailures: results.filter(
+      (result) =>
+        result.status === "error" && result.errorCode !== "invalid_input",
+    ).length,
+    toolInvocationCountBasis:
+      "returned_per_file_statuses_excludes_unavailable_reports",
     automaticPlans: results.reduce(
       (sum, result) => sum + result.automaticPlans,
       0,

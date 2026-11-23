@@ -13,6 +13,8 @@ import {
 import { compareDefinitions, applyRemediation } from "./assessment-change.js";
 import { parseEvidenceBytes } from "./assessment-evidence.js";
 import { sha256 } from "./worker-io.js";
+import { inspectFile, presentInspection } from "./inspection.js";
+import { buildServiceReport } from "./service-report.js";
 import {
   parseTask,
   readLocalFile,
@@ -26,6 +28,63 @@ async function main(args: string[], signal: AbortSignal): Promise<void> {
     image: process.env.WORKER_ASSESSMENT_IMAGE,
     signal,
   };
+  if (
+    args[0] === "inspect" &&
+    args.length >= 2 &&
+    args.length <= 4 &&
+    args[1]
+  ) {
+    const llm = args.at(-1) === "--llm";
+    const positional = llm ? args.slice(1, -1) : args.slice(1);
+    if (
+      positional.length < 1 ||
+      positional.length > 2 ||
+      positional.some((arg) => arg.startsWith("--"))
+    )
+      throw new WorkerFailure("invalid_configuration");
+    const result = await inspectFile(positional[0]!, {
+      ...assessmentOptions,
+      evidencePath: positional[1],
+      llm: {
+        enabled: llm,
+        apiKey: process.env.OPENROUTER_API_KEY,
+        model: process.env.WORKER_LLM_MODEL,
+        maxOutputTokens:
+          process.env.WORKER_LLM_MAX_OUTPUT_TOKENS === undefined
+            ? undefined
+            : Number(process.env.WORKER_LLM_MAX_OUTPUT_TOKENS),
+      },
+    });
+    process.stdout.write(JSON.stringify(result) + "\n");
+    if (result.serviceReport.executionStatus !== "completed")
+      process.exitCode = 1;
+    return;
+  }
+  if (
+    (args[0] === "present" || args[0] === "explain") &&
+    args.length === 2 &&
+    args[1]
+  ) {
+    const report = JSON.parse(
+      (await readLocalFile(args[1], assessmentLimits.resultBytes)).toString(
+        "utf8",
+      ),
+    );
+    const result = await presentInspection(report, {
+      enabled: args[0] === "explain",
+      apiKey: process.env.OPENROUTER_API_KEY,
+      model: process.env.WORKER_LLM_MODEL,
+      maxOutputTokens:
+        process.env.WORKER_LLM_MAX_OUTPUT_TOKENS === undefined
+          ? undefined
+          : Number(process.env.WORKER_LLM_MAX_OUTPUT_TOKENS),
+      signal,
+    });
+    process.stdout.write(JSON.stringify(result) + "\n");
+    if (result.serviceReport.executionStatus !== "completed")
+      process.exitCode = 1;
+    return;
+  }
   if (
     args[0] === "assess" &&
     (args.length === 2 || args.length === 3) &&
@@ -110,6 +169,7 @@ async function main(args: string[], signal: AbortSignal): Promise<void> {
         comparison: compareAssessment(report, recheck),
         definitionChanges: compareDefinitions(bytes, revised),
         recheck,
+        serviceReport: buildServiceReport(recheck),
       }) + "\n",
     );
     return;

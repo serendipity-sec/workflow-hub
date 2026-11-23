@@ -1,0 +1,760 @@
+{
+  "schemaVersion": "1.0.0",
+  "outcome": "passed",
+  "scope": "offline_service_presentation_and_payload_preparation",
+  "workflowExecution": "not_run",
+  "modelCalls": 0,
+  "actualTeamApiIntegration": "not_run",
+  "samples": [
+    {
+      "id": 16081,
+      "inputSha256": "240fa1306060e29f9b4dd325155d4c2228e2971293da79f6cc50976ab1f84595",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 5,
+        "observations": 27,
+        "analysisGaps": 20,
+        "environmentChecks": 17,
+        "scopeNotes": 4
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": false,
+      "inspectionSha256": "37c4cd811f3844bcaedd6acc1351231d157451b6e7749bd8d6b78698a462abca",
+      "inspectionArtifact": "16081.inspection.offline.json",
+      "preparedLlmContextSha256": "fdcb3d1b8f603ce12fc3313382f02ad5a9a56f46764b3f46a1405d5c8aefa66e",
+      "preparedLlmContextBytes": 18804,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 20541,
+      "inputSha256": "d3d5f495130b43df93a319764459f352e104607f5eb28e5d061c77c3a7da20aa",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 22,
+        "observations": 41,
+        "analysisGaps": 96,
+        "environmentChecks": 16,
+        "scopeNotes": 5
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": false,
+      "inspectionSha256": "a9a66b92f8281ef5dfe94dffba6e6ea50c8e22ae7b9dd76edc1cb8b835f4f90a",
+      "inspectionArtifact": "20541.inspection.offline.json",
+      "preparedLlmContextSha256": "83145ac6e23834141907b15a2a67c26c6f1e60a98e1e18fdd18808539f00950a",
+      "preparedLlmContextBytes": 18931,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 20459,
+      "inputSha256": "5d6db1a142789d17f06ecd8419d9c721593eca82fa142f537936ff4a0dbcf18d",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 20,
+        "observations": 40,
+        "analysisGaps": 80,
+        "environmentChecks": 9,
+        "scopeNotes": 5
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": false,
+      "inspectionSha256": "4263cdffe3725ef93b533fd590cf187c0c525d7a74b9259b779955f06aa7000e",
+      "inspectionArtifact": "20459.inspection.offline.json",
+      "preparedLlmContextSha256": "fcc7dc03525c90d6166b98b1a21554f2906911b43051252c37466ace8560bc17",
+      "preparedLlmContextBytes": 18861,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 14034,
+      "inputSha256": "f7bf2111da711feaf7762c96132155804aefd683ba902bba50e1706851470dde",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 7,
+        "observations": 10,
+        "analysisGaps": 18,
+        "environmentChecks": 4,
+        "scopeNotes": 6
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": false,
+      "inspectionSha256": "1a45e1aa58bb28a00d47315905bbd287d7f5d8be72e5177cf7c617d840ba1ce8",
+      "inspectionArtifact": "14034.inspection.offline.json",
+      "preparedLlmContextSha256": "df9c402b192e0fda07a367bf1513694cc77464c268574ca30db4a3591b61eb76",
+      "preparedLlmContextBytes": 18846,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 2490,
+      "inputSha256": "1053cb887fe65b990c0f085cdd58ea6fbb208c0495e37c713db6c00c3272a3e9",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 22,
+        "observations": 35,
+        "analysisGaps": 37,
+        "environmentChecks": 44,
+        "scopeNotes": 3
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": false,
+      "inspectionSha256": "0410fa21011b3999d9610ea48f2e55052938956b6d60575cc714a8da5006000f",
+      "inspectionArtifact": "2490.inspection.offline.json",
+      "preparedLlmContextSha256": "deb9419c25ba72129eb1b3f58638eeaa2c2707bf4290f21c9300713defdecacb",
+      "preparedLlmContextBytes": 18383,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 7643,
+      "inputSha256": "0d3fc12253934d795ec19610851727fa668af7a0b47232b51fef586135aecc0d",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 2,
+        "observations": 18,
+        "analysisGaps": 49,
+        "environmentChecks": 14,
+        "scopeNotes": 6
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": false,
+      "inspectionSha256": "5742400788fad18eb64b4fc29f76910de88cc60f78c1663066cafa7397f3f2da",
+      "inspectionArtifact": "7643.inspection.offline.json",
+      "preparedLlmContextSha256": "4102f9dbc1d16a6fea48498bbcfbb2056e0379f9c67063f00353c6c0dfd8d9df",
+      "preparedLlmContextBytes": 18550,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 18521,
+      "inputSha256": "f5586df6760b5fb2c5accdb22c402316eeedfe3a0caf92b6139da78a2c63b157",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 18,
+        "observations": 41,
+        "analysisGaps": 95,
+        "environmentChecks": 34,
+        "scopeNotes": 7
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": false,
+      "inspectionSha256": "44b8c43350d2ccd5a67b62be4bf46bf118551e6d3fac97c5aba13022c283de7a",
+      "inspectionArtifact": "18521.inspection.offline.json",
+      "preparedLlmContextSha256": "03b752ed945b6aad35ca5bd9abe53c3a7a0670fa121632ed2f3a08be414c32f2",
+      "preparedLlmContextBytes": 18669,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 15403,
+      "inputSha256": "8438bdef61645e45e9efcb104c8313d910826e4376f36571089bcd2a39022068",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 21,
+        "observations": 41,
+        "analysisGaps": 93,
+        "environmentChecks": 21,
+        "scopeNotes": 5
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": false,
+      "inspectionSha256": "5a5591593bfcd0d9e6d2f7398c66b9110d06f04430f358c934ceafc4d447c0e7",
+      "inspectionArtifact": "15403.inspection.offline.json",
+      "preparedLlmContextSha256": "599be8c9f6bf04f627f913821975c7eb0aa6ba386e509fc4729561f730f9f986",
+      "preparedLlmContextBytes": 19008,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 10111,
+      "inputSha256": "244b7f1c399d278c8c7484aa0c98b3ec48e1c610099d4e1cde9bd38c601abc84",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 28,
+        "observations": 55,
+        "analysisGaps": 87,
+        "environmentChecks": 21,
+        "scopeNotes": 6
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": false,
+      "inspectionSha256": "23a8ecd0431a94f58c1660b8534ed3a7da576639b65c752b5321e2053194f4b7",
+      "inspectionArtifact": "10111.inspection.offline.json",
+      "preparedLlmContextSha256": "06994d88e1fa3153dac1e2e87f2b7a6f57db86707e240f53bf34734310eb6ac5",
+      "preparedLlmContextBytes": 18627,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 10476,
+      "inputSha256": "68d2081d7de9527a35eabe01aacf10b73a6f989235739a53ca7f2a127ed2888e",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 20,
+        "observations": 51,
+        "analysisGaps": 125,
+        "environmentChecks": 27,
+        "scopeNotes": 8
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": false,
+      "inspectionSha256": "fb2ae4f689f3f3b64db754e5d7c0f6858fa9381c8e9813857c42f0bc99d22af7",
+      "inspectionArtifact": "10476.inspection.offline.json",
+      "preparedLlmContextSha256": "cb722890f4fc7a5daa48abba526fe63e46cc5588eaabdfbcc442bac0dfaeb0e3",
+      "preparedLlmContextBytes": 18525,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 6216,
+      "inputSha256": "91fafa6e1b171d8de3ebc61dc4ca36e8a6ffedc47b6e12752c744b5a882ff8d5",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 13,
+        "observations": 16,
+        "analysisGaps": 36,
+        "environmentChecks": 3,
+        "scopeNotes": 4
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": false,
+      "inspectionSha256": "d7eed51ea1925029770b94f6ecd59c17c86317a78ce32707069a264ed9067b2d",
+      "inspectionArtifact": "6216.inspection.offline.json",
+      "preparedLlmContextSha256": "b9c1b91f75f1ba0315c2818ecbec0a2725a8240230ce8417a530247d6bb21036",
+      "preparedLlmContextBytes": 18923,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 3314,
+      "inputSha256": "fe41176ad71bfc5961baad02cdf22b94dea533cab3716ce591c4133fd43b0d0f",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 14,
+        "observations": 39,
+        "analysisGaps": 95,
+        "environmentChecks": 26,
+        "scopeNotes": 8
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": false,
+      "inspectionSha256": "2f2a55dac7a2056771ff9252869753cecbbaaa2d8e81ded813d4890a8dc112fb",
+      "inspectionArtifact": "3314.inspection.offline.json",
+      "preparedLlmContextSha256": "828fbe7dcbe3661efeaddcecb89a678b2778940a097291b1bf1a0e74c6b0916a",
+      "preparedLlmContextBytes": 18948,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 11007,
+      "inputSha256": "a5b90072022086d7a8529309a0da2968481e902fc6260e4be6646489c0676580",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 31,
+        "observations": 45,
+        "analysisGaps": 132,
+        "environmentChecks": 15,
+        "scopeNotes": 4
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": false,
+      "inspectionSha256": "d7944fe8d7614b61dcbeac4f83e3eceea1aa54325b940c0e9b9e968382cbbbf7",
+      "inspectionArtifact": "11007.inspection.offline.json",
+      "preparedLlmContextSha256": "73871b8a62725fb783832844797ae91e4fc5181b21906d0d56f567cf9ce334f5",
+      "preparedLlmContextBytes": 18800,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 9638,
+      "inputSha256": "1148aa3119d3133bed0cab0012aa704e955b43244748b6d97fa6289d34a2513a",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 4,
+        "observations": 27,
+        "analysisGaps": 63,
+        "environmentChecks": 21,
+        "scopeNotes": 7
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": false,
+      "inspectionSha256": "bc912b9325779df0bbde4e3552e93a57fa16f7f030539dd13891c4a8ead7aca0",
+      "inspectionArtifact": "9638.inspection.offline.json",
+      "preparedLlmContextSha256": "e806798d0ccfe7b806703b7e6a922e89f1900a6b56f9c8f999e629bf791fae97",
+      "preparedLlmContextBytes": 18852,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 7622,
+      "inputSha256": "feace2e3f32e895d5727651bee81c0b39952f5331b6e37a44e807387b2083dcb",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 5,
+        "observations": 21,
+        "analysisGaps": 44,
+        "environmentChecks": 14,
+        "scopeNotes": 6
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": false,
+      "inspectionSha256": "fa016ec5b04b11ed307b0de0314ee55d440a18bb357062fb73def3b814af4468",
+      "inspectionArtifact": "7622.inspection.offline.json",
+      "preparedLlmContextSha256": "f3e42336d19384107f1e64bba3e3a9d1c5685650021386a3a273e8ceb6036df7",
+      "preparedLlmContextBytes": 18460,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 11807,
+      "inputSha256": "1a8e1f735dd96dee35c40f19dc350e623f85038c07bfa2c276758696f3a07fc5",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 45,
+        "observations": 126,
+        "analysisGaps": 378,
+        "environmentChecks": 56,
+        "scopeNotes": 9
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 122,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": true,
+      "inspectionSha256": "52563652ed50114686198c9b0a9b759d1bd0d0f51e47c0ef179a559f800a65fd",
+      "inspectionArtifact": "11807.inspection.offline.json",
+      "preparedLlmContextSha256": "ccf8533cd511e8b254e78d6df4abca57d5ca91a753c540cb8204f11d73997909",
+      "preparedLlmContextBytes": 18826,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 4751,
+      "inputSha256": "1964ec3735f5d24a7fbd0aa26fa8d9c4e1a2d98c3be7fd9a1922013f30015010",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 24,
+        "observations": 36,
+        "analysisGaps": 41,
+        "environmentChecks": 23,
+        "scopeNotes": 4
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": false,
+      "inspectionSha256": "045a111810d409c9a16f2e98bd4b67c219cf409de5fab64e4815334fa4e5fd95",
+      "inspectionArtifact": "4751.inspection.offline.json",
+      "preparedLlmContextSha256": "a84a188a2ff67b2628d99e2e2a12bba11cb10a312f1efc78556847648a5f388b",
+      "preparedLlmContextBytes": 18811,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 8965,
+      "inputSha256": "5c8155012ad2c2508444b3f238ac4a45ab3c60385b9a0006bb3c4497c64c6096",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 40,
+        "observations": 105,
+        "analysisGaps": 134,
+        "environmentChecks": 56,
+        "scopeNotes": 5
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": false,
+      "inspectionSha256": "ff1abf34273ac6cf1071441069c68657c78db847c1f362c8f0c28d42217febe3",
+      "inspectionArtifact": "8965.inspection.offline.json",
+      "preparedLlmContextSha256": "631d79cd880cc9319e6569f5c9f4c52c72bdc5d54f6a7ddffbb89f24eeca8a81",
+      "preparedLlmContextBytes": 19003,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 17039,
+      "inputSha256": "fef678692279bedce2e624248956c8b662462df71d86587b7d472bdc3d715d3e",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 6,
+        "observations": 20,
+        "analysisGaps": 61,
+        "environmentChecks": 6,
+        "scopeNotes": 6
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": false,
+      "inspectionSha256": "0bece17417fc89e7c1d4cc433ecde8fc40f21e99535ae8b45010bd3ea5414dd8",
+      "inspectionArtifact": "17039.inspection.offline.json",
+      "preparedLlmContextSha256": "8d615ce0bcb02fc9d7ec115975ec0cd95f425c6b96eac8ebe37148c481a8aa47",
+      "preparedLlmContextBytes": 18819,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 10077,
+      "inputSha256": "b84bbb410a9aed35d495b505fbf1b7f7c2b36269d4f5f429ac8eaf844425a8f3",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 8,
+        "observations": 36,
+        "analysisGaps": 120,
+        "environmentChecks": 18,
+        "scopeNotes": 5
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": false,
+      "inspectionSha256": "2ddd8e095a1db33fcc9e64c0d27b30cefeb5ca3b2e2446d70e7e64d57b7f618e",
+      "inspectionArtifact": "10077.inspection.offline.json",
+      "preparedLlmContextSha256": "0ecbce1b4a6358aafd3263ee56c23f5c37ff3889eeaf59c4e71af4b58be24951",
+      "preparedLlmContextBytes": 18508,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 9908,
+      "inputSha256": "2815c4fabdd33c4bcd02b83e11887000951304a744b678d1b7b40c1add1c8c43",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 8,
+        "observations": 13,
+        "analysisGaps": 53,
+        "environmentChecks": 6,
+        "scopeNotes": 3
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": false,
+      "inspectionSha256": "8ac7aa0bd54964d77616714928cefb689c3c1ab52d11cf112fefce75816329a6",
+      "inspectionArtifact": "9908.inspection.offline.json",
+      "preparedLlmContextSha256": "16857009683b67924c1229585092aa13a88c66e52f3de4e8a68aa44f40e34ee9",
+      "preparedLlmContextBytes": 18639,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 11709,
+      "inputSha256": "4312d3fdfa6098aedb76e3efbf40e483c4d13f8865f42baca2bff906afe686c2",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 17,
+        "observations": 47,
+        "analysisGaps": 123,
+        "environmentChecks": 27,
+        "scopeNotes": 5
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": false,
+      "inspectionSha256": "23c1422c8e066ceccf850899c082c9432694fc9e073abf00525f818801894179",
+      "inspectionArtifact": "11709.inspection.offline.json",
+      "preparedLlmContextSha256": "52a72d082b8ae1c556fe0f203e6095cd620c0b55594fadf0d24b85f80d8da81a",
+      "preparedLlmContextBytes": 18793,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 6270,
+      "inputSha256": "07d7ea293417f1a20a920d8c6367c20aae1419d89ff7016144090dc048a66e63",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 10,
+        "observations": 22,
+        "analysisGaps": 53,
+        "environmentChecks": 14,
+        "scopeNotes": 5
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": false,
+      "inspectionSha256": "360b7bc1f7b9747d6949842e50d6898b2e9be25a592e20af63cfe18a59ac69a9",
+      "inspectionArtifact": "6270.inspection.offline.json",
+      "preparedLlmContextSha256": "1236f768ca031473f7e9dba07cd4b3ce0416cb1d4c1ffda97a5bcb3dcde52aaf",
+      "preparedLlmContextBytes": 18718,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 8573,
+      "inputSha256": "03cbecec8cb8376b9bbab9bd02c63cdc464a00c0b5136b768ac2d07d5d615b2a",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 47,
+        "observations": 140,
+        "analysisGaps": 443,
+        "environmentChecks": 81,
+        "scopeNotes": 11
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 187,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": true,
+      "inspectionSha256": "98dee24936d348e000a517e0d75836394a2624c73f0fab49237508fedbf7f7c5",
+      "inspectionArtifact": "8573.inspection.offline.json",
+      "preparedLlmContextSha256": "65627aee44f7b76353c9e1f842a3465cd8cc6ae71691b08583d823c1fae0af6b",
+      "preparedLlmContextBytes": 18564,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    },
+    {
+      "id": 5819,
+      "inputSha256": "819722b716c1c3d0b8ef15e82a7189f409f600c6801ac07ea7cfdfc254d6bc37",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "staticCoverageStatus": "gaps_present",
+      "counts": {
+        "findings": 15,
+        "observations": 29,
+        "analysisGaps": 88,
+        "environmentChecks": 18,
+        "scopeNotes": 6
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "truncated": false,
+      "inspectionSha256": "39ebb83494e4fdd0ed159bccad384cab2a357d7deddf093102e89fc1d0216642",
+      "inspectionArtifact": "5819.inspection.offline.json",
+      "preparedLlmContextSha256": "c045f34c98f92a73879cf9ce2b013c429a09c9b403e6679fb71e434353673ee8",
+      "preparedLlmContextBytes": 18760,
+      "llmTransmission": "not_run",
+      "verdictUnchanged": true
+    }
+  ]
+}

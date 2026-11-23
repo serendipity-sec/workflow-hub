@@ -428,7 +428,7 @@ test("narrow Postgres plan binds the actual operand and rescans the exact new de
   );
 });
 
-test("automatic SQL patch refuses quoted, compound, existing-binding and unknown-version queries", () => {
+test("legacy narrow SQL plan excludes quoted, compound, existing-binding and unknown-version queries", () => {
   const variants = [
     queryWorkflow("SELECT owner FROM records WHERE id = '{{ $json.body.id }}'"),
     queryWorkflow(

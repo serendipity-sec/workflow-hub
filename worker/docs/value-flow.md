@@ -57,10 +57,12 @@ Code의 출력 해석은 `const` 선언 뒤 단일 `return`만 허용하는 별�
 - if/else는 조건을 실행하지 않고 가능한 결과를 합치며 독립 출력 필드의 출처를 각각 유지한다. try/catch는 예외가 발생하는 시점의 중간 대입 상태를 완전히 재구성하지 않는다. 따라서 `code_try_state_unresolved`와 함께 전체 Code 반환을 부분 분석으로 처리하고, try/catch 양쪽에서 관찰한 RHS·지역 값·직접 참조 후보를 보존한다. catch를 try 시작 전의 값으로만 판단하여 중간 비밀 값을 공개로 낮추지 않는다. 조건을 통한 정보 누설 같은 암시적 흐름은 증명하지 않으며, finally·임의 제어문은 미지원이다.
 - 객체 spread의 알려진 필드와 덮어쓰기 순서를 보존한다. 불명확한 spread가 나중에 나타나면 기존 필드를 공개로 확정하지 않는다. 배열 spread의 길이·인덱스는 미확인으로 유지한다.
 - `$input.all()` 및 `map`은 가능한 모든 아이템을 합친 단일 요소 요약을 사용한다. 반환 배열의 첫 아이템만 선택하지 않는다. for-of/push는 0회와 추상 1회 결과를 합쳐 `code_loop_summary_partial`을 남긴다. 반복 안에서 쓰인 바인딩에는 전체 반복 입력과 알려진 반복 상태를 합친 `code_loop_carried_state_unverified`를 추가하여 두 번째 이후 반복의 비밀·개인정보가 첫 번째 반복의 공개값에 가려지지 않게 한다. 구체적인 반복 실행·횟수와 일반 for/while, 재귀·복잡한 반복 상태는 완전 해석하지 않는다.
-- 순수한 지역 helper는 매개변수, 자체 지역 변수, 명시적으로 지원한 n8n 참조·내장 변환·순수 함수 참조를 제한적으로 추적한다. 바깥 지역 변수를 읽는 closure는 `code_closure_capture_unresolved`로 남기며 caller의 동명 매개변수나 정의 시의 과거 값으로 대신하지 않는다. 객체를 helper에 전달·반환하거나 복합 식에 저장하면 밖으로 전달된 참조로 표시하고 이후 변경을 미확인으로 처리한다. 함수 깊이 6, 문장 깊이 12, 추상 전이 2,048회와 공통 요청 예산을 적용한다. 임의 호출·외부 효과·지원하지 않는 구문은 입력, 알려진 지역 값, 대입·진단에서 관찰한 값과 정적 n8n 직접 참조의 민감 가능성을 모두 보존한 `code_effects_partially_analyzed`로 끝낸다.
+- 순수한 지역 helper는 매개변수, 자체 지역 변수, 명시적으로 지원한 n8n 참조·내장 변환·순수 함수 참조를 제한적으로 추적한다. 함수 정의 전에 확인된 **불변 const 원시 상수**는 최대 128개까지 어휘적 정의 환경에서 캡처한다. caller의 동명 매개변수로 바꾸지 않으며, helper 이름이 매개변수에 가려지면 원래 helper를 호출한 것으로 취급하지 않는다. mutable 변수·객체·불확실한 값·정의 이후 초기화의 closure는 `code_closure_capture_unresolved`로 유지한다. 객체를 helper에 전달·반환하거나 복합 식에 저장하면 밖으로 전달된 참조로 표시하고 이후 변경을 미확인으로 처리한다. 함수 깊이 6, 문장 깊이 12, 추상 전이 2,048회와 공통 요청 예산을 적용한다. 임의 호출·외부 효과·지원하지 않는 구문은 입력, 알려진 지역 값, 대입·진단에서 관찰한 값과 정적 n8n 직접 참조의 민감 가능성을 모두 보존한 `code_effects_partially_analyzed`로 끝낸다.
 - trim/대소문자/replace/split/join/slice 등의 문자열 메서드는 값의 출처·민감도 전이만 모델링한다. 제출된 정규식을 컴파일하거나 매칭·치환하지 않는다. 이 변환을 개인정보 제거·인젝션 방어로 인정하지 않는다. `JSON.parse`는 고정 문자열에 한해서 데이터 파서로 읽고, 동적 문자열은 원래 민감도와 구조 미확인을 유지한다.
 
 이 프로필은 [고정 Code 샌드박스의 반환 정규화 계약](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Code/JavaScriptSandbox.ts)을 참고한다. 해당 샌드박스를 워커에서 호출하지 않는다.
+
+이름 있는 함수 표현식의 자기 이름은 같은 이름의 바깥 const를 가린다. 자기 이름을 실제로 읽으면 `code_function_self_binding_unresolved`를 남기고 상수 캡처를 사용하지 않는다. 한정된 본문에서 매개변수·callback 필드의 민감 후보를 먼저 수집한 뒤 전체 출력의 미확인을 유지한다. 자기 이름과 같은 매개변수가 있으면 JavaScript의 매개변수 가림을 따른다.
 
 ## 외부 결과와 AI 출력의 값 흐름
 
@@ -73,6 +75,24 @@ Manual Trigger 1은 고정 소스의 빈 JSON 아이템을 모델링한다. Erro
 Code의 선택적 접근·기본값 구문도 위 한정 문법을 적용한다. 한 객체 안의 `summary`가 동적 입력을 포함해도 독립적인 상수·날짜 `docTitle`에는 그 민감도를 복사하지 않는다. 객체 전체를 보내거나 요약 필드를 보내면 해당 민감 후보는 유지한다. 이 분리는 모든 선언과 반환이 지원되는 순수 문법인 경우에만 적용하며, 미지원 함수나 대입문이 있는 Code 전체를 공개 출력으로 추론하지 않는다.
 
 ## 방어 조건과 한도
+
+### Wait·Aggregate·외부 트리거의 추가 프로파일
+
+- **Wait 1/1.1:** 기본 `timeInterval` 모드에서 생략된 기본값 또는 0 이상 유한 amount와 고정 seconds/minutes/hours/days를 확인하면 성공 출력의 입력 필드를 보존한다. base HTTP/SQL/응답 경로 추적도 이 노드를 실제로 통과한다. webhook/form 재개·동적 시간·잘못된 단위·다른 실행 옵션은 이 프로파일로 처리하지 않는다. 기다린 시간이나 실제 실행 성공을 검증한 것은 아니다.
+- **Aggregate 1:** 전체 입력 모음의 destinationFieldName, 런타임이 실제로 읽는 include/exclude 필드 모두, 개별 필드 모음의 이름/출력명/dot notation을 해석한다. UI에서 비활성인 저장 옵션도 원본 실행 코드가 읽으면 반영한다. 단일 목록의 임의 숫자 인덱스는 가능한 입력 출처의 합집합이며 `collection_cardinality_unverified`와 함께 개수·순서·존재 미확인을 유지한다. 원래 guard·scalar constant를 목록의 특정 아이템에 승계하지 않는다. lodash.get의 중첩 경로와 같은 이름의 literal dotted key가 모두 가능하면 두 출처를 보존한다. 동적 필드명, 충돌한 출력 경로, prototype 경로, bracket 표기, 불명확한 flatten은 지원 완료로 바꾸지 않는다. 전체 객체의 일부 필드 제외도 알려지지 않은 나머지 필드를 공개 데이터로 확정하지 않는다.
+- **Gmail Trigger 1–1.4, IMAP 1/2–2.2, Telegram Trigger 1–1.5, Form Trigger 2–2.6:** 실제 메일·메시지·폼 입력을 별도 외부 출처로 연결한다. 이메일의 주소/본문은 개인정보 후보를 유지한다. `trigger_payload_schema_unverified`는 실제 payload나 권한을 확인하지 않았다는 의미이며, 이 변경으로 전체 `partial`을 없애지 않는다. 가짜 incoming 연결과 비정상 출력 포트는 별도 미확인으로 남는다.
+
+고정 근거: [Wait 입력 보존](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Wait/Wait.node.ts), [Aggregate 필드 처리](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Transform/Aggregate/Aggregate.node.ts), [필드 목록 파서](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Transform/utils/utils.ts), [Gmail Trigger](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Google/Gmail/GmailTrigger.node.ts), [IMAP 버전](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/EmailReadImap/EmailReadImap.node.ts), [Telegram Trigger](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Telegram/TelegramTrigger.node.ts), [Form Trigger V2](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/Form/v2/FormTriggerV2.node.ts).
+
+Wait의 unit은 문자열만 허용하며 배열·객체를 문자열로 강제 변환하지 않는다. Aggregate 개별 모음은 `keepMissing` 생략/false에서 입력 배열의 null을 제거하므로, flatten을 끈 경우에도 중첩 배열 인덱스가 이동할 수 있다. 해당 인덱스를 조회하면 `aggregate_null_filter_alignment_unverified`와 원래 경로·전체 후보를 함께 보존한다. `keepMissing: true`의 기존 인덱스 투영은 유지한다. `mergeLists: true`에서도 전체 값과 객체·배열 요소의 가능한 하위 필드 후보를 합치며, `aggregate_flatten_shape_unverified`와 실제 요소 위치의 미확인을 유지한다.
+
+Aggregate의 모음·선택값 원래 출처에는 내부용 `includesDescendants` 후보 표시를 붙인다. 정책은 같은 원본 노드와 정확한 필드 경계 아래에 선언된 분류도 보존하므로, 이동 전 배열의 내부정보 분류를 단순 unknown으로 잃지 않는다. 위치·존재가 입증된 것은 아니며 범위 안의 후손 후보를 넓게 포함할 수 있다. public 선언만 있어도 unknown을 유지한다. 전체 목록·객체·JSON 직렬화·Code의 단순 별칭에도 후보가 유지된다. 출처 64개·분류 선언 256개 한도를 사용하며 이 내부 경로나 표시는 공개 결과로 직렬화하지 않는다. `keepMissing: true`의 정확한 인덱스는 다른 인덱스의 원출처까지 넓히지 않는다.
+
+전체 입력 모음의 명시적 include/exclude는 선택된 최상위 필드 경계를 따른다. include 없이 exclude만 있고 나머지 전체 객체의 구조를 모르면, 제외된 필드까지 후보로 되살리지 않으며 기존 `aggregate_excluded_unknown_fields`를 유지한다. 이 경우 남은 임의 하위 분류를 모두 보존했다고 주장하지 않는다. 해당 출력의 특정 잔존 필드를 직접 조회하는 경우는 그 경로만 추적한다.
+
+개별 모음의 중복 여부는 n8n이 검사하는 키(`renameField`가 true이면 저장된 출력명, 아니면 원래 입력 필드명)로 먼저 확인한다. 실제 출력 경로끼리의 충돌도 별도로 검사한다. 중복 설정은 `aggregate_duplicate_field_unresolved`이며 두 출력이 생긴 것으로 추적하지 않는다.
+
+`test/value-flow-profiles.test.mjs`는 민감 입력 보존, 제외 필드, 배열 불확실성, 위험 포트/모드, 동명 closure와 mutable/객체 반례를 확인한다. 공개 원본의 source-to-sink 분석과 별도로 합성 정답을 유지하며 실제 트리거나 노드를 실행하지 않는다.
 
 ExecuteWorkflowTrigger 1/1.1은 외부에서 전달된 인자 출처로 표시하되 `subworkflow_argument_context_unresolved`를 항상 남긴다. 부모·자식 인자 대응이나 부모의 방어 조건을 자동 승계하지 않는다. [고정 트리거 소스](https://github.com/n8n-io/n8n/blob/86dff76e10efba250a4d3e57760e4eb5d2bbea25/packages/nodes-base/nodes/ExecuteWorkflow/ExecuteWorkflowTrigger/ExecuteWorkflowTrigger.node.ts)의 선언을 기준으로 하며, 입력 선언과 실제 부모 인자 대응은 별도 검증 사항이다.
 

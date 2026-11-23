@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { parseExpressionAt } from "acorn";
 import { z } from "zod";
 import { limits } from "./contract.js";
 import { inspectSqlOperation } from "./advanced-risks.js";
@@ -538,6 +539,7 @@ export function compareDefinitions(
 const remediationKinds = [
   "enable_tls_verification",
   "bind_postgres_lookup_value",
+  "bind_postgres_lookup_values",
   "rotate_exposed_secret",
   "minimize_personal_data",
   "configure_request_authentication",
@@ -566,9 +568,11 @@ export const remediationPlanSchema = z
   .refine(
     (plan) =>
       plan.automatic ===
-        ["enable_tls_verification", "bind_postgres_lookup_value"].includes(
-          plan.kind,
-        ) &&
+        [
+          "enable_tls_verification",
+          "bind_postgres_lookup_value",
+          "bind_postgres_lookup_values",
+        ].includes(plan.kind) &&
       (!plan.automatic || plan.location.nodeKey !== null) &&
       new Set(plan.findingIds).size === plan.findingIds.length &&
       plan.id === planId(plan.kind, plan.location, plan.inputSha256),
@@ -613,6 +617,105 @@ function boundQuery(node: NormalizedNode): string | undefined {
       node.parameters.query,
     );
   return match ? `${match[1]}$1${match[2]}` : undefined;
+}
+
+/** A fixed lookup grammar, with the SQL parser confirming the generated value slots. */
+function boundLookup(
+  node: NormalizedNode,
+): { query: string; replacement: string } | undefined {
+  if (
+    node.type !== "n8n-nodes-base.postgres" ||
+    node.typeVersion !== 2.8 ||
+    node.disabled ||
+    node.parameters.operation !== "executeQuery" ||
+    (node.parameters.resource !== undefined &&
+      node.parameters.resource !== "database") ||
+    typeof node.parameters.query !== "string" ||
+    node.parameters.query.length > 8192 ||
+    Object.keys(node.parameters).some(
+      (key) => !["resource", "operation", "query", "options"].includes(key),
+    ) ||
+    (node.parameters.options !== undefined &&
+      (!isObject(node.parameters.options) ||
+        Object.keys(node.parameters.options).length > 0))
+  )
+    return;
+  const identifier = "[A-Za-z_][A-Za-z0-9_]{0,62}";
+  const column = `${identifier}(?:\\.${identifier})?`;
+  const projection = `(?:\\*|${column}(?:\\s*,\\s*${column}){0,15})`;
+  const query = node.parameters.query.replace(/^=/, "");
+  const prefix = new RegExp(
+    `^(\\s*SELECT\\s+${projection}\\s+FROM\\s+${column}\\s+WHERE\\s+)`,
+    "i",
+  ).exec(query);
+  if (!prefix) return;
+  const member =
+    "(?:\\.[A-Za-z_$][A-Za-z0-9_$]*|\\[(?:0|[1-9][0-9]{0,5})\\]|\\[\"[A-Za-z_$][A-Za-z0-9_$]*\"\\]|\\['[A-Za-z_$][A-Za-z0-9_$]*'\\])";
+  const expression = `\\$json${member}{1,8}`;
+  // Quotes are removed only when they enclose exactly one interpolation.
+  // Quoted prefixes/suffixes, casts, comments and identifier interpolation fail closed.
+  const operand = new RegExp(
+    `^(\\s*${column}\\s*=\\s*)(?:\\{\\{\\s*(${expression})\\s*\\}\\}|'\\{\\{\\s*(${expression})\\s*\\}\\}')`,
+    "i",
+  );
+  let rest = query.slice(prefix[0].length);
+  let output = prefix[0];
+  const values: string[] = [];
+  for (;;) {
+    const match = operand.exec(rest);
+    if (!match || values.length >= 8) return;
+    const value = match[2] ?? match[3];
+    if (!value || value.length > 1024 || !value.startsWith("$json")) return;
+    try {
+      const parsed = parseExpressionAt(value, 0, { ecmaVersion: "latest" });
+      // The grammar admits only member access. Acorn independently checks syntax;
+      // neither uploaded expressions nor generated binding expressions are executed.
+      if (parsed.type !== "MemberExpression" || parsed.end !== value.length)
+        return;
+      let reference: unknown = parsed;
+      while (isObject(reference) && reference.type === "MemberExpression") {
+        const property = reference.property;
+        if (!isObject(property)) return;
+        const key = reference.computed ? property.value : property.name;
+        if (
+          typeof key === "string" &&
+          ["__proto__", "constructor", "prototype"].includes(key)
+        )
+          return;
+        reference = reference.object;
+      }
+      if (
+        !isObject(reference) ||
+        reference.type !== "Identifier" ||
+        reference.name !== "$json"
+      )
+        return;
+    } catch {
+      return;
+    }
+    values.push(value);
+    output += `${match[1]}$${values.length}`;
+    rest = rest.slice(match[0].length);
+    const conjunction = /^(\s+AND\s+)/i.exec(rest);
+    if (conjunction) {
+      output += conjunction[0];
+      rest = rest.slice(conjunction[0].length);
+      continue;
+    }
+    if (!/^\s*;?\s*$/.test(rest)) return;
+    output += rest;
+    break;
+  }
+  const description = inspectSqlOperation(output, "Postgresql");
+  if (
+    description.status !== "parsed" ||
+    description.statementCount !== 1 ||
+    description.operations.length !== 1 ||
+    description.operations[0] !== "select" ||
+    description.valueParameterCount !== values.length
+  )
+    return;
+  return { query: output, replacement: `={{ [${values.join(", ")}] }}` };
 }
 const manualKind: Record<Finding["category"], RemediationKind> = {
   secrets: "rotate_exposed_secret",
@@ -663,10 +766,31 @@ function planDetails(
         ...common,
       ],
     };
+  if (kind === "bind_postgres_lookup_values")
+    return {
+      automatic: true,
+      preconditions: [
+        "exact_input_hash_matches",
+        "postgres_2_8_execute_query",
+        "fixed_select_lookup_with_current_json_member_values",
+        "at_most_eight_equality_operands_joined_by_and",
+        "no_existing_binding_or_query_options",
+        "generated_sql_ast_and_parameter_count_checked",
+      ],
+      checks: [
+        "confirm_database_column_type",
+        "confirm_binding_preserves_expected_result",
+        "confirm_input_cannot_change_query_structure",
+        "confirm_missing_null_and_string_value_semantics",
+        ...common,
+      ],
+    };
   const checks: Record<
     Exclude<
       RemediationKind,
-      "enable_tls_verification" | "bind_postgres_lookup_value"
+      | "enable_tls_verification"
+      | "bind_postgres_lookup_value"
+      | "bind_postgres_lookup_values"
     >,
     string[]
   > = {
@@ -760,6 +884,12 @@ export function createRemediationPlans(
       kind = "enable_tls_verification";
     if (finding.category === "sql" && node && boundQuery(node) !== undefined)
       kind = "bind_postgres_lookup_value";
+    else if (
+      finding.category === "sql" &&
+      node &&
+      boundLookup(node) !== undefined
+    )
+      kind = "bind_postgres_lookup_values";
     const location = node ? locationFor(node) : root;
     const id = planId(kind, location, inputSha256);
     const existing = plans.find((plan) => plan.id === id);
@@ -801,7 +931,7 @@ export class RemediationError extends Error {
   }
 }
 
-/** Only two recognized changes can be applied. No arbitrary patch or expression is accepted. */
+/** Only recognized change profiles can be applied. No arbitrary patch is accepted. */
 export function applyRemediation(
   bytes: Buffer,
   value: RemediationPlan,
@@ -837,6 +967,12 @@ export function applyRemediation(
       throw new RemediationError("remediation_not_eligible");
     node.parameters.query = query;
     node.parameters.options = { queryReplacement: "={{ [$json.body.id] }}" };
+  } else if (plan.kind === "bind_postgres_lookup_values") {
+    const bound = boundLookup(node);
+    if (bound === undefined)
+      throw new RemediationError("remediation_not_eligible");
+    node.parameters.query = bound.query;
+    node.parameters.options = { queryReplacement: bound.replacement };
   } else throw new RemediationError("remediation_not_eligible");
   // Context.document and parseWorkflow's normalized raw nodes are independently
   // decoded. Copy the recognized node edit into the preserved document explicitly.

@@ -231,7 +231,7 @@ export async function assessBytes(
         );
     const report = {
       assessmentVersion: "1.0.0",
-      engineVersion: "0.6.0",
+      engineVersion: "0.7.0",
       inputSha256,
       execution: "not_run",
       boundary: { kind: "caller_managed", isolationVerified: false },

@@ -1,0 +1,511 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-11-23T01:10:09.024Z",
+  "engineVersion": "0.7.0",
+  "image": "sha256:a0f4bd57b8af89c1b25cec6fdfbf29a61aac67683c7994777d0ceb30c4a18be7",
+  "workflowExecution": "not_run",
+  "datasetKind": "purposive_public_compatibility_and_service_fit_sample",
+  "generalAccuracy": "not_measured",
+  "manifestSha256": "b0acf19eb43303e04b50457f9205bf0f7d4b6a8e50e42e3baf8efae2e0af0ba9",
+  "verificationScriptSha256": "b5410adca639f9cbb30f1bd63e7a33aafe188ab07e6fce0a14b2074bae922336",
+  "artifacts": [
+    {
+      "path": "dist/advanced-risks.js",
+      "sha256": "481d473146e1026ff6231395fc5625939763f582b15ad7be030d5f2e60713491"
+    },
+    {
+      "path": "dist/ai-flow.js",
+      "sha256": "83d4a3274a4f128549e857c2819e606b402b8b9bbd997c3e60a5e7318999c92e"
+    },
+    {
+      "path": "dist/analysis.js",
+      "sha256": "ff2e9f7d645c1b262d690c9c31142f847c04fae8214b547e17e2d3a67e545c65"
+    },
+    {
+      "path": "dist/analyzer.js",
+      "sha256": "556825a23e026f972a87b8c9210d93736ef1b4f1afe8c9a57c2f0c3819adefb1"
+    },
+    {
+      "path": "dist/api-client.js",
+      "sha256": "bd8d36f7e35fba4c05780a1295b07a92f5b7246b76d8194091ca60c92ba7c6ab"
+    },
+    {
+      "path": "dist/assessment-change.js",
+      "sha256": "b929da8e17d61a9fe51719cdbc3ea0e385b7a1e7b3ca60a80b6bc83480fc89ed"
+    },
+    {
+      "path": "dist/assessment-compare.js",
+      "sha256": "182cc42f16f55feaef218d711b064d1733a036d2f6984ff55726b1451eee673c"
+    },
+    {
+      "path": "dist/assessment-contract.js",
+      "sha256": "e81c179d214b003c79dc8f4de370b3d1c79a0891db7517205637d9618acdc2e5"
+    },
+    {
+      "path": "dist/assessment-engine.js",
+      "sha256": "2859c1f2e3dc484ccf57260af9b38efa81adc86ed7366970639ba74ac8bce47f"
+    },
+    {
+      "path": "dist/assessment-entry.js",
+      "sha256": "705c65c8b6555cce07d4378d1cb95377b34469b914fb2572b1e79ced5a2c89bf"
+    },
+    {
+      "path": "dist/assessment-environment.js",
+      "sha256": "f3a594bdec954ce0a2c67242fa0d53a44d56ca1a265b80d59c5309ef2009fe72"
+    },
+    {
+      "path": "dist/assessment-evidence.js",
+      "sha256": "3f0addd802152ba71b44328c11499f933506d075cf47503bb3306e39b4fc29b9"
+    },
+    {
+      "path": "dist/assessment-policy.js",
+      "sha256": "d0e916f0a61c76ccb4ea5d9cc72178d52e2e364acd7159c88d33c1171874655a"
+    },
+    {
+      "path": "dist/assessment-runner.js",
+      "sha256": "6d7b64cb4255f885cf87af331fb737651ca8a7da43bc42e7e37d92597b884545"
+    },
+    {
+      "path": "dist/assessment-subworkflows.js",
+      "sha256": "2edfe7a4ad1301d1bf43218757f9b6faa731e19154c9aba06b8b2ff8cfb3e858"
+    },
+    {
+      "path": "dist/assessment-summary.js",
+      "sha256": "89fcd2ce6f64d41955d674e4142a190e2fe2c32b585feb0bc224340e4f88e786"
+    },
+    {
+      "path": "dist/bounded-code.js",
+      "sha256": "0e051eaaf9b719b74b4cda2732b080a87e653a5feacb8936973af88afa1404fa"
+    },
+    {
+      "path": "dist/cli.js",
+      "sha256": "1f0057a52def49537a151c051683761f5950216a1c2cf9fd3e0b2e8321873007"
+    },
+    {
+      "path": "dist/compare.js",
+      "sha256": "285316ae6361b5cdbbe06fe4e292e09bf0e4dd3d2054db9cd7bb9165d97d9957"
+    },
+    {
+      "path": "dist/contract.js",
+      "sha256": "2ae5303ca03ea00798b88b85223a92beb38ce4b7ceffdae0a2af95e62b5c1526"
+    },
+    {
+      "path": "dist/definition-risks.js",
+      "sha256": "c500fe466a8de498a4c0c26eb877f2a876c953549021ea2e3e93d1ebff132a42"
+    },
+    {
+      "path": "dist/extended-sinks.js",
+      "sha256": "74fdb4464065fdbcd6fa4b090b01ad0bc5ff79c501a9b1ff25d9381a5302bfc4"
+    },
+    {
+      "path": "dist/gitleaks.js",
+      "sha256": "3a49ba7f08833d24bf9975bee850b7274349835593d5ea98a3485917d2514358"
+    },
+    {
+      "path": "dist/inspection.js",
+      "sha256": "2a4993e9351b1f939c3fd8e791e2369f85794ef49fcc33bfd48775178048373d"
+    },
+    {
+      "path": "dist/llm-review.js",
+      "sha256": "c1349e89c8616e85215e1e344292b39922ab552b5b78b10ff3201d2c5782e92d"
+    },
+    {
+      "path": "dist/n8n.js",
+      "sha256": "c41ea303044befa667c47dc803e2433496426dd8d7c772c255add03a67dcbc4c"
+    },
+    {
+      "path": "dist/native-inspection.js",
+      "sha256": "1d0fa3abbd60dd082325934a575d09ec94b6b4fd75f0da9cbcf8520dd48504aa"
+    },
+    {
+      "path": "dist/runner.js",
+      "sha256": "c57e47f86c2bb5f7774b99cdf0327f67d51140097af9d1922bb396f1d3a6cc04"
+    },
+    {
+      "path": "dist/service-report.js",
+      "sha256": "2c0569b985add0051f74dbd91f7707f916f5d30512c49aa34aaece1e8a1cb0fd"
+    },
+    {
+      "path": "dist/static-analyzer.js",
+      "sha256": "52ac33e78475a12bec8afbb3bc781147160d82ba8cac018c7e1988a3ff27f97f"
+    },
+    {
+      "path": "dist/static-compare.js",
+      "sha256": "f7534c666fd952368de818293aa7683a1430c85465fedb0c368b00f976fd9ea5"
+    },
+    {
+      "path": "dist/static-content.js",
+      "sha256": "ff2389cf78dcc62cac86aace43211c0a71d2ff6db8b86c8b1fd2045f42ecba5e"
+    },
+    {
+      "path": "dist/static-context.js",
+      "sha256": "ae7fbeaca1144baedaed05c64889d0bdca27f490ee7499449861909e5ccc96ce"
+    },
+    {
+      "path": "dist/static-contract.js",
+      "sha256": "e5dda5b94a232570992b9cd1356e71ce520f94a8015e9889de0fa3402b87ddb5"
+    },
+    {
+      "path": "dist/static-engine.js",
+      "sha256": "f24b21d110a2fa84694102d91931826f35c544fd28d0328668a97a86681d5987"
+    },
+    {
+      "path": "dist/static-flow.js",
+      "sha256": "a1f76e84db6fa203ea6c960aae0369485df3ff73e2682ca56251757f11cae179"
+    },
+    {
+      "path": "dist/static-runner.js",
+      "sha256": "d1c3383e3495e0d426e8ebdd547db34c1c481b3e6b663f9901b6bb3d3d8a02e0"
+    },
+    {
+      "path": "dist/static-settings.js",
+      "sha256": "0f2dfe45a6008d45c755f7bb61df4ce438b2e1ff1bbe23c91abc02a467206db5"
+    },
+    {
+      "path": "dist/subprocess.js",
+      "sha256": "a10601c441913e0e931cd153d7d51849bd672987fad561514d7cc79f75c94203"
+    },
+    {
+      "path": "dist/value-flow.js",
+      "sha256": "b893f2723869066abb9957521d23851521da4079264e985af6dee820470cccfe"
+    },
+    {
+      "path": "dist/worker-io.js",
+      "sha256": "84d852d75dd47512213fa15c141e799b421863150525e15587faac9d71b6d6fe"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "d33946587485819b9ef84914de61740a234796775656f1cb81a8d9f1abc2b301"
+    }
+  ],
+  "summary": {
+    "samples": 1,
+    "statuses": {
+      "analyzed": 0,
+      "partial": 1,
+      "unsupported": 0,
+      "error": 0
+    },
+    "toolErrors": 0,
+    "toolInvocations": 3,
+    "filesRejectedBeforeToolInspection": 0,
+    "automaticPlans": 0
+  },
+  "results": [
+    {
+      "id": 2490,
+      "sourceUrl": "https://api.n8n.io/templates/workflows/2490",
+      "inputSha256": "1053cb887fe65b990c0f085cdd58ea6fbb208c0495e37c713db6c00c3272a3e9",
+      "sourceBytes": 10793,
+      "acquisition": "reused_frozen_same_day",
+      "responseSha256": null,
+      "originalRedistributed": false,
+      "license": "not_verified",
+      "status": "partial",
+      "engineVersion": "0.7.0",
+      "elapsedMs": 9830,
+      "decision": "inconclusive",
+      "categories": [
+        {
+          "category": "code_execution",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 4
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "dependencies",
+          "observations": 18,
+          "claims": {
+            "configuration": 18,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 18,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 18,
+            "partial": 0,
+            "unsupported": 1,
+            "not_applicable": 5
+          },
+          "evidenceCodes": [
+            "record_store_access_capability",
+            "request_endpoint_capability",
+            "webhook_response_capability",
+            "workflow_annotation_declared"
+          ],
+          "diagnosticCodes": ["runtime_evidence_missing"]
+        },
+        {
+          "category": "egress",
+          "observations": 19,
+          "claims": {
+            "configuration": 12,
+            "candidate": 1,
+            "supported_path": 6
+          },
+          "severity": {
+            "info": 17,
+            "low": 0,
+            "medium": 2,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 12,
+            "unsupported": 6,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [
+            "airtable_flattened_response_profile",
+            "airtable_record_response_profile",
+            "data_field_transferred",
+            "data_origin",
+            "external_read_capability",
+            "outbound_send_capability",
+            "personal_data_candidate_transferred"
+          ],
+          "diagnosticCodes": [
+            "destination_access_unverified",
+            "opaque_node_effects",
+            "payload_provenance_unresolved",
+            "read_response_classification_unverified",
+            "record_match_selection_unverified",
+            "response_data_sensitivity_unverified",
+            "service_response_shape_unverified",
+            "transferred_data_sensitivity_unverified",
+            "trusted_policy_transfer_unresolved"
+          ]
+        },
+        {
+          "category": "output",
+          "observations": 10,
+          "claims": {
+            "configuration": 5,
+            "candidate": 5,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 10,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 10,
+            "unsupported": 6,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [
+            "data_origin",
+            "whole_input_response",
+            "whole_object_transferred"
+          ],
+          "diagnosticCodes": [
+            "opaque_node_effects",
+            "payload_provenance_unresolved",
+            "response_data_sensitivity_unverified",
+            "response_recipient_authorization_unverified",
+            "transferred_data_sensitivity_unverified",
+            "trusted_policy_transfer_unresolved"
+          ]
+        },
+        {
+          "category": "pii",
+          "observations": 8,
+          "claims": {
+            "configuration": 0,
+            "candidate": 8,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 8,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 1,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": ["nlp_location_candidate", "nlp_person_candidate"],
+          "diagnosticCodes": [
+            "nlp_english_model_profile",
+            "nlp_metadata_formats_only",
+            "nlp_template_literal_text_only"
+          ]
+        },
+        {
+          "category": "request_auth",
+          "observations": 2,
+          "claims": {
+            "configuration": 2,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 2,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 2,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": ["webhook_authentication_default_none"],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "secrets",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "sql",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 6,
+            "not_applicable": 2
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": ["opaque_node_effects"]
+        },
+        {
+          "category": "ssrf",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 6,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": ["opaque_node_effects"]
+        },
+        {
+          "category": "transport",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        }
+      ],
+      "tools": [
+        {
+          "tool": "gitleaks",
+          "status": "completed",
+          "version": "8.30.1",
+          "code": null
+        },
+        {
+          "tool": "nlp",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": "2.2.366",
+            "spacy": "3.8.18",
+            "model": "en_core_web_sm@3.8.0"
+          }
+        },
+        {
+          "tool": "python",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": null,
+            "spacy": null,
+            "model": null
+          }
+        }
+      ],
+      "automaticPlans": 0,
+      "manualPlans": 15,
+      "automaticKinds": []
+    }
+  ]
+}

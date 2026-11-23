@@ -10,7 +10,7 @@ export const versions = {
 export const limits = {
   fileBytes: 256 * 1024,
   depth: 32,
-  nodes: 64,
+  nodes: 128,
   edges: 128,
   resultBytes: 128 * 1024,
   apiTimeoutMs: 5_000,

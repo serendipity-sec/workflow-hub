@@ -10,6 +10,7 @@ import type {
 import { locationFor, stableId } from "./static-contract.js";
 import { inspectJavaScript } from "./static-settings.js";
 import { isStructuredPostgres } from "./definition-risks.js";
+import { isStaticIntervalWait } from "./value-flow.js";
 
 const prefix = "n8n-nodes-base.";
 const http = prefix + "httpRequest";
@@ -80,6 +81,7 @@ function controlEdge(context: Context, edge: MainEdge): boolean {
   if (node.type === conditional)
     return ifVersions.has(node.typeVersion) && edge.output < 2;
   if (node.type === noop) return node.typeVersion === 1 && edge.output === 0;
+  if (isStaticIntervalWait(node)) return edge.output === 0;
   if (node.type === http)
     return httpVersions.has(node.typeVersion) && edge.output === 0;
   if (node.type === pg)
@@ -193,7 +195,8 @@ function trace(
         previous.type === noop &&
         previous.typeVersion === 1 &&
         edge.output === 0
-      )
+      ) &&
+      !(isStaticIntervalWait(previous) && edge.output === 0)
     )
       return;
     current = previous;
@@ -271,7 +274,7 @@ function rule(ruleId: string, category: Category): RuleResult {
   return {
     ruleId,
     category,
-    profileVersion: "1.2.0",
+    profileVersion: "1.3.0",
     findings: [],
     diagnostics: [],
     coverage: [],
@@ -830,13 +833,14 @@ function reviewedBasicEffect(context: Context, node: NormalizedNode): boolean {
     return node.typeVersion === 1 && !incoming.length && !outgoing.length;
   }
   const noOp = node.type === noop && node.typeVersion === 1;
+  const intervalWait = isStaticIntervalWait(node);
   const conditionalNode =
     node.type === conditional && ifVersions.has(node.typeVersion);
   const trigger =
     (node.type === prefix + "manualTrigger" && node.typeVersion === 1) ||
     (node.type === prefix + "scheduleTrigger" &&
       scheduleVersions.has(node.typeVersion));
-  if (!noOp && !conditionalNode && !trigger) return false;
+  if (!noOp && !intervalWait && !conditionalNode && !trigger) return false;
   if (
     !safeExecution(node) ||
     context.unsupportedEdges.some(

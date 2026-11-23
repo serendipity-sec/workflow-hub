@@ -29,7 +29,7 @@ for (const sample of manifest.samples) {
   );
   assert.notEqual(report.status, "error");
   assert.equal(report.inputSha256, sample.sha256);
-  assert.equal(report.engineVersion, "0.6.0");
+  assert.equal(report.engineVersion, "0.7.0");
   assert.equal(report.boundary.kind, "docker");
   assert.equal(
     `sha256:${report.boundary.imageSha256}`,

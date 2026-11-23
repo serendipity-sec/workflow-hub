@@ -11,7 +11,7 @@ import { policyEvaluationSchema } from "./assessment-policy.js";
 import { scannerResultSchema } from "./static-engine.js";
 import { nativeInspectionResultSchema } from "./native-inspection.js";
 import { remediationPlansSchema } from "./assessment-change.js";
-import { errorCodes } from "./contract.js";
+import { errorCodes, limits } from "./contract.js";
 import {
   functionSummarySchema,
   findingPresentationSchema,
@@ -195,7 +195,7 @@ export const fileAssessmentSchema = z
   });
 const header = {
   assessmentVersion: z.literal("1.0.0"),
-  engineVersion: z.enum(["0.3.0", "0.4.0", "0.5.0", "0.6.0"]),
+  engineVersion: z.enum(["0.3.0", "0.4.0", "0.5.0", "0.6.0", "0.7.0"]),
   inputSha256: hash,
   execution: z.literal("not_run"),
   boundary: assessmentBoundarySchema,
@@ -225,7 +225,7 @@ export const assessmentReportSchema = z
         .max(assessmentLimits.children + 1),
       subworkflows: z
         .array(subworkflowLinkSchema)
-        .max(64 * (assessmentLimits.children + 1)),
+        .max(limits.nodes * (assessmentLimits.children + 1)),
       decision: z.enum(["allow", "review", "block", "inconclusive"]),
       publication: z.literal("requires_service_authorization"),
     }),
@@ -237,10 +237,9 @@ export const assessmentReportSchema = z
       return false;
     if (report.status === "error")
       return !report.inputDiagnosis || report.code === "invalid_input";
-    const expectedRules =
-      report.engineVersion === "0.6.0"
-        ? assessmentExtensionRules
-        : legacyAssessmentExtensionRules;
+    const expectedRules = ["0.6.0", "0.7.0"].includes(report.engineVersion)
+      ? assessmentExtensionRules
+      : legacyAssessmentExtensionRules;
     if (
       report.files.some(
         (file) =>
@@ -332,7 +331,7 @@ export function assessmentError(
 ): AssessmentReport {
   return {
     assessmentVersion: "1.0.0",
-    engineVersion: "0.6.0",
+    engineVersion: "0.7.0",
     inputSha256,
     execution: "not_run",
     boundary,

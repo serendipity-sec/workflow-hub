@@ -16,6 +16,10 @@ export const categories = [
   "dependencies",
 ] as const;
 
+// Ten categories carry substantially more evidence than the legacy SQL result.
+// Keep their output budget independent; the enclosing assessment is still 2 MiB.
+export const staticLimits = { resultBytes: 512 * 1024 } as const;
+
 export const staticVersions = {
   contract: "2.0.0",
   engine: "0.2.0",
@@ -194,7 +198,7 @@ export const staticReportSchema = z
   ])
   .refine(
     (report) => {
-      if (Buffer.byteLength(JSON.stringify(report)) > limits.resultBytes)
+      if (Buffer.byteLength(JSON.stringify(report)) > staticLimits.resultBytes)
         return false;
       if (report.status === "error") return true;
       return (
