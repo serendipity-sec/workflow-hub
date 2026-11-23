@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import dev.workflowhub.PostgresTestConfiguration;
+import dev.workflowhub.workflow.SyntheticWorkflows;
 import dev.workflowhub.workflow.storage.InMemoryWorkflowObjectStore;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -172,6 +173,62 @@ class WorkflowVersionTests {
                 .query(Long.class)
                 .single())
         .isZero();
+  }
+
+  @Test
+  void rejectsACandidateOverTheLimitsBeforeStaging() throws Exception {
+    Version base = upload();
+    long pendingBefore = pendingCount();
+
+    mvc.perform(
+            multipart(COMPARISONS, base.workflowId(), base.versionId())
+                .file(file(SyntheticWorkflows.bytes(301, 1, 4)))
+                .with(user(OWNER)))
+        .andExpect(status().isUnprocessableContent())
+        .andExpect(jsonPath("$.code").value("WORKFLOW_LIMIT_EXCEEDED"))
+        .andExpect(jsonPath("$.message").value("Workflow node count exceeds the limit (300)"));
+
+    assertNothingStaged(pendingBefore);
+  }
+
+  @Test
+  void rejectsWhenTheStoredBaseVersionIsOverTheLimitsAndSaysSo() throws Exception {
+    Version base = upload();
+    String objectKey =
+        jdbc.sql("SELECT s3_object_key FROM workflow_hub.workflow_versions WHERE id = :id")
+            .param("id", base.versionId())
+            .query(String.class)
+            .single();
+    // 한도를 두기 전에 등록된 큰 버전을 흉내 낸다.
+    store.objects().put(objectKey, SyntheticWorkflows.bytes(1, 1501, 4));
+    long pendingBefore = pendingCount();
+
+    mvc.perform(comparison(base).with(user(OWNER)))
+        .andExpect(status().isUnprocessableContent())
+        .andExpect(jsonPath("$.code").value("WORKFLOW_LIMIT_EXCEEDED"))
+        .andExpect(
+            jsonPath("$.message")
+                .value("Base version: Workflow connection count exceeds the limit (1500)"));
+
+    assertNothingStaged(pendingBefore);
+  }
+
+  @Test
+  void comparesAFileExactlyAtTheLimitsAndStagesItsOriginalBytes() throws Exception {
+    Version base = upload();
+    byte[] atLimit = SyntheticWorkflows.bytes(300, 1500, 64);
+
+    MvcResult result =
+        mvc.perform(
+                multipart(COMPARISONS, base.workflowId(), base.versionId())
+                    .file(file(atLimit))
+                    .with(user(OWNER)))
+            .andExpect(status().isOk())
+            .andReturn();
+
+    UUID comparisonId = idFrom(result, "comparisonId");
+    assertThat(store.objects().get("workflows/comparisons/" + comparisonId + ".json"))
+        .isEqualTo(atLimit);
   }
 
   @Test
@@ -472,6 +529,17 @@ class WorkflowVersionTests {
     } finally {
       pool.shutdownNow();
     }
+  }
+
+  /** 거절된 비교는 기준 버전 원본 외의 S3 객체, 정리 대상 기록, 비교 레코드를 남기지 않는다. */
+  private void assertNothingStaged(long pendingBefore) {
+    assertThat(store.objects()).hasSize(1);
+    assertThat(
+            jdbc.sql("SELECT COUNT(*) FROM workflow_hub.workflow_comparisons")
+                .query(Long.class)
+                .single())
+        .isZero();
+    assertThat(pendingCount()).isEqualTo(pendingBefore);
   }
 
   private long pendingCount() {

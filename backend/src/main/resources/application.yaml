@@ -31,6 +31,10 @@ app:
     audience: authenticated
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  workflow-limits:
+    max-depth: ${WORKFLOW_MAX_DEPTH:64}
+    max-nodes: ${WORKFLOW_MAX_NODES:300}
+    max-connections: ${WORKFLOW_MAX_CONNECTIONS:1500}
   storage:
     region: ${AWS_REGION:ap-northeast-2}
     bucket: ${WORKFLOW_BUCKET:}

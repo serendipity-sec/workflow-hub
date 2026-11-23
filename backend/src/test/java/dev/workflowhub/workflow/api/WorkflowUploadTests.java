@@ -2,11 +2,15 @@ package dev.workflowhub.workflow.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import dev.workflowhub.PostgresTestConfiguration;
+import dev.workflowhub.workflow.SyntheticWorkflows;
+import dev.workflowhub.workflow.service.WorkflowLimits;
 import dev.workflowhub.workflow.storage.InMemoryWorkflowObjectStore;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -60,6 +64,7 @@ class WorkflowUploadTests {
   @Autowired MockMvc mvc;
   @Autowired JdbcClient jdbc;
   @Autowired InMemoryWorkflowObjectStore store;
+  @Autowired WorkflowLimits limits;
 
   @BeforeEach
   void clean() {
@@ -282,6 +287,56 @@ class WorkflowUploadTests {
         .andExpect(status().isUnprocessableContent());
 
     assertNothingCreated();
+  }
+
+  @Test
+  void applicationYamlDefaultsMatchTheDocumentedLimits() {
+    // 테스트는 환경 변수를 덮어쓰지 않으므로 application.yaml의 기본값이 그대로 주입된다.
+    assertThat(limits).isEqualTo(WorkflowLimits.DEFAULTS);
+  }
+
+  @Test
+  void rejectsAFileOverEachLimitWithoutCreatingAnything() throws Exception {
+    long pendingBefore = count("workflow_hub.pending_objects");
+
+    mvc.perform(upload("key-nodes", "T", SyntheticWorkflows.bytes(301, 1, 4), "u"))
+        .andExpect(status().isUnprocessableContent())
+        .andExpect(jsonPath("$.code").value("WORKFLOW_LIMIT_EXCEEDED"))
+        .andExpect(jsonPath("$.message").value("Workflow node count exceeds the limit (300)"));
+    mvc.perform(upload("key-connections", "T", SyntheticWorkflows.bytes(1, 1501, 4), "u"))
+        .andExpect(status().isUnprocessableContent())
+        .andExpect(jsonPath("$.code").value("WORKFLOW_LIMIT_EXCEEDED"))
+        .andExpect(
+            jsonPath("$.message").value("Workflow connection count exceeds the limit (1500)"));
+    mvc.perform(upload("key-depth", "T", SyntheticWorkflows.bytes(1, 0, 65), "u"))
+        .andExpect(status().isUnprocessableContent())
+        .andExpect(jsonPath("$.code").value("WORKFLOW_LIMIT_EXCEEDED"))
+        .andExpect(jsonPath("$.message").value("Workflow nesting depth exceeds the limit (64)"));
+
+    // S3 원본·정리 대상 기록·DB 버전과 멱등성 기록 모두 만들지 않는다.
+    assertNothingCreated();
+    assertThat(count("workflow_hub.pending_objects")).isEqualTo(pendingBefore);
+  }
+
+  @Test
+  void storesAFileExactlyAtEveryLimitAndDownloadsTheOriginalBytes() throws Exception {
+    byte[] atLimit = SyntheticWorkflows.bytes(300, 1500, 64);
+
+    MvcResult result =
+        mvc.perform(upload("key-at-limit", "T", atLimit, "u"))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+    assertThat(store.objects()).hasSize(1);
+    assertThat(store.objects().values().iterator().next()).isEqualTo(atLimit);
+    mvc.perform(
+            get(
+                    "/api/workflows/{workflowId}/versions/{versionId}/download",
+                    idFrom(result, "workflowId"),
+                    idFrom(result, "versionId"))
+                .with(user("u")))
+        .andExpect(status().isOk())
+        .andExpect(content().bytes(atLimit));
   }
 
   @Test

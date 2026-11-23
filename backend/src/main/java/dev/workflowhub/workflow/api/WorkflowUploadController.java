@@ -93,16 +93,30 @@ public class WorkflowUploadController {
     @ApiResponse(
         responseCode = "422",
         description =
-            "유효한 n8n 워크플로가 아니거나(INVALID_WORKFLOW) 제목을 쓸 수 없다(TITLE_REQUIRED, TITLE_TOO_LONG, TITLE_INVALID)",
+            """
+            유효한 n8n 워크플로가 아니거나(INVALID_WORKFLOW), 규모 한도를 넘었거나(WORKFLOW_LIMIT_EXCEEDED), \
+            제목을 쓸 수 없다(TITLE_REQUIRED, TITLE_TOO_LONG, TITLE_INVALID). \
+            한도는 중첩 깊이(루트 객체를 1로 센다)·노드 수·연결 수이며 기본값은 64·300·1,500이다. \
+            한도에 도달한 파일은 통과하고 초과한 파일만 거절한다. \
+            값은 환경 변수 WORKFLOW_MAX_DEPTH·WORKFLOW_MAX_NODES·WORKFLOW_MAX_CONNECTIONS로 조정한다. \
+            메시지는 초과한 한도의 종류와 값만 알려 준다. 거절된 요청은 S3와 DB에 아무것도 만들지 않는다""",
         content =
             @Content(
                 schema = @Schema(implementation = ApiError.class),
-                examples =
-                    @ExampleObject(
-                        value =
-                            """
-                            {"code":"INVALID_WORKFLOW","message":"Workflow must have a non-empty nodes array","requestId":"3f1c0f5e-52a8-4d2b-9a43-6b2f6f8f0c11"}
-                            """))),
+                examples = {
+                  @ExampleObject(
+                      name = "구조 오류",
+                      value =
+                          """
+                          {"code":"INVALID_WORKFLOW","message":"Workflow must have a non-empty nodes array","requestId":"3f1c0f5e-52a8-4d2b-9a43-6b2f6f8f0c11"}
+                          """),
+                  @ExampleObject(
+                      name = "한도 초과",
+                      value =
+                          """
+                          {"code":"WORKFLOW_LIMIT_EXCEEDED","message":"Workflow node count exceeds the limit (300)","requestId":"3f1c0f5e-52a8-4d2b-9a43-6b2f6f8f0c11"}
+                          """)
+                })),
     @ApiResponse(
         responseCode = "500",
         description = "예상하지 못한 서버 오류. 응답의 requestId로 서버 로그를 찾는다",

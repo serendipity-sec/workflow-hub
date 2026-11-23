@@ -142,6 +142,7 @@ npm run build
 - [보안 검사 설계안](docs/SECURITY_DESIGN.md)
 - [차별화 근거와 검증 계획](docs/DIFFERENTIATION.md)
 - [외부 연동과 배포 준비](docs/SETUP.md)
+- [n8n JSON 입력 한도와 측정 기록](docs/INPUT_LIMITS.md)
 - API 명세: 백엔드를 `API_DOCS_ENABLED=true`로 실행하고 `/swagger-ui.html` 확인 ([설정](docs/SETUP.md))
 - [합성 워크플로 샘플](backend/src/test/resources/samples/minimal-workflow.json)
 
@@ -158,6 +159,7 @@ npm run build
 
 - 소유자별 업로드·조회·버전 등록·다운로드 API는 PostgreSQL 메타데이터와 비공개 S3의 원본 바이트를 사용합니다. 버전별 원본 파일 해시·크기를 서버가 기록하고 버전 조회 응답에 포함합니다(V6 이전 버전은 미확인). 검사 기록은 후속 범위입니다.
 - 업로드한 워크플로·Code 노드·표현식을 서버에서 실행하지 않습니다.
+- 최초 업로드와 버전 비교는 중첩 깊이 64·노드 300·연결 1,500 한도(환경 변수로 조정)를 넘는 JSON을 `422 WORKFLOW_LIMIT_EXCEEDED`로 거절하며, 거절된 요청은 S3와 DB에 아무것도 남기지 않습니다. 값의 근거와 측정·미검증 항목은 [입력 한도 문서](docs/INPUT_LIMITS.md)에 있습니다.
 - 검사 결과에도 비밀정보가 포함될 수 있으므로, 결과 마스킹과 접근 권한을 함께 설계합니다.
 - 공개 기능은 특정 버전과 공개용 결과를 대상으로 하며, 다른 비공개 버전·원본·상세 결과를 자동 공개하지 않는 방향으로 검토합니다.
 - 검사한 파일과 다운로드 파일의 일치를 확인하더라도, 사용자가 수정한 파일이나 실제 n8n 실행 환경 전체의 안전성을 보증하지 않습니다.
