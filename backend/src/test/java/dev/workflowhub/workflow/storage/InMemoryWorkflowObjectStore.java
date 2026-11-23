@@ -1,6 +1,7 @@
 package dev.workflowhub.workflow.storage;
 
 import java.util.Map;
+import java.util.OptionalLong;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** 테스트용 S3 대역. 실제 S3의 동작은 검증하지 못한다. */
@@ -8,6 +9,7 @@ public class InMemoryWorkflowObjectStore implements WorkflowObjectStore {
   private final Map<String, byte[]> objects = new ConcurrentHashMap<>();
   public volatile boolean failPuts;
   public volatile boolean failDeletes;
+  public volatile boolean failSizes;
 
   /** put이 끝난 직후 실행한다. 저장과 커밋 사이에 다른 작업이 끼어드는 상황을 만든다. */
   public volatile Runnable afterPut;
@@ -36,6 +38,15 @@ public class InMemoryWorkflowObjectStore implements WorkflowObjectStore {
   }
 
   @Override
+  public OptionalLong size(String key) {
+    if (failSizes) {
+      throw new IllegalStateException("simulated size failure");
+    }
+    byte[] content = objects.get(key);
+    return content == null ? OptionalLong.empty() : OptionalLong.of(content.length);
+  }
+
+  @Override
   public void delete(String key) {
     if (failDeletes) {
       throw new IllegalStateException("simulated delete failure");
@@ -51,6 +62,7 @@ public class InMemoryWorkflowObjectStore implements WorkflowObjectStore {
     objects.clear();
     failPuts = false;
     failDeletes = false;
+    failSizes = false;
     afterPut = null;
   }
 }

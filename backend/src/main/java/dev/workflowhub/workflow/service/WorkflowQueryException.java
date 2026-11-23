@@ -46,6 +46,18 @@ public class WorkflowQueryException extends RuntimeException {
         HttpStatus.SERVICE_UNAVAILABLE, "STORAGE_UNAVAILABLE", "Could not read the file");
   }
 
+  static WorkflowQueryException notDeleted() {
+    return new WorkflowQueryException(
+        HttpStatus.CONFLICT, "NOT_DELETED", "The target is not deleted");
+  }
+
+  static WorkflowQueryException restoreUnavailable() {
+    return new WorkflowQueryException(
+        HttpStatus.CONFLICT,
+        "RESTORE_UNAVAILABLE",
+        "The restore period ended or the original file is no longer available");
+  }
+
   public HttpStatus status() {
     return status;
   }

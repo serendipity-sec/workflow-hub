@@ -43,3 +43,6 @@ app:
     pending-object-grace: ${PENDING_OBJECT_GRACE:30m}
     cleanup-retry-delay: ${CLEANUP_RETRY_DELAY:5m}
     cleanup-interval: ${PENDING_OBJECT_CLEANUP_INTERVAL:10s}
+  deletion:
+    # 삭제를 수락한 뒤 원본을 지우기까지의 복구 기간. 이 기간 안에는 소유자가 복구할 수 있다.
+    grace: ${WORKFLOW_DELETE_GRACE:7d}

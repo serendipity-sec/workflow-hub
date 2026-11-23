@@ -43,6 +43,7 @@ public class WorkflowQueryController {
   private static final String VERSION_ID = "5d2f7c1a-8b3e-4c6d-a1f0-9e4b2c7d8a33";
   private static final String TITLE = "주문 접수 Slack 알림";
   private static final String REGISTERED_AT = "2026-11-22T04:15:30Z";
+  private static final String RESTORE_UNTIL_AT = "2026-11-29T04:15:30Z";
   private static final String CURSOR_PARAMETER = "다음 페이지를 요청할 때 같은 목록의 nextCursor 값을 그대로 사용한다";
   private static final String END_CURSOR = "다음 페이지에 사용할 값. 마지막 페이지에서는 null";
   private static final String LATEST_VERSION = "가장 최근에 등록한 버전. 등록된 버전이 없으면 null";
@@ -50,7 +51,11 @@ public class WorkflowQueryController {
       "서버가 S3에 저장한 원본 바이트의 SHA-256(소문자 hex 64자). 해시를 기록하기 전에 등록된 버전은 null";
   private static final String FILE_SIZE = "서버가 S3에 저장한 원본 바이트 수. 기록하기 전에 등록된 버전은 null";
   private static final String BAD_PAGINATION =
-      "limit이 정수 범위를 벗어나거나(INVALID_LIMIT), cursor가 유효하지 않다(INVALID_CURSOR)";
+      "limit이 정수 범위를 벗어나거나(INVALID_LIMIT), cursor가 유효하지 않거나(INVALID_CURSOR), includeDeleted가 불리언 값이 아니다(BAD_REQUEST)";
+  private static final String INCLUDE_DELETED =
+      "true이면 복구할 수 있는 삭제 항목도 함께 반환한다. 삭제 항목에는 deletedAt과 restoreUntil이 있고, 복구 기간이 끝나 원본이 지워졌거나 지워지는 중인 항목은 반환하지 않는다. 기본값은 false이며, 삭제된 항목을 제외한다";
+  private static final String DELETED_AT = "삭제한 시각. 삭제된 항목에만 있다";
+  private static final String RESTORE_UNTIL = "이 시각까지 복구할 수 있다. 삭제된 항목에만 있다";
   private static final String UNAUTHORIZED = "토큰이 없거나 유효하지 않다";
   private static final String NOT_FOUND = "요청한 ID의 소유 워크플로를 찾을 수 없다(WORKFLOW_NOT_FOUND)";
   private static final String VERSION_NOT_FOUND =
@@ -65,7 +70,10 @@ public class WorkflowQueryController {
   }
 
   @GetMapping("/api/me/workflows")
-  @Operation(summary = "내 워크플로 목록", description = "로그인 사용자가 소유한 워크플로를 최근 등록순으로 조회한다.")
+  @Operation(
+      summary = "내 워크플로 목록",
+      description =
+          "로그인 사용자가 소유한 워크플로를 최근 등록순으로 조회한다. 삭제한 워크플로는 includeDeleted=true일 때만, 복구 기간 안에서 함께 반환한다.")
   @ApiResponses({
     @ApiResponse(
         responseCode = "200",
@@ -107,8 +115,13 @@ public class WorkflowQueryController {
                       defaultValue = "20"))
           String limit,
       @RequestParam(name = "cursor", required = false) @Parameter(description = CURSOR_PARAMETER)
-          String cursor) {
-    var page = queries.listWorkflows(jwt.getSubject(), parseLimit(limit), cursor);
+          String cursor,
+      @RequestParam(name = "includeDeleted", defaultValue = "false")
+          @Parameter(
+              description = INCLUDE_DELETED,
+              schema = @Schema(type = "boolean", defaultValue = "false"))
+          boolean includeDeleted) {
+    var page = queries.listWorkflows(jwt.getSubject(), parseLimit(limit), cursor, includeDeleted);
     var items = page.items().stream().map(WorkflowSummary::from).toList();
     return new WorkflowListResponse(new WorkflowListData(items, page.nextCursor()));
   }
@@ -171,7 +184,10 @@ public class WorkflowQueryController {
   }
 
   @GetMapping("/api/workflows/{workflowId}/versions")
-  @Operation(summary = "내 워크플로 버전 목록", description = "내가 소유한 워크플로의 버전을 최근 등록순으로 조회한다.")
+  @Operation(
+      summary = "내 워크플로 버전 목록",
+      description =
+          "내가 소유한 워크플로의 버전을 최근 등록순으로 조회한다. 삭제한 버전은 includeDeleted=true일 때만, 복구 기간 안에서 함께 반환한다. 삭제한 워크플로의 버전도 이 옵션으로 조회한다.")
   @ApiResponses({
     @ApiResponse(
         responseCode = "200",
@@ -229,8 +245,15 @@ public class WorkflowQueryController {
                       defaultValue = "20"))
           String limit,
       @RequestParam(name = "cursor", required = false) @Parameter(description = CURSOR_PARAMETER)
-          String cursor) {
-    var page = queries.listVersions(jwt.getSubject(), workflowId, parseLimit(limit), cursor);
+          String cursor,
+      @RequestParam(name = "includeDeleted", defaultValue = "false")
+          @Parameter(
+              description = INCLUDE_DELETED,
+              schema = @Schema(type = "boolean", defaultValue = "false"))
+          boolean includeDeleted) {
+    var page =
+        queries.listVersions(
+            jwt.getSubject(), workflowId, parseLimit(limit), cursor, includeDeleted);
     var items = page.items().stream().map(VersionMetadata::from).toList();
     return new VersionListResponse(new VersionListData(items, page.nextCursor()));
   }
@@ -448,10 +471,20 @@ public class WorkflowQueryController {
               description = LATEST_VERSION,
               types = {"object", "null"},
               schemaResolution = Schema.SchemaResolution.INLINE)
-          VersionMetadata latestVersion) {
+          VersionMetadata latestVersion,
+      @JsonInclude(JsonInclude.Include.NON_NULL)
+          @Schema(description = DELETED_AT, example = REGISTERED_AT)
+          Instant deletedAt,
+      @JsonInclude(JsonInclude.Include.NON_NULL)
+          @Schema(description = RESTORE_UNTIL, example = RESTORE_UNTIL_AT)
+          Instant restoreUntil) {
     private static WorkflowSummary from(WorkflowItem item) {
       return new WorkflowSummary(
-          item.workflowId(), item.title(), VersionMetadata.from(item.latestVersion()));
+          item.workflowId(),
+          item.title(),
+          VersionMetadata.from(item.latestVersion()),
+          item.deletedAt(),
+          item.restoreUntil());
     }
   }
 
@@ -493,7 +526,13 @@ public class WorkflowQueryController {
               example = "52",
               types = {"integer", "null"},
               format = "int64")
-          Long sizeBytes) {
+          Long sizeBytes,
+      @JsonInclude(JsonInclude.Include.NON_NULL)
+          @Schema(description = DELETED_AT, example = REGISTERED_AT)
+          Instant deletedAt,
+      @JsonInclude(JsonInclude.Include.NON_NULL)
+          @Schema(description = RESTORE_UNTIL, example = RESTORE_UNTIL_AT)
+          Instant restoreUntil) {
     private static VersionMetadata from(VersionItem item) {
       return item == null
           ? null
@@ -503,7 +542,9 @@ public class WorkflowQueryController {
               item.createdAt(),
               item.downloadEnabled(),
               item.sha256(),
-              item.sizeBytes());
+              item.sizeBytes(),
+              item.deletedAt(),
+              item.restoreUntil());
     }
   }
 }
