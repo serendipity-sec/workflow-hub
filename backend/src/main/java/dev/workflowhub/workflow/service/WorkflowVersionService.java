@@ -26,8 +26,15 @@ public class WorkflowVersionService {
   private static final Logger log = LoggerFactory.getLogger(WorkflowVersionService.class);
   private static final Pattern VERSION_LABEL =
       Pattern.compile("v([1-9][0-9]*)(?:[.]([1-9][0-9]*))?");
+
+  /** 버전 번호의 메이저·마이너를 version 라벨에서 읽는 식. 기준 확인과 번호 발급이 같은 규칙을 쓴다. */
+  private static final String MAJOR_OF_VERSION =
+      "substring(version FROM '^v([1-9][0-9]*)(?:[.][1-9][0-9]*)?$')::numeric";
+
+  private static final String MINOR_OF_VERSION =
+      "coalesce(substring(version FROM '[.]([1-9][0-9]*)$')::numeric, 0)";
   private static final String OWNED_WORKFLOW =
-      "SELECT id FROM workflow_hub.workflows WHERE id = :id AND owner_id = :owner";
+      "SELECT deleted_at IS NULL FROM workflow_hub.workflows WHERE id = :id AND owner_id = :owner";
   private final JdbcClient jdbc;
   private final TransactionTemplate transactions;
   private final WorkflowObjectStore store;
@@ -62,6 +69,7 @@ public class WorkflowVersionService {
                 FROM workflow_hub.workflow_versions v
                 JOIN workflow_hub.workflows w ON w.id = v.workflow_id
                 WHERE w.owner_id = :owner AND v.workflow_id = :workflowId AND v.id = :versionId
+                  AND w.deleted_at IS NULL AND v.deleted_at IS NULL
                 """)
             .param("owner", owner)
             .param("workflowId", workflowId)
@@ -80,11 +88,15 @@ public class WorkflowVersionService {
       String owner, String workflowPath, String key, UUID comparisonId, UpdateType updateType) {
     WorkflowUploadService.requireValidKey(key);
     UUID workflowId = resourceId(workflowPath, "WORKFLOW_NOT_FOUND", "Workflow not found");
-    requireOwnedWorkflow(owner, workflowId, false);
+    boolean alive = requireOwnedWorkflow(owner, workflowId, false);
     String fingerprint = "register-version:" + workflowId + ":" + comparisonId + ":" + updateType;
+    // 이미 커밋된 요청의 재시도는 그 뒤에 워크플로를 삭제했더라도 처음 결과를 돌려준다.
     var previous = replay(owner, key, fingerprint);
     if (previous.isPresent()) {
       return previous.get();
+    }
+    if (!alive) {
+      throw notFound("WORKFLOW_NOT_FOUND", "Workflow not found");
     }
 
     byte[] bytes;
@@ -121,14 +133,18 @@ public class WorkflowVersionService {
           transactions.execute(
               status -> {
                 // 객체 쓰기는 잠금 전에 끝내고, 잠금 아래 기준과 재시도 여부를 다시 확인한다.
-                requireOwnedWorkflow(owner, workflowId, true);
+                boolean stillAlive = requireOwnedWorkflow(owner, workflowId, true);
                 var alreadySaved = replay(owner, key, fingerprint);
                 if (alreadySaved.isPresent()) {
                   return alreadySaved.get();
                 }
+                // 확인한 뒤 잠금을 잡기 전에 다른 요청이 워크플로를 삭제했다면 새 버전을 만들지 않는다.
+                if (!stillAlive) {
+                  throw notFound("WORKFLOW_NOT_FOUND", "Workflow not found");
+                }
                 var base = findComparisonBase(workflowId, comparisonId);
                 VersionNumber number = requireCurrentBase(workflowId, base, updateType);
-                String label = number.next(updateType).label();
+                String label = nextLabel(workflowId, number, updateType);
                 insertVersion(workflowId, versionId, label, objectKey, identity);
                 recordRequest(owner, key, fingerprint, workflowId, versionId);
                 // 커밋되면 버전 행이 객체를 가리키므로 정리 대상에서 뺀다. 롤백되면 이 삭제도 취소돼 기록이 남는다.
@@ -191,11 +207,12 @@ public class WorkflowVersionService {
     }
   }
 
-  private void requireOwnedWorkflow(String owner, UUID workflowId, boolean lock) {
-    jdbc.sql(lock ? OWNED_WORKFLOW + " FOR UPDATE" : OWNED_WORKFLOW)
+  /** 소유한 워크플로이면 삭제되지 않았는지(살아 있는지)를 돌려준다. 소유하지 않았거나 없으면 404다. */
+  private boolean requireOwnedWorkflow(String owner, UUID workflowId, boolean lock) {
+    return jdbc.sql(lock ? OWNED_WORKFLOW + " FOR UPDATE" : OWNED_WORKFLOW)
         .param("id", workflowId)
         .param("owner", owner)
-        .query(UUID.class)
+        .query(Boolean.class)
         .optional()
         .orElseThrow(() -> notFound("WORKFLOW_NOT_FOUND", "Workflow not found"));
   }
@@ -207,7 +224,7 @@ public class WorkflowVersionService {
             FROM workflow_hub.workflow_comparisons c
             JOIN workflow_hub.workflow_versions v ON v.id = c.base_version_id
             WHERE c.id = :comparisonId AND v.workflow_id = :workflowId
-              AND c.expires_at > clock_timestamp()
+              AND v.deleted_at IS NULL AND c.expires_at > clock_timestamp()
             """)
         .param("comparisonId", comparisonId)
         .param("workflowId", workflowId)
@@ -225,23 +242,60 @@ public class WorkflowVersionService {
                 """
                 SELECT id, version, created_at FROM (
                     SELECT id, version, created_at,
-                        substring(version FROM '^v([1-9][0-9]*)(?:[.][1-9][0-9]*)?$')::numeric AS major,
-                        coalesce(substring(version FROM '[.]([1-9][0-9]*)$')::numeric, 0) AS minor
+                        {major} AS major,
+                        {minor} AS minor
                     FROM workflow_hub.workflow_versions
-                    WHERE workflow_id = :workflowId
+                    WHERE workflow_id = :workflowId AND deleted_at IS NULL
                 ) numbered
                 WHERE major IS NOT NULL AND (:major IS NULL OR major = :major)
                 ORDER BY major DESC, minor DESC
                 LIMIT 1
-                """)
+                """
+                    .replace("{major}", MAJOR_OF_VERSION)
+                    .replace("{minor}", MINOR_OF_VERSION))
             .param("workflowId", workflowId)
             .param("major", major, Types.NUMERIC)
             .query((row, index) -> version(row))
-            .single();
+            .optional()
+            // 확인하는 사이 다른 요청이 마지막 살아 있는 버전을 삭제한 경우다.
+            .orElseThrow(
+                () -> notFound("WORKFLOW_VERSION_NOT_FOUND", "Workflow version not found"));
     if (!current.versionId().equals(base.versionId())) {
       throw new LatestVersionChanged(current);
     }
     return number;
+  }
+
+  /**
+   * 새 버전 번호를 발급한다. 삭제된 버전과 정리가 끝난 버전의 번호도 포함해 가장 큰 번호 다음을 쓰므로, 삭제한 번호는 다시 쓰이지 않는다. 기준 확인은 살아 있는 버전만
+   * 보지만 번호는 모든 행을 본다.
+   */
+  private String nextLabel(UUID workflowId, VersionNumber base, UpdateType type) {
+    var highest =
+        jdbc.sql(
+                """
+                SELECT coalesce(max(major), 0) AS max_major,
+                       coalesce(max(minor) FILTER (WHERE major = :major), 0) AS max_minor
+                FROM (
+                    SELECT {major} AS major, {minor} AS minor
+                    FROM workflow_hub.workflow_versions
+                    WHERE workflow_id = :workflowId
+                ) numbered
+                WHERE major IS NOT NULL
+                """
+                    .replace("{major}", MAJOR_OF_VERSION)
+                    .replace("{minor}", MINOR_OF_VERSION))
+            .param("workflowId", workflowId)
+            .param("major", new BigDecimal(base.major()))
+            .query(
+                (row, index) ->
+                    new VersionNumber(
+                        row.getBigDecimal("max_major").toBigInteger(),
+                        row.getBigDecimal("max_minor").toBigInteger()))
+            .single();
+    return type == UpdateType.MINOR
+        ? new VersionNumber(base.major(), highest.minor().add(BigInteger.ONE)).label()
+        : new VersionNumber(highest.major().add(BigInteger.ONE), BigInteger.ZERO).label();
   }
 
   private void insertVersion(
@@ -353,12 +407,6 @@ public class WorkflowVersionService {
       return new VersionNumber(
           new BigInteger(parts.group(1)),
           parts.group(2) == null ? BigInteger.ZERO : new BigInteger(parts.group(2)));
-    }
-
-    VersionNumber next(UpdateType type) {
-      return type == UpdateType.MINOR
-          ? new VersionNumber(major, minor.add(BigInteger.ONE))
-          : new VersionNumber(major.add(BigInteger.ONE), BigInteger.ZERO);
     }
 
     String label() {
