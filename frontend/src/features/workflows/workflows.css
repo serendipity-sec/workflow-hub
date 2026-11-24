@@ -116,6 +116,127 @@
   margin: 0;
 }
 
+/* ---------- New version panel ---------- */
+.register-form {
+  display: grid;
+  gap: 14px;
+  margin: 16px 0;
+}
+.register-alert {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  margin: 12px 0;
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--line-strong);
+}
+.register-alert p {
+  margin: 0;
+}
+.register-result {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line-strong);
+}
+.register-result h3,
+.register-result p {
+  margin: 0;
+}
+.change-stats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+  gap: 8px;
+}
+.change-stats li {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.7);
+}
+.change-stats strong {
+  font-size: 1.4rem;
+  letter-spacing: -0.03em;
+}
+.change-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  max-height: 320px;
+  overflow: auto;
+}
+.change-list li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.7);
+}
+.change-list li > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.change-list p {
+  margin: 0;
+  font-size: 0.85rem;
+}
+.change-kind {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.update-type {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.update-type legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-weight: 600;
+}
+.update-type label {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--glass-border);
+  cursor: pointer;
+}
+.update-type label span {
+  display: grid;
+  gap: 2px;
+}
+.flash {
+  margin: 0 0 16px;
+  padding: 12px 18px;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: #fff;
+  font-weight: 600;
+}
+
 @media (max-width: 800px) {
   .detail-grid {
     grid-template-columns: 1fr;

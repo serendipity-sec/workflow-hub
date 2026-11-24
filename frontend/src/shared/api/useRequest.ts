@@ -31,5 +31,13 @@ export function useRequest<T>(fetcher: () => Promise<T>) {
     );
   }, [fetcher]);
 
-  return { state, retry };
+  /** Reloads without switching to the loading state; keeps old data on failure. */
+  const refresh = useCallback(() => {
+    fetcher().then(
+      (data) => setState({ status: 'ready', data }),
+      () => undefined,
+    );
+  }, [fetcher]);
+
+  return { state, retry, refresh };
 }

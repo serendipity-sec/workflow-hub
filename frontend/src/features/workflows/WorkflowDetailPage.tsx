@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useParams } from 'react-router';
 import { useRequest } from '../../shared/api/useRequest';
 import { formatDateTime } from '../../shared/format';
@@ -7,11 +7,11 @@ import { Card } from '../../shared/ui/Card';
 import { Icon } from '../../shared/ui/Icon';
 import { PageHeader } from '../../shared/ui/PageHeader';
 import { ErrorState, LoadingState } from '../../shared/ui/PageStates';
-import { NextVersionPanel } from '../revisions/NextVersionPanel';
 import { SecurityCheckPanel } from '../security/SecurityCheckPanel';
 import { getWorkflow } from './api';
 import { describeWorkflowError } from './errorMessages';
 import { VersionList } from './VersionList';
+import { VersionRegisterPanel } from './VersionRegisterPanel';
 import './workflows.css';
 
 /** Route entry. The key remounts the content when the URL points to another workflow. */
@@ -34,7 +34,15 @@ function WorkflowDetail({ workflowId }: { workflowId: string }) {
     () => getWorkflow(workflowId),
     [workflowId],
   );
-  const { state, retry } = useRequest(fetchWorkflow);
+  const { state, retry, refresh } = useRequest(fetchWorkflow);
+  const [notice, setNotice] = useState('');
+  const [versionsKey, setVersionsKey] = useState(0);
+
+  function registered(versionLabel: string) {
+    setNotice(`${versionLabel}을(를) 새 버전으로 등록했습니다.`);
+    setVersionsKey((key) => key + 1);
+    refresh();
+  }
 
   if (state.status === 'loading') return <LoadingState />;
   if (state.status === 'error') {
@@ -59,6 +67,9 @@ function WorkflowDetail({ workflowId }: { workflowId: string }) {
         title={workflow.title}
         description={`등록일 ${formatDateTime(workflow.createdAt)}`}
       />
+      <div aria-live="polite">
+        {notice && <p className="flash">{notice}</p>}
+      </div>
       <div className="detail-grid">
         <div className="stack">
           <Card tone="dark" className="latest-card">
@@ -68,10 +79,14 @@ function WorkflowDetail({ workflowId }: { workflowId: string }) {
               <p className="muted">{formatDateTime(latest.createdAt)} 등록</p>
             )}
           </Card>
-          <VersionList workflowId={workflowId} />
+          <VersionList key={versionsKey} workflowId={workflowId} />
         </div>
         <div className="stack">
-          <NextVersionPanel />
+          <VersionRegisterPanel
+            workflowId={workflowId}
+            latest={latest}
+            onRegistered={registered}
+          />
           <SecurityCheckPanel versionLabel={latest?.versionLabel} />
         </div>
       </div>
