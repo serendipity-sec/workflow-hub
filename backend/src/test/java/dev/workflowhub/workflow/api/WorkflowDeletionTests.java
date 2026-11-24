@@ -300,8 +300,9 @@ class WorkflowDeletionTests {
     ExecutorService pool = Executors.newFixedThreadPool(2);
     try {
       List<Boolean> deletedWorkflow = new ArrayList<>();
-      for (Future<Boolean> future : pool.invokeAll(calls)) {
-        deletedWorkflow.add(future.get(30, TimeUnit.SECONDS));
+      // 제한 시간 안에 끝나지 않은 작업은 취소되고, 그 결과를 읽을 때 CancellationException으로 테스트가 실패한다.
+      for (Future<Boolean> future : pool.invokeAll(calls, 30, TimeUnit.SECONDS)) {
+        deletedWorkflow.add(future.get());
       }
       // 한 요청은 개별 삭제, 다른 요청은 마지막 버전이라 워크플로 전체 삭제가 된다.
       assertThat(deletedWorkflow).containsExactlyInAnyOrder(true, false);
@@ -668,6 +669,53 @@ class WorkflowDeletionTests {
     assertThat(deletedCount(other.id())).isEqualTo(1);
   }
 
+  @Test
+  void restoringAWorkflowAnswersNotDeletedWhenAnotherRequestRestoredItWhileStorageWasChecked()
+      throws Exception {
+    Workflow w = workflow("v1", "v1.1");
+    mvc.perform(delete(WORKFLOW, w.id()).with(user(OWNER))).andExpect(status().isOk());
+    // 저장소를 확인하는 사이(잠금 밖) 다른 요청이 같은 워크플로를 먼저 복구한다.
+    store.afterSize =
+        () -> {
+          try {
+            mvc.perform(post(WORKFLOW + "/restore", w.id()).with(user(OWNER)))
+                .andExpect(status().isOk());
+          } catch (Exception e) {
+            throw new IllegalStateException(e);
+          }
+        };
+
+    mvc.perform(post(WORKFLOW + "/restore", w.id()).with(user(OWNER)))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("NOT_DELETED"));
+
+    mvc.perform(get(VERSIONS, w.id()).with(user(OWNER)))
+        .andExpect(jsonPath("$.data.items", hasSize(2)));
+  }
+
+  @Test
+  void restoringAVersionAnswersNotDeletedWhenAnotherRequestRestoredItWhileStorageWasChecked()
+      throws Exception {
+    Workflow w = workflow("v1", "v1.1");
+    UUID version = w.version("v1.1");
+    mvc.perform(delete(VERSION, w.id(), version).with(user(OWNER))).andExpect(status().isOk());
+    store.afterSize =
+        () -> {
+          try {
+            mvc.perform(post(VERSION + "/restore", w.id(), version).with(user(OWNER)))
+                .andExpect(status().isOk());
+          } catch (Exception e) {
+            throw new IllegalStateException(e);
+          }
+        };
+
+    mvc.perform(post(VERSION + "/restore", w.id(), version).with(user(OWNER)))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("NOT_DELETED"));
+
+    assertThat(versionRow(version).get("deleted_at")).isNull();
+  }
+
   // ---- 원본 정리 ----
 
   @Test
@@ -710,6 +758,8 @@ class WorkflowDeletionTests {
   void purgeKeepsBlockingAccessAndRetriesAfterAStorageFailure() throws Exception {
     Workflow w = workflow("v1", "v1.1");
     UUID version = w.version("v1.1");
+    // 정리가 끝나면 행의 s3_object_key가 비워지므로, 정리 전에 실제 객체 키를 저장해 둔다.
+    String key = objectKeyOf(version);
     mvc.perform(delete(VERSION, w.id(), version).with(user(OWNER))).andExpect(status().isOk());
     expire(version);
 
@@ -717,7 +767,7 @@ class WorkflowDeletionTests {
     purge.purgeDue();
 
     // 삭제된 버전의 접근은 계속 막히고, 삭제를 시작했으므로 복구도 거절된다.
-    assertThat(versionObjects()).contains(objectKeyOf(version));
+    assertThat(versionObjects()).contains(key);
     assertThat(versionRow(version).get("delete_started_at")).isNotNull();
     assertThat(versionRow(version).get("purged_at")).isNull();
     mvc.perform(get(VERSION + "/download", w.id(), version).with(user(OWNER)))
@@ -728,7 +778,7 @@ class WorkflowDeletionTests {
     // 재시도 간격 안에서는 다시 집지 않는다.
     store.failDeletes = false;
     purge.purgeDue();
-    assertThat(versionObjects()).contains(objectKeyOf(version));
+    assertThat(versionObjects()).contains(key);
 
     jdbc.sql(
             "UPDATE workflow_hub.workflow_versions SET delete_started_at = clock_timestamp() - interval '1 hour' WHERE id = :id")
@@ -736,7 +786,7 @@ class WorkflowDeletionTests {
         .update();
     purge.purgeDue();
 
-    assertThat(versionObjects()).doesNotContain(objectKeyOf(version));
+    assertThat(versionObjects()).doesNotContain(key);
     assertThat(versionRow(version).get("purged_at")).isNotNull();
   }
 

@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -155,7 +156,10 @@ public class WorkflowDeletionService {
                 status -> {
                   lockWorkflow(owner, workflow, WorkflowQueryException::versionNotFound);
                   if (!restoreRow(workflow, version, null)) {
-                    throw WorkflowQueryException.restoreUnavailable();
+                    // 확인하는 사이 다른 요청이 같은 버전을 이미 복구했다면 복구 불가가 아니라 삭제 상태가 아닌 것이다.
+                    throw versionIsAlive(version)
+                        ? WorkflowQueryException.notDeleted()
+                        : WorkflowQueryException.restoreUnavailable();
                   }
                   return reviveWorkflow(workflow);
                 }));
@@ -173,18 +177,7 @@ public class WorkflowDeletionService {
    */
   public Restoration restoreWorkflow(String owner, String workflowId) {
     UUID workflow = parseId(workflowId, WorkflowQueryException::workflowNotFound);
-    var header =
-        jdbc.sql(
-                "SELECT deleted_at, title IS NULL AS scrubbed FROM workflow_hub.workflows WHERE id = :id AND owner_id = :owner")
-            .param("id", workflow)
-            .param("owner", owner)
-            .query(
-                (rs, index) ->
-                    new WorkflowHeader(
-                        rs.getObject("deleted_at", OffsetDateTime.class),
-                        rs.getBoolean("scrubbed")))
-            .optional()
-            .orElseThrow(WorkflowQueryException::workflowNotFound);
+    var header = readHeader(workflow, owner).orElseThrow(WorkflowQueryException::workflowNotFound);
     if (header.deletedAt() == null) {
       throw WorkflowQueryException.notDeleted();
     }
@@ -233,11 +226,11 @@ public class WorkflowDeletionService {
         transactions.execute(
             status -> {
               lockWorkflow(owner, workflow, WorkflowQueryException::workflowNotFound);
-              var current =
-                  jdbc.sql("SELECT deleted_at FROM workflow_hub.workflows WHERE id = :id")
-                      .param("id", workflow)
-                      .query((rs, index) -> rs.getObject("deleted_at", OffsetDateTime.class))
-                      .single();
+              // deleted_at이 NULL(이미 복구됨)이어도 행은 있으므로 NULL을 담을 수 있는 객체로 읽는다.
+              OffsetDateTime current =
+                  readHeader(workflow, owner)
+                      .orElseThrow(WorkflowQueryException::workflowNotFound)
+                      .deletedAt();
               // 확인하는 사이 다른 요청이 이미 워크플로를 되살렸거나, 되살린 뒤 다시 삭제한 경우다.
               if (current == null) {
                 throw WorkflowQueryException.notDeleted();
@@ -266,6 +259,19 @@ public class WorkflowDeletionService {
         result.restoredVersionIds().size(),
         result.unavailableVersionIds().size());
     return result;
+  }
+
+  /** 소유한 워크플로의 삭제 시각과 제목 정리 여부. deletedAt이 null이면 삭제 상태가 아니다. */
+  private Optional<WorkflowHeader> readHeader(UUID workflow, String owner) {
+    return jdbc.sql(
+            "SELECT deleted_at, title IS NULL AS scrubbed FROM workflow_hub.workflows WHERE id = :id AND owner_id = :owner")
+        .param("id", workflow)
+        .param("owner", owner)
+        .query(
+            (rs, index) ->
+                new WorkflowHeader(
+                    rs.getObject("deleted_at", OffsetDateTime.class), rs.getBoolean("scrubbed")))
+        .optional();
   }
 
   private void deleteWorkflowRows(UUID workflow, OffsetDateTime now, OffsetDateTime after) {
@@ -306,6 +312,15 @@ public class WorkflowDeletionService {
       update = update.param("batch", batchDeletedAt);
     }
     return update.update() > 0;
+  }
+
+  private boolean versionIsAlive(UUID version) {
+    return Boolean.TRUE.equals(
+        jdbc.sql("SELECT deleted_at IS NULL FROM workflow_hub.workflow_versions WHERE id = :id")
+            .param("id", version)
+            .query(Boolean.class)
+            .optional()
+            .orElse(false));
   }
 
   /** 삭제 상태였던 워크플로를 되살렸으면 true. */

@@ -53,7 +53,7 @@ public class WorkflowQueryController {
   private static final String BAD_PAGINATION =
       "limit이 정수 범위를 벗어나거나(INVALID_LIMIT), cursor가 유효하지 않거나(INVALID_CURSOR), includeDeleted가 불리언 값이 아니다(BAD_REQUEST)";
   private static final String INCLUDE_DELETED =
-      "true이면 복구할 수 있는 삭제 항목도 함께 반환한다. 삭제 항목에는 deletedAt과 restoreUntil이 있고, 복구 기간이 끝나 원본이 지워졌거나 지워지는 중인 항목은 반환하지 않는다. 기본값은 false이며, 삭제된 항목을 제외한다";
+      "true이면 복구 후보인 삭제 항목도 함께 반환한다. 복구 후보는 삭제 상태이고 복구 기간 안이며 원본 삭제가 시작되지 않은 항목이다. 삭제 항목에는 deletedAt과 restoreUntil이 있고, 복구 기간이 끝났거나 원본이 지워졌거나 지워지는 중인 항목은 반환하지 않는다. 목록은 DB 상태만 보므로 저장소에 원본이 없으면 복구 요청은 409 RESTORE_UNAVAILABLE로 거절될 수 있다. 기본값은 false이며, 삭제된 항목을 제외한다";
   private static final String DELETED_AT = "삭제한 시각. 삭제된 항목에만 있다";
   private static final String RESTORE_UNTIL = "이 시각까지 복구할 수 있다. 삭제된 항목에만 있다";
   private static final String UNAUTHORIZED = "토큰이 없거나 유효하지 않다";

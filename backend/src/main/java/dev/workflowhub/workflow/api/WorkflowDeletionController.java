@@ -33,10 +33,19 @@ public class WorkflowDeletionController {
   private static final String DELETED_AT = "2026-11-22T04:15:30Z";
   private static final String RESTORE_UNTIL = "2026-11-29T04:15:30Z";
   private static final String UNAUTHORIZED = "토큰이 없거나 유효하지 않다";
+  private static final String VERSION_NOT_FOUND_BASE =
+      "요청한 소유 워크플로 버전을 찾을 수 없다(WORKFLOW_VERSION_NOT_FOUND).";
+  private static final String WORKFLOW_NOT_FOUND_BASE = "요청한 소유 워크플로를 찾을 수 없다(WORKFLOW_NOT_FOUND).";
   private static final String VERSION_NOT_FOUND =
-      "요청한 소유 워크플로 버전을 찾을 수 없다(WORKFLOW_VERSION_NOT_FOUND). 이미 삭제했거나 원본이 지워진 버전도 같다";
+      VERSION_NOT_FOUND_BASE + " 이미 삭제했거나 원본이 지워진 버전도 같다";
   private static final String WORKFLOW_NOT_FOUND =
-      "요청한 소유 워크플로를 찾을 수 없다(WORKFLOW_NOT_FOUND). 이미 삭제했거나 원본이 지워진 워크플로도 같다";
+      WORKFLOW_NOT_FOUND_BASE + " 이미 삭제했거나 원본이 지워진 워크플로도 같다";
+  private static final String RESTORE_VERSION_NOT_FOUND =
+      VERSION_NOT_FOUND_BASE
+          + " 소유하지 않았거나 없는 버전이거나 원본 정리가 끝난 버전이다. 복구 기간 안의 삭제된 버전은 해당하지 않으며, 복구 기간이 끝났어도 정리 전이면 409다";
+  private static final String RESTORE_WORKFLOW_NOT_FOUND =
+      WORKFLOW_NOT_FOUND_BASE
+          + " 소유하지 않았거나 없는 워크플로이거나 모든 원본의 정리가 끝난 워크플로이다. 복구 기간 안의 삭제된 워크플로는 해당하지 않으며, 복구 기간이 끝났어도 정리 전이면 409다";
   private static final String NOT_DELETED = "삭제 상태가 아니다(NOT_DELETED)";
   private static final String RESTORE_UNAVAILABLE =
       "복구할 수 없다(RESTORE_UNAVAILABLE). 복구 기간이 끝났거나 원본 삭제가 시작됐거나 원본 파일이 더 이상 없다";
@@ -193,7 +202,7 @@ public class WorkflowDeletionController {
         content = @Content(schema = @Schema(implementation = ApiError.class))),
     @ApiResponse(
         responseCode = "404",
-        description = VERSION_NOT_FOUND,
+        description = RESTORE_VERSION_NOT_FOUND,
         content = @Content(schema = @Schema(implementation = ApiError.class))),
     @ApiResponse(
         responseCode = "409",
@@ -259,7 +268,7 @@ public class WorkflowDeletionController {
         content = @Content(schema = @Schema(implementation = ApiError.class))),
     @ApiResponse(
         responseCode = "404",
-        description = WORKFLOW_NOT_FOUND,
+        description = RESTORE_WORKFLOW_NOT_FOUND,
         content = @Content(schema = @Schema(implementation = ApiError.class))),
     @ApiResponse(
         responseCode = "409",
