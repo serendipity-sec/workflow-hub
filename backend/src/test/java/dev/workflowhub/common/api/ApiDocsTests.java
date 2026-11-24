@@ -26,6 +26,13 @@ class ApiDocsTests {
       "$.paths['/api/workflows/{workflowId}/versions/{versionId}/download'].get";
   private static final String AVAILABILITY =
       "$.paths['/api/workflows/{workflowId}/versions/{versionId}/download-availability'].patch";
+  private static final String DELETE_VERSION =
+      "$.paths['/api/workflows/{workflowId}/versions/{versionId}'].delete";
+  private static final String DELETE_WORKFLOW = "$.paths['/api/workflows/{workflowId}'].delete";
+  private static final String RESTORE_VERSION =
+      "$.paths['/api/workflows/{workflowId}/versions/{versionId}/restore'].post";
+  private static final String RESTORE_WORKFLOW =
+      "$.paths['/api/workflows/{workflowId}/restore'].post";
   private static final String SCHEMAS = "$.components.schemas.";
 
   @Nested
@@ -157,6 +164,42 @@ class ApiDocsTests {
           .andExpect(
               jsonPath(SCHEMAS + "VersionMetadata.properties.downloadEnabled.type")
                   .value("boolean"));
+    }
+
+    @Test
+    void documentsDeletionRestoreAndTheIncludeDeletedOption() throws Exception {
+      var docs = mvc.perform(get("/v3/api-docs")).andExpect(status().isOk());
+      for (String operation : new String[] {DELETE_VERSION, DELETE_WORKFLOW}) {
+        for (String code : new String[] {"200", "401", "404", "500"}) {
+          docs.andExpect(jsonPath(operation + ".responses['" + code + "']").exists());
+        }
+        docs.andExpect(jsonPath(successSchema(operation)).value(schemaRef("DeletionResponse")));
+      }
+      for (String operation : new String[] {RESTORE_VERSION, RESTORE_WORKFLOW}) {
+        for (String code : new String[] {"200", "401", "404", "409", "500", "503"}) {
+          docs.andExpect(jsonPath(operation + ".responses['" + code + "']").exists());
+        }
+        docs.andExpect(jsonPath(successSchema(operation)).value(schemaRef("RestoreResponse")));
+      }
+      docs.andExpect(
+              jsonPath(SCHEMAS + "DeletionResponse.properties.data['$ref']")
+                  .value(schemaRef("DeletionData")))
+          .andExpect(
+              jsonPath(SCHEMAS + "DeletionData.properties.restoreUntil.format").value("date-time"))
+          .andExpect(
+              jsonPath(SCHEMAS + "DeletionData.properties.workflowDeleted.type").value("boolean"))
+          .andExpect(jsonPath(SCHEMAS + "RestoreData.properties.restoredVersionIds").exists())
+          .andExpect(jsonPath(SCHEMAS + "RestoreData.properties.unavailableVersionIds").exists())
+          .andExpect(jsonPath(SCHEMAS + "VersionMetadata.properties.deletedAt").exists())
+          .andExpect(jsonPath(SCHEMAS + "VersionMetadata.properties.restoreUntil").exists())
+          .andExpect(jsonPath(SCHEMAS + "WorkflowSummary.properties.deletedAt").exists())
+          .andExpect(jsonPath(SCHEMAS + "WorkflowSummary.properties.restoreUntil").exists());
+      for (String operation : new String[] {LIST, VERSIONS}) {
+        String include = operation + ".parameters[?(@.name=='includeDeleted')]";
+        docs.andExpect(jsonPath(include + ".in").value("query"))
+            .andExpect(jsonPath(include + ".required").value(false))
+            .andExpect(jsonPath(include + ".schema.default").value(false));
+      }
     }
 
     @Test

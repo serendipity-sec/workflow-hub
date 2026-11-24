@@ -10,7 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-@RestControllerAdvice(assignableTypes = WorkflowQueryController.class)
+@RestControllerAdvice(
+    assignableTypes = {WorkflowQueryController.class, WorkflowDeletionController.class})
 @Order(Ordered.HIGHEST_PRECEDENCE)
 class WorkflowQueryExceptionHandler {
   private static final Logger log = LoggerFactory.getLogger(WorkflowQueryExceptionHandler.class);
