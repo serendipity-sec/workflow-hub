@@ -3,6 +3,8 @@ import { saveResponseAsFile } from '../../shared/api/download';
 import { readData } from '../../shared/api/types';
 import type { Page } from '../../shared/api/types';
 import type {
+  Comparison,
+  UpdateType,
   UploadResult,
   VersionMetadata,
   WorkflowDetail,
@@ -68,5 +70,47 @@ export async function uploadWorkflow(input: {
     headers: { 'Idempotency-Key': input.idempotencyKey },
     body,
   });
+  return readData(response);
+}
+
+/** Compares a modified file with one stored version. Nothing is registered yet. */
+export async function compareVersion(
+  workflowId: string,
+  versionId: string,
+  file: File,
+): Promise<Comparison> {
+  const body = new FormData();
+  body.set('file', file);
+  const response = await authenticatedFetch(
+    `${workflowPath(workflowId)}/versions/${encodeURIComponent(versionId)}/comparisons`,
+    { method: 'POST', body },
+  );
+  return readData(response);
+}
+
+/**
+ * Registers the compared file as the next version. Retrying the same request must
+ * reuse the same `idempotencyKey` so the server does not create a duplicate.
+ */
+export async function registerVersion(input: {
+  workflowId: string;
+  comparisonId: string;
+  updateType: UpdateType;
+  idempotencyKey: string;
+}): Promise<UploadResult> {
+  const response = await authenticatedFetch(
+    `${workflowPath(input.workflowId)}/versions`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': input.idempotencyKey,
+      },
+      body: JSON.stringify({
+        comparisonId: input.comparisonId,
+        updateType: input.updateType,
+      }),
+    },
+  );
   return readData(response);
 }

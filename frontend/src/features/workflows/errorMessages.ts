@@ -12,6 +12,14 @@ const MESSAGES_BY_CODE: Record<string, string> = {
   TITLE_INVALID: '제목에 사용할 수 없는 문자가 있습니다.',
   IDEMPOTENCY_KEY_REUSED:
     '같은 요청이 다른 내용으로 다시 전송되었습니다. 다시 시도해 주세요.',
+  WORKFLOW_LIMIT_EXCEEDED:
+    '워크플로가 너무 큽니다. 노드·연결 수나 중첩 깊이가 허용 한도를 넘었습니다.',
+  INVALID_FILE_COUNT: '파일은 하나만 선택해 주세요.',
+  INVALID_VERSION_REQUEST: '비교 결과와 수정 종류를 다시 선택해 주세요.',
+  LATEST_VERSION_CHANGED:
+    '그사이 더 새로운 버전이 등록되었습니다. 최신 버전 기준으로 다시 비교해 주세요.',
+  COMPARISON_NOT_FOUND:
+    '비교 결과가 없거나 만료되었습니다. 파일을 다시 비교해 주세요.',
   WORKFLOW_NOT_FOUND: '워크플로를 찾을 수 없습니다.',
   WORKFLOW_VERSION_NOT_FOUND: '버전을 찾을 수 없습니다.',
   STORAGE_UNAVAILABLE:

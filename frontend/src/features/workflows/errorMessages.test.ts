@@ -36,6 +36,18 @@ describe('describeWorkflowError', () => {
     );
   });
 
+  it('explains version registration conflicts and limits', () => {
+    expect(
+      describeWorkflowError(new ApiError(409, 'LATEST_VERSION_CHANGED')),
+    ).toMatch(/다시 비교/);
+    expect(
+      describeWorkflowError(new ApiError(404, 'COMPARISON_NOT_FOUND')),
+    ).toMatch(/만료/);
+    expect(
+      describeWorkflowError(new ApiError(422, 'WORKFLOW_LIMIT_EXCEEDED')),
+    ).toMatch(/한도/);
+  });
+
   it('never throws for unexpected values', () => {
     expect(describeWorkflowError('boom')).toMatch(/알 수 없는/);
     expect(describeWorkflowError(null)).toMatch(/알 수 없는/);
