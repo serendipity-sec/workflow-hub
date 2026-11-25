@@ -72,18 +72,27 @@ export function VersionRegisterPanel({
   const [updateType, setUpdateType] = useState<UpdateType>('MINOR');
   const [busy, setBusy] = useState<'compare' | 'register' | null>(null);
   const [error, setError] = useState<PanelError | null>(null);
-  // One key per (comparison, update type): retrying the same registration must not
-  // create a duplicate version, while another choice is a different request.
-  const registration = useRef<{ fingerprint: string; key: string } | null>(
-    null,
-  );
+  // One key per (comparison, update type), kept for the whole comparison: retrying
+  // the same registration must not create a duplicate version, even after trying
+  // the other type in between (MINOR → MAJOR → MINOR reuses the MINOR key).
+  const registration = useRef<{
+    comparisonId: string;
+    keys: Partial<Record<UpdateType, string>>;
+  } | null>(null);
+  // The newest version is unknown after a conflict without version info, so the
+  // default compare is blocked until the page is reloaded.
+  const [baseStale, setBaseStale] = useState(false);
 
   function keyFor(comparisonId: string, type: UpdateType): string {
-    const fingerprint = `${comparisonId}:${type}`;
-    if (registration.current?.fingerprint !== fingerprint) {
-      registration.current = { fingerprint, key: crypto.randomUUID() };
+    if (registration.current?.comparisonId !== comparisonId) {
+      registration.current = { comparisonId, keys: {} };
     }
-    return registration.current.key;
+    const { keys } = registration.current;
+    const existing = keys[type];
+    if (existing) return existing;
+    const key = crypto.randomUUID();
+    keys[type] = key;
+    return key;
   }
 
   function chooseFile(event: ChangeEvent<HTMLInputElement>) {
@@ -134,10 +143,15 @@ export function VersionRegisterPanel({
         registerError instanceof ApiError &&
         registerError.code === 'IDEMPOTENCY_KEY_REUSED'
       ) {
-        registration.current = null; // retry with a fresh key
+        // Retry this choice with a fresh key.
+        if (registration.current) delete registration.current.keys[updateType];
       }
       const next = toPanelError(registerError);
       if (next.kind !== 'message') setComparison(null);
+      if (next.kind === 'latest-changed') {
+        if (next.latest) setBaseVersionId(next.latest.versionId);
+        else setBaseStale(true);
+      }
       setError(next);
     } finally {
       setBusy(null);
@@ -180,12 +194,18 @@ export function VersionRegisterPanel({
         <div>
           <Button
             variant="secondary"
-            disabled={!idle || !file}
+            disabled={!idle || !file || baseStale}
             onClick={() => void compare(baseVersionId || latest.versionId)}
           >
             <Icon name="layers" size={16} />
             {busy === 'compare' ? '비교하는 중…' : '최신 버전과 비교'}
           </Button>
+          {baseStale && (
+            <p className="muted">
+              새 버전이 등록되어 비교 기준이 바뀌었습니다. 페이지를 새로고침한
+              뒤 다시 비교해 주세요.
+            </p>
+          )}
         </div>
       </div>
 
@@ -222,7 +242,7 @@ export function VersionRegisterPanel({
           <Button
             variant="secondary"
             size="sm"
-            disabled={!idle || !file}
+            disabled={!idle || !file || baseStale}
             onClick={() => void compare(baseVersionId || latest.versionId)}
           >
             <Icon name="refresh" size={16} />
