@@ -83,6 +83,7 @@ function WorkflowDetail({ workflowId }: { workflowId: string }) {
         </div>
         <div className="stack">
           <VersionRegisterPanel
+            key={latest?.versionId ?? 'none'}
             workflowId={workflowId}
             latest={latest}
             onRegistered={registered}

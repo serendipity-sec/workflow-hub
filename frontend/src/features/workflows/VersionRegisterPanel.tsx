@@ -130,6 +130,12 @@ export function VersionRegisterPanel({
       onRegistered(result.versionLabel);
     } catch (registerError) {
       // The comparison is stale after 409/404; ask for a fresh one.
+      if (
+        registerError instanceof ApiError &&
+        registerError.code === 'IDEMPOTENCY_KEY_REUSED'
+      ) {
+        registration.current = null; // retry with a fresh key
+      }
       const next = toPanelError(registerError);
       if (next.kind !== 'message') setComparison(null);
       setError(next);
@@ -149,6 +155,8 @@ export function VersionRegisterPanel({
 
   const rows = comparison ? describeChanges(comparison) : [];
   const idle = busy === null;
+  const conflictLatest =
+    error?.kind === 'latest-changed' ? error.latest : undefined;
 
   return (
     <Card aria-labelledby="register-heading">
@@ -191,19 +199,21 @@ export function VersionRegisterPanel({
             {error.latest ? `(${error.latest.versionLabel})` : ''}이
             등록되었습니다. 이전 최신 버전 기준의 비교는 사용할 수 없습니다.
           </p>
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={!idle || !file}
-            onClick={() =>
-              void compare(error.latest?.versionId ?? latest.versionId)
-            }
-          >
-            <Icon name="refresh" size={16} />
-            {error.latest
-              ? `${error.latest.versionLabel} 기준으로 다시 비교`
-              : '다시 비교'}
-          </Button>
+          {conflictLatest ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={!idle || !file}
+              onClick={() => void compare(conflictLatest.versionId)}
+            >
+              <Icon name="refresh" size={16} />
+              {conflictLatest.versionLabel} 기준으로 다시 비교
+            </Button>
+          ) : (
+            <p className="muted">
+              페이지를 새로고침해 최신 버전을 확인한 뒤 다시 시도해 주세요.
+            </p>
+          )}
         </div>
       )}
       {error?.kind === 'expired' && (

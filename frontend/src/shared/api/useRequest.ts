@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type RequestState<T> =
   | { status: 'loading' }
@@ -8,36 +8,51 @@ export type RequestState<T> =
 /**
  * Runs `fetcher` once on mount. `fetcher` must be referentially stable
  * (wrap it in useCallback); remount with a `key` to load something else.
+ *
+ * Only the newest call may update the state, so an older response can never
+ * overwrite a newer one, and nothing is applied after unmount.
  */
 export function useRequest<T>(fetcher: () => Promise<T>) {
   const [state, setState] = useState<RequestState<T>>({ status: 'loading' });
+  const latestCall = useRef(0);
+
+  const run = useCallback(
+    (onFailure: (error: unknown) => void) => {
+      const call = ++latestCall.current;
+      fetcher().then(
+        (data) => {
+          if (call === latestCall.current) setState({ status: 'ready', data });
+        },
+        (error: unknown) => {
+          if (call === latestCall.current) onFailure(error);
+        },
+      );
+    },
+    [fetcher],
+  );
 
   useEffect(() => {
-    let cancelled = false;
-    fetcher().then(
-      (data) => !cancelled && setState({ status: 'ready', data }),
-      (error: unknown) => !cancelled && setState({ status: 'error', error }),
-    );
+    const calls = latestCall;
+    run((error) => setState({ status: 'error', error }));
     return () => {
-      cancelled = true;
+      // Invalidates calls still in flight when unmounting or when `fetcher` changes.
+      calls.current++;
     };
-  }, [fetcher]);
+  }, [run]);
 
   const retry = useCallback(() => {
     setState({ status: 'loading' });
-    fetcher().then(
-      (data) => setState({ status: 'ready', data }),
-      (error: unknown) => setState({ status: 'error', error }),
-    );
-  }, [fetcher]);
+    run((error) => setState({ status: 'error', error }));
+  }, [run]);
 
-  /** Reloads without switching to the loading state; keeps old data on failure. */
+  /**
+   * Reloads without switching to the loading state and keeps the old data while
+   * it runs. If the reload fails, the error is shown so stale data is not
+   * mistaken for current data.
+   */
   const refresh = useCallback(() => {
-    fetcher().then(
-      (data) => setState({ status: 'ready', data }),
-      () => undefined,
-    );
-  }, [fetcher]);
+    run((error) => setState({ status: 'error', error }));
+  }, [run]);
 
   return { state, retry, refresh };
 }
