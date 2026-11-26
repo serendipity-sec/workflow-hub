@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import type { ScalarField } from "./static-context.js";
@@ -34,8 +34,12 @@ type ProcessResult = {
   reason?: GitleaksReason;
 };
 
+const verifiedBinaries = new Map<string, string>();
+
 function toolEnvironment(): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = {};
+  const env: NodeJS.ProcessEnv = {
+    GOMAXPROCS: "1",
+  };
   for (const name of ["SystemRoot", "SYSTEMROOT", "WINDIR", "TEMP", "TMP"])
     if (process.env[name]) env[name] = process.env[name];
   return env;
@@ -115,7 +119,7 @@ export async function runGitleaks(
   if (!options.executable || !isAbsolute(options.executable))
     return fail("tool_unavailable");
   if (options.signal?.aborted) return fail("tool_cancelled");
-  const timeoutMs = options.timeoutMs ?? 5_000;
+  const timeoutMs = options.timeoutMs ?? 15_000;
   const maxOutputBytes = options.maxOutputBytes ?? 512 * 1024;
   if (
     !Number.isInteger(timeoutMs) ||
@@ -157,23 +161,43 @@ export async function runGitleaks(
   let result: GitleaksResult = fail("tool_failed");
   try {
     directory = await mkdtemp(join(tmpdir(), "workflow-secret-scan-"));
-    const version = await runProcess(
-      options.executable,
-      ["version"],
-      "",
-      directory,
-      timeoutMs,
-      4096,
-      options.signal,
-    );
-    if (version.reason) result = fail(version.reason);
-    else if (version.code !== 0) result = fail("tool_failed");
-    // Official OCI releases prefix the same pinned version with "v"; the
-    // release executable and CI's Go build may omit it. No other versions pass.
-    else if (
-      ![gitleaksVersion, `v${gitleaksVersion}`].includes(version.stdout.trim())
-    )
-      result = fail("tool_version_mismatch");
+    let binaryIdentity: string | undefined;
+    try {
+      const info = await stat(options.executable);
+      binaryIdentity = `${info.dev}:${info.ino}:${info.size}:${info.mtimeMs}`;
+    } catch {
+      binaryIdentity = undefined;
+    }
+    let versionReason: GitleaksReason | undefined;
+    if (
+      !binaryIdentity ||
+      verifiedBinaries.get(options.executable) !== binaryIdentity
+    ) {
+      const version = await runProcess(
+        options.executable,
+        ["version"],
+        "",
+        directory,
+        timeoutMs,
+        4096,
+        options.signal,
+      );
+      if (version.reason) versionReason = version.reason;
+      else if (version.code !== 0) versionReason = "tool_failed";
+      // Official OCI releases prefix the same pinned version with "v"; the
+      // release executable and CI's Go build may omit it. No other versions pass.
+      else if (
+        ![gitleaksVersion, `v${gitleaksVersion}`].includes(
+          version.stdout.trim(),
+        )
+      )
+        versionReason = "tool_version_mismatch";
+      else if (binaryIdentity) {
+        if (verifiedBinaries.size >= 16) verifiedBinaries.clear();
+        verifiedBinaries.set(options.executable, binaryIdentity);
+      }
+    }
+    if (versionReason) result = fail(versionReason);
     else {
       const config = join(directory, "trusted.toml");
       const ignore = join(directory, "empty.ignore");

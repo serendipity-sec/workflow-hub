@@ -526,6 +526,8 @@ export const serviceReportSchema = z
         usageNoticeCount: count,
         excludedScopeNoticeCount: count,
         highRiskFindingCount: count,
+        sinkReachableGapCount: count.optional(),
+        isolatedGapCount: count.optional(),
         securityReviewRequired: z.boolean(),
       })
       .optional(),
@@ -597,7 +599,14 @@ export const serviceReportSchema = z
             (report.executionStatus !== "completed" ||
               report.counts.analysisGaps > 0 ||
               scope.highRiskFindingCount > 0 ||
-              ["block", "review"].includes(report.decision))
+              ["block", "review"].includes(report.decision)) ||
+          (report.engineVersion === "0.9.0"
+            ? scope.sinkReachableGapCount !== undefined ||
+              scope.isolatedGapCount !== undefined
+            : scope.sinkReachableGapCount === undefined ||
+              scope.isolatedGapCount === undefined ||
+              scope.sinkReachableGapCount + scope.isolatedGapCount !==
+                report.counts.analysisGaps)
         )
           return false;
       } else if (report.serviceScope !== undefined) return false;
@@ -822,11 +831,102 @@ function findingCard(
   };
 }
 
+function computeSinkReachableNodes(
+  file: FileAssessment,
+  subworkflows: readonly {
+    parentAnalysisKey: string;
+    status: string;
+    caller: StaticLocation;
+  }[],
+): Set<string> | "all" {
+  const summary = file.functionSummary;
+  if (!summary || file.base.status === "error") return "all";
+  const allRules = [...file.base.rules, ...file.extensionRules];
+  if (
+    allRules.some((rule) =>
+      rule.diagnostics.some(
+        (diag) => diag.code === "direct_reference_unconnected",
+      ),
+    )
+  )
+    return "all";
+  const active = new Map(
+    summary.nodes
+      .filter((node) => !node.disabled)
+      .map((node) => [node.nodeKey, node]),
+  );
+  const forward = new Map<string, string[]>();
+  const reverse = new Map<string, string[]>();
+  for (const edge of summary.edges) {
+    if (!active.has(edge.from) || !active.has(edge.to)) continue;
+    const fwd = forward.get(edge.from) ?? [];
+    fwd.push(edge.to);
+    forward.set(edge.from, fwd);
+    const rev = reverse.get(edge.to) ?? [];
+    rev.push(edge.from);
+    reverse.set(edge.to, rev);
+  }
+  const reachable = new Set<string>();
+  const sinkRoles = new Set(["write", "send", "execute", "respond", "unknown"]);
+  const forwardQueue: string[] = [];
+  for (const node of active.values()) {
+    if (node.roles.some((role) => sinkRoles.has(role)))
+      reachable.add(node.nodeKey);
+    // Triggers that return their downstream chain's output (`lastNode` webhook,
+    // default `chatTrigger`, or child `executeWorkflowTrigger`) make downstream
+    // nodes reachable to an external/parent caller.
+    if (
+      (node.roles.includes("trigger") && node.roles.includes("respond")) ||
+      (node.kind === "subworkflow" && node.roles.includes("trigger"))
+    )
+      forwardQueue.push(node.nodeKey);
+  }
+  while (forwardQueue.length > 0) {
+    const current = forwardQueue.pop()!;
+    for (const downstream of forward.get(current) ?? []) {
+      if (!reachable.has(downstream)) {
+        reachable.add(downstream);
+        forwardQueue.push(downstream);
+      }
+    }
+  }
+  for (const link of subworkflows) {
+    if (
+      link.parentAnalysisKey === file.analysisKey &&
+      link.status !== "disabled" &&
+      link.caller.nodeKey !== null &&
+      active.has(link.caller.nodeKey)
+    )
+      reachable.add(link.caller.nodeKey);
+  }
+  const queue = [...reachable];
+  while (queue.length > 0) {
+    const current = queue.pop()!;
+    for (const upstream of reverse.get(current) ?? []) {
+      if (!reachable.has(upstream)) {
+        reachable.add(upstream);
+        queue.push(upstream);
+      }
+    }
+  }
+  return reachable;
+}
+
+const legacyServiceReportVersions = new Set([
+  "0.3.0",
+  "0.4.0",
+  "0.5.0",
+  "0.6.0",
+  "0.7.0",
+  "0.8.0",
+]);
+
 /** A deterministic presentation layer. This does not change scanner coverage or authorize publication. */
 export function buildServiceReport(input: unknown): ServiceReport {
   const report = assessmentReportSchema.parse(input);
   // Reproduce historical artifacts and their LLM binding with their old semantics.
-  const scoped = report.engineVersion === "0.9.0";
+  const scoped = !legacyServiceReportVersions.has(report.engineVersion);
+  const reachabilityScoped = scoped && report.engineVersion !== "0.9.0";
   const output: ServiceReport = {
     serviceReportVersion: scoped ? "1.1.0" : "1.0.0",
     inputSha256: report.inputSha256,
@@ -852,6 +952,9 @@ export function buildServiceReport(input: unknown): ServiceReport {
             usageNoticeCount: 0,
             excludedScopeNoticeCount: 0,
             highRiskFindingCount: 0,
+            ...(reachabilityScoped
+              ? { sinkReachableGapCount: 0, isolatedGapCount: 0 }
+              : {}),
             securityReviewRequired: report.status === "error",
           },
         }
@@ -874,15 +977,47 @@ export function buildServiceReport(input: unknown): ServiceReport {
     omitted: emptyCounts(),
     truncated: false,
   };
+  const reachableByFile = new Map<string, Set<string> | "all">();
+  if (reachabilityScoped && report.status !== "error") {
+    for (const file of report.files) {
+      reachableByFile.set(
+        file.analysisKey,
+        computeSinkReachableNodes(file, report.subworkflows),
+      );
+    }
+  }
   const seen = new Set<string>();
   const addDiagnostic = (
     group: DiagnosticGroup,
     card: z.infer<typeof diagnosticCardSchema>,
+    sinkBound = false,
   ) => {
     const key = `${group}:${card.id}`;
     if (seen.has(key)) return;
     seen.add(key);
     output.counts[group]++;
+    if (
+      group === "analysisGaps" &&
+      reachabilityScoped &&
+      output.serviceScope &&
+      output.serviceScope.sinkReachableGapCount !== undefined &&
+      output.serviceScope.isolatedGapCount !== undefined
+    ) {
+      const analysisKey = card.reference.analysisKey;
+      const nodeKey = card.location.nodeKey;
+      const reachable =
+        analysisKey === null
+          ? "all"
+          : (reachableByFile.get(analysisKey) ?? "all");
+      if (
+        sinkBound ||
+        nodeKey === null ||
+        reachable === "all" ||
+        reachable.has(nodeKey)
+      )
+        output.serviceScope.sinkReachableGapCount++;
+      else output.serviceScope.isolatedGapCount++;
+    }
     if (output[group].length < serviceReportLimits.itemsPerGroup)
       output[group].push(card);
     else output.omitted[group]++;
@@ -1002,20 +1137,26 @@ export function buildServiceReport(input: unknown): ServiceReport {
                 action: cause.nextStep,
               }
             : (legacyDescription ?? unknownDiagnostic);
-        addDiagnostic(group, {
-          id: digest([file.analysisKey, "diagnostic", diagnostic.id]),
-          reference: {
-            analysisKey: file.analysisKey,
-            inputSha256: file.inputSha256,
-            kind: "diagnostic",
-            id: diagnostic.id,
+        addDiagnostic(
+          group,
+          {
+            id: digest([file.analysisKey, "diagnostic", diagnostic.id]),
+            reference: {
+              analysisKey: file.analysisKey,
+              inputSha256: file.inputSha256,
+              kind: "diagnostic",
+              id: diagnostic.id,
+            },
+            location: displayLocation(diagnostic.location),
+            code: known ? diagnostic.code : "unrecognized_diagnostic",
+            title: description.title,
+            explanation: description.explanation,
+            action: description.action,
           },
-          location: displayLocation(diagnostic.location),
-          code: known ? diagnostic.code : "unrecognized_diagnostic",
-          title: description.title,
-          explanation: description.explanation,
-          action: description.action,
-        });
+          ["request_auth", "output", "transport", "dependencies"].includes(
+            rule.category,
+          ),
+        );
       }
     }
   }
@@ -1026,22 +1167,26 @@ export function buildServiceReport(input: unknown): ServiceReport {
       (file) => file.analysisKey === link.parentAnalysisKey,
     )!;
     const id = digest([link.parentAnalysisKey, link.caller, link.status]);
-    addDiagnostic("analysisGaps", {
-      id,
-      reference: {
-        analysisKey: parent.analysisKey,
-        inputSha256: parent.inputSha256,
-        kind: "subworkflow",
+    addDiagnostic(
+      "analysisGaps",
+      {
         id,
+        reference: {
+          analysisKey: parent.analysisKey,
+          inputSha256: parent.inputSha256,
+          kind: "subworkflow",
+          id,
+        },
+        location: displayLocation(link.caller),
+        code: "subworkflow_definition_unresolved",
+        title: "하위 워크플로를 검사하지 못함",
+        explanation:
+          "하위 정의가 없거나 유효하지 않거나 순환·검사 한도에 도달해 호출 대상 전체를 확인하지 못했습니다.",
+        action:
+          "정확한 하위 워크플로 정의와 파일 해시를 확인해 함께 재검사하세요. 누락된 자식을 안전하다고 간주하지 않습니다.",
       },
-      location: displayLocation(link.caller),
-      code: "subworkflow_definition_unresolved",
-      title: "하위 워크플로를 검사하지 못함",
-      explanation:
-        "하위 정의가 없거나 유효하지 않거나 순환·검사 한도에 도달해 호출 대상 전체를 확인하지 못했습니다.",
-      action:
-        "정확한 하위 워크플로 정의와 파일 해시를 확인해 함께 재검사하세요. 누락된 자식을 안전하다고 간주하지 않습니다.",
-    });
+      true,
+    );
   }
   if (output.counts.analysisGaps) output.staticCoverageStatus = "gaps_present";
   if (output.serviceScope) {

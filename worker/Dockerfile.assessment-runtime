@@ -7,4 +7,4 @@ RUN python3 -m venv /opt/nlp && /opt/nlp/bin/python -m pip install --no-cache-di
 WORKDIR /opt/worker
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
-ENV PYTHONDONTWRITEBYTECODE=1 OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
+ENV PYTHONDONTWRITEBYTECODE=1 OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 GOMAXPROCS=1

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { limits } from "./contract.js";
-import type { Context } from "./static-context.js";
+import { isObject, type Context } from "./static-context.js";
 import type { Finding } from "./static-contract.js";
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
@@ -126,6 +126,18 @@ const profiles: Record<string, [Kind, Role[]]> = {
   // The inventory uses a broad data-processing category. Detailed wait/resume
   // and aggregate semantics remain the responsibility of value-flow profiles.
   wait: ["mapping", ["transform"]],
+  limit: ["mapping", ["transform"]],
+  filter: ["condition", ["branch"]],
+  removeDuplicates: ["mapping", ["transform"]],
+  sort: ["mapping", ["transform"]],
+  splitOut: ["mapping", ["transform"]],
+  splitInBatches: ["mapping", ["transform"]],
+  renameKeys: ["mapping", ["transform"]],
+  html: ["mapping", ["transform"]],
+  extractFromFile: ["file", ["read", "transform"]],
+  convertToFile: ["file", ["transform"]],
+  stopAndError: ["condition", ["branch", "respond"]],
+  errorTrigger: ["manual", ["trigger"]],
   aggregate: ["mapping", ["transform"]],
   merge: ["merge", ["transform"]],
   code: ["code", ["transform", "execute"]],
@@ -134,10 +146,21 @@ const profiles: Record<string, [Kind, Role[]]> = {
   executeCommand: ["command", ["execute"]],
   ssh: ["ssh", ["execute", "read", "write"]],
   readWriteFile: ["file", ["read", "write"]],
-  slack: ["message", ["send"]],
-  telegram: ["message", ["send"]],
+  slack: ["message", ["read", "send"]],
+  slackTrigger: ["message", ["trigger", "read"]],
+  discord: ["message", ["read", "send"]],
+  telegram: ["message", ["read", "send"]],
   telegramTrigger: ["message", ["trigger", "read"]],
   whatsApp: ["message", ["send"]],
+  whatsAppTrigger: ["message", ["trigger", "read"]],
+  zendesk: ["document", ["read", "write"]],
+  supabase: ["database", ["read", "write"]],
+  box: ["file", ["read", "write"]],
+  dropbox: ["file", ["read", "write"]],
+  googleDrive: ["file", ["read", "write"]],
+  youTube: ["document", ["read", "write"]],
+  rssFeedRead: ["http", ["read", "send"]],
+  form: ["webhook", ["respond"]],
   notion: ["document", ["read", "write"]],
   googleDocs: ["document", ["read", "write"]],
   googleSheets: ["document", ["read", "write"]],
@@ -152,22 +175,62 @@ const profiles: Record<string, [Kind, Role[]]> = {
 export function summarizeFunction(context: Context): FunctionSummary {
   const aiTypes = new Set([
     "agent",
+    "agentTool",
     "chainLlm",
+    "chainRetrievalQa",
+    "chatTrigger",
+    "documentDefaultDataLoader",
+    "embeddingsGoogleGemini",
+    "embeddingsOpenAi",
     "lmChatGoogleGemini",
+    "lmChatGroq",
     "lmChatOpenAi",
+    "lmChatOpenRouter",
     "lmChatAnthropic",
+    "memoryBufferWindow",
+    "memoryMongoDbChat",
+    "memoryPostgresChat",
+    "openAi",
     "outputParserStructured",
+    "retrieverVectorStore",
+    "textSplitterRecursiveCharacterTextSplitter",
     "toolCode",
+    "toolWikipedia",
     "toolWorkflow",
+    "vectorStorePinecone",
+    "vectorStoreSupabase",
     "googleGemini",
   ]);
   const nodes = context.nodes.map((node) => {
-    const profile = node.type.startsWith("n8n-nodes-base.")
+    let profile = node.type.startsWith("n8n-nodes-base.")
       ? profiles[node.type.slice("n8n-nodes-base.".length)]
       : node.type.startsWith("@n8n/n8n-nodes-langchain.") &&
           aiTypes.has(node.type.slice("@n8n/n8n-nodes-langchain.".length))
         ? (["ai", ["transform", "send"]] as [Kind, Role[]])
         : undefined;
+    if (node.type === "@n8n/n8n-nodes-langchain.chatTrigger") {
+      const chatResponseMode =
+        (isObject(node.parameters.options)
+          ? node.parameters.options.responseMode
+          : undefined) ?? node.parameters.responseMode;
+      profile =
+        chatResponseMode === "responseNode"
+          ? ["ai", ["trigger", "read"]]
+          : ["ai", ["trigger", "respond"]];
+    } else if (
+      node.type === "n8n-nodes-base.sort" &&
+      node.parameters.type === "code"
+    ) {
+      profile = ["code", ["transform", "execute"]];
+    } else if (
+      (node.type === "n8n-nodes-base.webhook" ||
+        node.type === "n8n-nodes-base.formTrigger") &&
+      node.parameters.responseMode !== undefined &&
+      node.parameters.responseMode !== "onReceived" &&
+      node.parameters.responseMode !== "responseNode"
+    ) {
+      profile = ["webhook", ["trigger", "respond"]];
+    }
     return {
       nodeKey: node.key,
       pointer: node.pointer,

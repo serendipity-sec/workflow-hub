@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1.0.0",
+  "outcome": "passed",
+  "engineVersion": "0.10.0",
+  "image": "sha256:fb0131d3b3fb53708c9cab724213f6bd89e14d95252ec2e8ea28fe242169a0a5",
+  "workflowExecution": "not_run",
+  "actualTeamApiIntegration": "not_run",
+  "samples": 25,
+  "latencyComparison": {
+    "v0_9_0": {
+      "totalSequentialMs": 397582,
+      "meanMs": 15903,
+      "maxMs": 43374,
+      "minMs": 8710
+    },
+    "v0_10_0": {
+      "totalSequentialMs": 93371,
+      "meanMs": 3735,
+      "maxMs": 7097,
+      "minMs": 2818,
+      "speedupFactor": 4.26,
+      "latencyReductionPercent": 76.5
+    }
+  },
+  "parallelStressTest15": {
+    "concurrency": 5,
+    "samples": 15,
+    "toolErrors": 0,
+    "assessmentErrors": 0,
+    "wallClockMs": 17306
+  },
+  "serviceScopeSummary": {
+    "unclassifiedDiagnostics": 0,
+    "totalAnalysisGapCards": 2662,
+    "sinkReachableGapCards": 2659,
+    "isolatedGapCards": 3,
+    "unknownNodeCapabilitySamplesBefore": 13,
+    "unknownNodeCapabilitySamplesAfter": 3
+  }
+}

@@ -67,6 +67,7 @@ interface State {
   env: Map<string, Binding>;
   returns: AbstractValue[];
   stopped: boolean;
+  stopReason?: "return" | "break" | "continue";
   writes: Set<string>;
 }
 export interface BoundedCodeHost {
@@ -528,6 +529,7 @@ export function analyzeBoundedCode(
       );
   };
   const embeddedObjects = new Set<number>();
+  const loopExitStack: State[][] = [];
   const diagnosticValues: AbstractValue[] = [];
   const observedValues: AbstractValue[] = [];
   const unknown = (
@@ -565,6 +567,7 @@ export function analyzeBoundedCode(
       ),
       returns: [...state.returns],
       stopped: state.stopped,
+      stopReason: state.stopReason,
       writes: new Set(state.writes),
     };
   };
@@ -829,7 +832,22 @@ export function analyzeBoundedCode(
       const candidates = continuing.map(
         (state) => state.env.get(name)?.value ?? binding.value,
       );
-      if (candidates.length) binding.value = choice(candidates);
+      if (candidates.length) {
+        binding.value = choice(candidates);
+        if (
+          !continuing.every((state) => {
+            const branchBinding = state.env.get(name);
+            return (
+              branchBinding?.owned === true &&
+              branchBinding.objectId !== undefined &&
+              branchBinding.objectId === binding.objectId
+            );
+          })
+        ) {
+          binding.owned = false;
+          binding.objectId = undefined;
+        }
+      }
     }
     base.returns = [
       ...new Map(
@@ -839,6 +857,12 @@ export function analyzeBoundedCode(
       ).values(),
     ];
     base.stopped = continuing.length === 0;
+    base.stopReason =
+      base.stopped &&
+      branches.length > 0 &&
+      branches.every((state) => state.stopReason === branches[0]!.stopReason)
+        ? branches[0]!.stopReason
+        : undefined;
   };
   const callFunction = (
     fn: Ast,
@@ -1552,6 +1576,23 @@ export function analyzeBoundedCode(
           .map((item) => marker(expression(item, state, depth + 1)));
       return host.evaluate(rewritten);
     }
+    if (
+      ast.type === "UpdateExpression" &&
+      (ast.operator === "++" || ast.operator === "--") &&
+      object(ast.argument) &&
+      ast.argument.type === "Identifier" &&
+      typeof ast.argument.name === "string"
+    ) {
+      const prior = expression(ast.argument, state, depth + 1);
+      const next = host.evaluate({
+        type: "BinaryExpression",
+        operator: ast.operator === "++" ? "+" : "-",
+        left: marker(prior),
+        right: marker(host.literal(1)),
+      });
+      assign(ast.argument, next, state);
+      return ast.prefix === true ? next : prior;
+    }
     opaque = true;
     return unknown("code_expression_profile_unresolved");
   };
@@ -1687,7 +1728,12 @@ export function analyzeBoundedCode(
     }
     return true;
   };
-  const execute = (body: unknown[], state: State, depth = 0): void => {
+  const execute = (
+    body: unknown[],
+    state: State,
+    depth = 0,
+    loopDepth = 0,
+  ): void => {
     if (depth > 12) {
       opaque = true;
       unknown("code_statement_depth_limit");
@@ -1697,6 +1743,28 @@ export function analyzeBoundedCode(
       if (state.stopped || opaque || !limit()) return;
       if (!object(item)) {
         opaque = true;
+        continue;
+      }
+      if (item.type === "BlockStatement" && Array.isArray(item.body)) {
+        const scoped = clone(state);
+        execute(item.body, scoped, depth + 1, loopDepth);
+        mergeState(state, [scoped]);
+        continue;
+      }
+      if (item.type === "ContinueStatement" && !item.label && loopDepth > 0) {
+        loopExitStack
+          .at(-1)
+          ?.push({ ...clone(state), stopped: false, stopReason: undefined });
+        state.stopped = true;
+        state.stopReason = "continue";
+        continue;
+      }
+      if (item.type === "BreakStatement" && !item.label && loopDepth > 0) {
+        loopExitStack
+          .at(-1)
+          ?.push({ ...clone(state), stopped: false, stopReason: undefined });
+        state.stopped = true;
+        state.stopReason = "break";
         continue;
       }
       if (
@@ -1781,6 +1849,7 @@ export function analyzeBoundedCode(
             : host.literal(undefined),
         );
         state.stopped = true;
+        state.stopReason = "return";
         continue;
       }
       if (
@@ -1798,6 +1867,7 @@ export function analyzeBoundedCode(
             : [item.consequent],
           yes,
           depth + 1,
+          loopDepth,
         );
         if (object(item.alternate))
           execute(
@@ -1807,6 +1877,7 @@ export function analyzeBoundedCode(
               : [item.alternate],
             no,
             depth + 1,
+            loopDepth,
           );
         mergeState(state, [yes, no]);
         continue;
@@ -1824,7 +1895,7 @@ export function analyzeBoundedCode(
         if (!isolatedParse) exceptionFlow = true;
         const normal = clone(state),
           failed = clone(state);
-        execute(item.block.body, normal, depth + 1);
+        execute(item.block.body, normal, depth + 1, loopDepth);
         if (
           object(item.handler) &&
           object(item.handler.body) &&
@@ -1841,7 +1912,7 @@ export function analyzeBoundedCode(
               mutable: false,
               owned: false,
             });
-          execute(item.handler.body.body, failed, depth + 1);
+          execute(item.handler.body.body, failed, depth + 1, loopDepth);
         }
         mergeState(state, [normal, failed]);
         if (object(item.finalizer) && Array.isArray(item.finalizer.body)) {
@@ -1865,26 +1936,39 @@ export function analyzeBoundedCode(
       ) {
         const list = expression(item.right, state),
           before = clone(state),
-          once = clone(state);
+          once = clone(state),
+          loopExits: State[] = [];
         once.writes.clear();
         once.env.set(item.left.declarations[0].id.name, {
           value: element(list),
           mutable: true,
           owned: false,
         });
-        execute(
-          item.body.type === "BlockStatement" && Array.isArray(item.body.body)
-            ? item.body.body
-            : [item.body],
-          once,
-          depth + 1,
-        );
-        mergeState(state, [before, once]);
+        loopExitStack.push(loopExits);
+        try {
+          execute(
+            item.body.type === "BlockStatement" && Array.isArray(item.body.body)
+              ? item.body.body
+              : [item.body],
+            once,
+            depth + 1,
+            loopDepth + 1,
+          );
+        } finally {
+          loopExitStack.pop();
+        }
+        mergeState(state, [before, once, ...loopExits]);
         const carried = [
           list,
-          ...[...once.env.values()].map((binding) => binding.value),
+          ...[once, ...loopExits].flatMap((branch) =>
+            [...branch.env.values()].map((binding) => binding.value),
+          ),
         ];
-        for (const name of once.writes) {
+        const loopWrites = new Set([
+          ...once.writes,
+          ...loopExits.flatMap((branch) => [...branch.writes]),
+        ]);
+        for (const name of loopWrites) {
           const binding = state.env.get(name);
           if (binding) {
             binding.value = unknown("code_loop_carried_state_unverified", [
@@ -1895,7 +1979,12 @@ export function analyzeBoundedCode(
             binding.objectId = undefined;
           }
         }
-        if (once.returns.length)
+        const hadLoopReturn =
+          once.returns.length > before.returns.length ||
+          loopExits.some(
+            (branch) => branch.returns.length > before.returns.length,
+          );
+        if (hadLoopReturn)
           state.returns = state.returns.map((value) =>
             unknown("code_loop_carried_state_unverified", [value, ...carried]),
           );

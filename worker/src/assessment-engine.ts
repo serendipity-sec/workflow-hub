@@ -182,6 +182,47 @@ export async function assessBytes(
           (node.parameters.language ?? "javaScript") === "javaScript"
         )
           flow.output(node.key, "");
+      // Also inspect cross-node reference expressions (`$(...)`, `$node`, `$items`,
+      // Python `_(` / `_items` / `_node`) on active nodes whose sink/transform
+      // profile may not otherwise resolve them, so unconnected direct references
+      // are always recorded in flow diagnostics.
+      let crossRefChecks = 0;
+      for (const field of input.context.fields) {
+        if (field.kind !== "value" || field.location.nodeKey === null) continue;
+        const ownerNode = input.context.nodeByKey.get(field.location.nodeKey);
+        if (!ownerNode || ownerNode.disabled) continue;
+        if (!field.pointer.includes("/parameters/")) continue;
+        if (field.value.startsWith("=")) {
+          if (!/\$\s*\(|\$(?:node|items)\b/.test(field.value)) continue;
+          if (crossRefChecks >= 64) {
+            flow.resolve(field.location.nodeKey, "={{ $() }}");
+            break;
+          }
+          crossRefChecks++;
+          flow.resolve(field.location.nodeKey, field.value);
+          continue;
+        }
+        const isAllItemsJsCode =
+          ownerNode.type === "n8n-nodes-base.code" &&
+          [1, 2].includes(ownerNode.typeVersion) &&
+          (ownerNode.parameters.language ?? "javaScript") === "javaScript" &&
+          (ownerNode.parameters.mode ?? "runOnceForAllItems") ===
+            "runOnceForAllItems" &&
+          field.pointer.endsWith("/parameters/jsCode") &&
+          field.value.length <= 65536 &&
+          !/\$items\b/.test(field.value);
+        if (
+          !isAllItemsJsCode &&
+          /\/parameters\/(?:jsCode|functionCode|pythonCode|code)$/.test(
+            field.pointer,
+          ) &&
+          /\$\s*\(|\$(?:node|items)\b|(?:^|[^\w$])_(?:node|items)\b|(?:^|[^\w$.])_\s*\(/.test(
+            field.value,
+          )
+        ) {
+          flow.resolve(field.location.nodeKey, "={{ $() }}");
+        }
+      }
       const base = analyzeStatic(input.bytes, tools.gitleaks);
       const extensionRules = [
         ...analyzeExtendedSinks(input.context, flow, localEvidence),
@@ -242,7 +283,7 @@ export async function assessBytes(
         );
     const report = {
       assessmentVersion: "1.0.0",
-      engineVersion: "0.9.0",
+      engineVersion: "0.10.0",
       inputSha256,
       execution: "not_run",
       boundary: { kind: "caller_managed", isolationVerified: false },

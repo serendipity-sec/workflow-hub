@@ -2,7 +2,7 @@
 
 Workflow Hub의 `worker/`에서 n8n JSON을 정적으로 분석합니다. 결과에 적용된 규칙과 분석 범위를 기록합니다. 설계 기준은 [보안 설계](../docs/SECURITY_DESIGN.md)와 [Workflow Hub PR #7](https://github.com/serendipity-sec/workflow-hub/pull/7)입니다.
 
-현재 서비스용 진입점은 **`inspect`**입니다. 0.9.0의 10개 범주 정적 검사, 고정 한국어 기능·위험·조치 설명, 선택적 OpenRouter GLM 설명을 한 결과로 제공합니다. `inspect workflow.json --llm`은 승인한 범위에서 최소화한 근거를 모델에 보내며, 생략하면 외부 LLM 호출 없이 동작합니다. [서비스 결과와 연결 문서](docs/integration-handoff.md), [결과 표시 계약](docs/service-report.md), [LLM 설정과 경계](docs/llm-review.md)를 확인하세요.
+현재 서비스용 진입점은 **`inspect`**입니다. 0.10.0의 10개 범주 정적 검사, 고정 한국어 기능·위험·조치 설명, 선택적 OpenRouter GLM 설명을 한 결과로 제공합니다. `inspect workflow.json --llm`은 승인한 범위에서 최소화한 근거를 모델에 보내며, 생략하면 외부 LLM 호출 없이 동작합니다. [서비스 결과와 연결 문서](docs/integration-handoff.md), [결과 표시 계약](docs/service-report.md), [LLM 설정과 경계](docs/llm-review.md), [0.10.0 성능·범위 개선 기록](docs/performance-and-scope-0.10.0.md)을 확인하세요.
 
 [0.7.0 구현·검증 기록](docs/service-inspection-0.7.0.md)에 공개 25개 시험, 실제 LLM 호출, 수정 프로필과 남은 조건을 정리했습니다. `partial`을 제거한 범용 완전 분석기로 소개하지 않습니다.
 

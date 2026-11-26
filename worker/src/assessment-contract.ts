@@ -211,6 +211,7 @@ const header = {
     "0.7.0",
     "0.8.0",
     "0.9.0",
+    "0.10.0",
   ]),
   inputSha256: hash,
   execution: z.literal("not_run"),
@@ -253,12 +254,13 @@ export const assessmentReportSchema = z
       return false;
     if (report.status === "error")
       return !report.inputDiagnosis || report.code === "invalid_input";
-    const expectedRules =
-      report.engineVersion === "0.9.0"
-        ? assessmentExtensionRules
-        : ["0.6.0", "0.7.0", "0.8.0"].includes(report.engineVersion)
-          ? previousAssessmentExtensionRules
-          : legacyAssessmentExtensionRules;
+    const expectedRules = ["0.3.0", "0.4.0", "0.5.0"].includes(
+      report.engineVersion,
+    )
+      ? legacyAssessmentExtensionRules
+      : ["0.6.0", "0.7.0", "0.8.0"].includes(report.engineVersion)
+        ? previousAssessmentExtensionRules
+        : assessmentExtensionRules;
     if (
       report.files.some(
         (file) =>
@@ -350,7 +352,7 @@ export function assessmentError(
 ): AssessmentReport {
   return {
     assessmentVersion: "1.0.0",
-    engineVersion: "0.9.0",
+    engineVersion: "0.10.0",
     inputSha256,
     execution: "not_run",
     boundary,

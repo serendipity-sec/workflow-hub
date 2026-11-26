@@ -1,6 +1,6 @@
 # 초기 검사 결과와 서비스 연결 자료
 
-작업 추적은 [#14](https://github.com/serendipity-sec/workflow-hub/issues/14), 실제 서비스 적응·통합 검증은 [#18](https://github.com/serendipity-sec/workflow-hub/issues/18)이다. 기존 워커 브랜치의 0.9.0 결과를 연결할 때 사용할 자료이며 팀 API를 임의로 확정한 문서가 아니다. 프론트·백엔드가 구현한 방식에 워커를 맞춘다.
+작업 추적은 [#14](https://github.com/serendipity-sec/workflow-hub/issues/14), 실제 서비스 적응·통합 검증은 [#18](https://github.com/serendipity-sec/workflow-hub/issues/18)이다. 기존 워커 브랜치의 0.9.0·0.10.0 결과를 연결할 때 사용할 자료이며 팀 API를 임의로 확정한 문서가 아니다. 프론트·백엔드가 구현한 방식에 워커를 맞춘다.
 
 ## 워커 호출과 결과
 
@@ -8,11 +8,11 @@
 
 프로그램 진입점은 `src/inspection.ts`의 `inspectFile`, 이미 검사한 결과 표시에는 `presentInspection`이다. 결과는 `inspectionSchema`로 검증한다.
 
-0.9.0은 서비스 묶음·설명을 1.1.0으로 제공하고, 과거 0.8.0 및 이전 보고서는 1.0.0 표시를 재현한다. `coverage <assessment.json> [inspection.json]`의 [원인 분류 결과](coverage-causes.md)는 환경·정의 누락·검사기 확장·혼합 원인·지원 범위를 구분하며 원래 판정을 바꾸지 않는다. 1.1.0 화면 분류도 같은 원인 등록부를 사용한다.
+0.9.0·0.10.0은 서비스 묶음·설명을 1.1.0으로 제공하고(`0.10.0`은 `serviceScope`에 `sinkReachableGapCount`·`isolatedGapCount` 도달성 집계를 추가), 과거 0.8.0 및 이전 보고서는 1.0.0 표시를 재현한다. `coverage <assessment.json> [inspection.json]`의 [원인 분류 결과](coverage-causes.md)는 환경·정의 누락·검사기 확장·혼합 원인·지원 범위를 구분하며 원래 판정을 바꾸지 않는다. 1.1.0 화면 분류도 같은 원인 등록부를 사용한다. [0.10.0 성능·범위 기록](performance-and-scope-0.10.0.md)을 함께 참고한다.
 
 | 필드                       | 의미                                                                     |
 | -------------------------- | ------------------------------------------------------------------------ |
-| `inspectionVersion: 1.1.0` | 엔진 0.9.0의 서비스 전달용 묶음 버전                                     |
+| `inspectionVersion: 1.1.0` | 엔진 0.9.0·0.10.0의 서비스 전달용 묶음 버전                              |
 | `inputSha256`              | 검사한 정확한 원본 바이트의 SHA-256                                      |
 | `assessment`               | 10개 범주의 원본 정적 검사·위치·근거·오류·범위·수정 계획                 |
 | `serviceReport`            | 고정 한국어 기능 설명, 위험 후보와 관찰, 분석 공백, 환경 확인, 지원 범위 |

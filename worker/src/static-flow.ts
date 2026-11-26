@@ -16,6 +16,7 @@ import {
   isStaticIntervalWait,
   isStaticItemLimit,
 } from "./value-flow.js";
+import { matchLocalCatalogEffect } from "./node-catalog.js";
 
 const prefix = "n8n-nodes-base.";
 const http = prefix + "httpRequest";
@@ -482,6 +483,15 @@ function collectionEffect(
       }
     }
     profile = { inputs: 1, outputs: 0, preservesInput: false };
+  } else {
+    const catalog = matchLocalCatalogEffect(node);
+    if (catalog) {
+      profile = {
+        inputs: catalog.inputs,
+        outputs: catalog.outputs,
+        preservesInput: catalog.preservesInput,
+      };
+    }
   }
   if (
     !profile ||

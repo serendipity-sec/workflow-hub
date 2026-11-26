@@ -222,6 +222,123 @@ export function nativeNlpScope(field: ScalarField): NamedEntityScope {
   return "prose";
 }
 
+function serializeFields(
+  context: Context,
+  mode: "nlp" | "python",
+): { fields: ScalarField[]; payload: unknown[] } {
+  const fields = fieldsFor(context, mode);
+  return {
+    fields,
+    payload: fields.map((field) => ({
+      index: field.index,
+      value: field.value,
+      ...(mode === "nlp"
+        ? { namedEntities: nativeNlpScope(field) }
+        : {
+            inputProfile: context.nodes.some(
+              (node) =>
+                node.type === "@n8n/n8n-nodes-langchain.toolCode" &&
+                field.pointer === node.pointer + "/parameters/pythonCode",
+            )
+              ? "model_tool"
+              : "code",
+          }),
+    })),
+  };
+}
+
+function validateModeResult(
+  raw: unknown,
+  mode: "nlp" | "python",
+  fields: ScalarField[],
+): NativeModeResult {
+  const result = nativeModeResultSchema.parse(raw);
+  const indices = new Map(fields.map((field) => [field.index, field]));
+  if (
+    result.mode !== mode ||
+    result.findings.some(
+      (item) =>
+        !indices.has(item.fieldIndex) ||
+        (item.end !== null &&
+          item.end > Array.from(indices.get(item.fieldIndex)!.value).length) ||
+        item.code.startsWith("nlp_") !== (mode === "nlp"),
+    ) ||
+    result.diagnostics.some(
+      (item) => item.fieldIndex !== null && !indices.has(item.fieldIndex),
+    )
+  )
+    throw Error("Invalid native mapping");
+  return result;
+}
+
+function invokePythonHelper(
+  executable: string,
+  arg: "nlp" | "python" | "batch",
+  input: string,
+  timeout: number,
+  maximum: number,
+  signal?: AbortSignal,
+): Promise<{
+  reason?: z.infer<typeof diagnosticCode>;
+  code: number | null;
+  stdout: string;
+}> {
+  const environment: NodeJS.ProcessEnv = {
+    OMP_NUM_THREADS: "1",
+    OPENBLAS_NUM_THREADS: "1",
+    MKL_NUM_THREADS: "1",
+  };
+  for (const key of ["SystemRoot", "SYSTEMROOT", "WINDIR", "TEMP", "TMP"])
+    if (process.env[key]) environment[key] = process.env[key];
+  return new Promise((resolve) => {
+    let child: ReturnType<typeof spawn>;
+    try {
+      child = spawn(executable, ["-I", "-B", helper, arg], {
+        shell: false,
+        windowsHide: true,
+        env: environment,
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+    } catch {
+      resolve({ reason: "native_failed", code: null, stdout: "" });
+      return;
+    }
+    let reason: z.infer<typeof diagnosticCode> | undefined;
+    let total = 0;
+    const chunks: Buffer[] = [];
+    const stop = (code: z.infer<typeof diagnosticCode>) => {
+      reason ??= code;
+      child.kill("SIGKILL");
+    };
+    const cancel = () => stop("native_cancelled");
+    const timer = setTimeout(() => stop("native_timeout"), timeout);
+    signal?.addEventListener("abort", cancel, { once: true });
+    if (signal?.aborted) cancel();
+    const consume = (chunk: Buffer, keep: boolean) => {
+      total += chunk.length;
+      if (total > maximum) stop("native_output_limit");
+      else if (keep && !reason) chunks.push(chunk);
+    };
+    child.stdout!.on("data", (chunk: Buffer) => consume(chunk, true));
+    child.stderr!.on("data", (chunk: Buffer) => consume(chunk, false));
+    child.stdin!.on("error", () => stop("native_failed"));
+    child.on("error", (error: NodeJS.ErrnoException) => {
+      reason ??=
+        error.code === "ENOENT" ? "native_tool_unavailable" : "native_failed";
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", cancel);
+      resolve({
+        reason,
+        code,
+        stdout: reason ? "" : Buffer.concat(chunks).toString("utf8"),
+      });
+    });
+    child.stdin!.end(input);
+  });
+}
+
 async function runMode(
   context: Context,
   mode: "nlp" | "python",
@@ -242,103 +359,90 @@ async function runMode(
     maximum > 1024 * 1024
   )
     return failure(mode, "native_invalid_input");
-  const fields = fieldsFor(context, mode);
-  const input = JSON.stringify({
-    fields: fields.map((field) => ({
-      index: field.index,
-      value: field.value,
-      ...(mode === "nlp"
-        ? { namedEntities: nativeNlpScope(field) }
-        : {
-            inputProfile: context.nodes.some(
-              (node) =>
-                node.type === "@n8n/n8n-nodes-langchain.toolCode" &&
-                field.pointer === node.pointer + "/parameters/pythonCode",
-            )
-              ? "model_tool"
-              : "code",
-          }),
-    })),
-  });
+  const { fields, payload } = serializeFields(context, mode);
+  const input = JSON.stringify({ fields: payload });
   if (Buffer.byteLength(input) > 2 * 1024 * 1024)
     return failure(mode, "native_invalid_input");
-  const environment: NodeJS.ProcessEnv = {
-    OMP_NUM_THREADS: "1",
-    OPENBLAS_NUM_THREADS: "1",
-    MKL_NUM_THREADS: "1",
-  };
-  for (const key of ["SystemRoot", "SYSTEMROOT", "WINDIR", "TEMP", "TMP"])
-    if (process.env[key]) environment[key] = process.env[key];
-  return new Promise((resolve) => {
-    let child: ReturnType<typeof spawn>;
-    try {
-      child = spawn(executable, ["-I", "-B", helper, mode], {
-        shell: false,
-        windowsHide: true,
-        env: environment,
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-    } catch {
-      resolve(failure(mode, "native_failed"));
-      return;
-    }
-    let reason: z.infer<typeof diagnosticCode> | undefined;
-    let total = 0;
-    const chunks: Buffer[] = [];
-    const stop = (code: z.infer<typeof diagnosticCode>) => {
-      reason ??= code;
-      child.kill("SIGKILL");
-    };
-    const cancel = () => stop("native_cancelled");
-    const timer = setTimeout(() => stop("native_timeout"), timeout);
-    options.signal?.addEventListener("abort", cancel, { once: true });
-    if (options.signal?.aborted) cancel();
-    const consume = (chunk: Buffer, keep: boolean) => {
-      total += chunk.length;
-      if (total > maximum) stop("native_output_limit");
-      else if (keep && !reason) chunks.push(chunk);
-    };
-    child.stdout!.on("data", (chunk: Buffer) => consume(chunk, true));
-    child.stderr!.on("data", (chunk: Buffer) => consume(chunk, false));
-    child.stdin!.on("error", () => stop("native_failed"));
-    child.on("error", (error: NodeJS.ErrnoException) => {
-      reason ??=
-        error.code === "ENOENT" ? "native_tool_unavailable" : "native_failed";
-    });
-    child.on("close", (code) => {
-      clearTimeout(timer);
-      options.signal?.removeEventListener("abort", cancel);
-      if (reason || code !== 0) {
-        resolve(failure(mode, reason ?? "native_failed"));
-        return;
-      }
-      try {
-        const result = nativeModeResultSchema.parse(
-          JSON.parse(Buffer.concat(chunks).toString("utf8")),
-        );
-        const indices = new Map(fields.map((field) => [field.index, field]));
-        if (
-          result.mode !== mode ||
-          result.findings.some(
-            (item) =>
-              !indices.has(item.fieldIndex) ||
-              (item.end !== null &&
-                item.end >
-                  Array.from(indices.get(item.fieldIndex)!.value).length) ||
-              item.code.startsWith("nlp_") !== (mode === "nlp"),
-          ) ||
-          result.diagnostics.some(
-            (item) => item.fieldIndex !== null && !indices.has(item.fieldIndex),
-          )
-        )
-          throw Error("Invalid native mapping");
-        resolve(result);
-      } catch {
-        resolve(failure(mode, "native_invalid_report"));
-      }
-    });
-    child.stdin!.end(input);
-  });
+  const executed = await invokePythonHelper(
+    executable,
+    mode,
+    input,
+    timeout,
+    maximum,
+    options.signal,
+  );
+  if (executed.reason || executed.code !== 0)
+    return failure(mode, executed.reason ?? "native_failed");
+  try {
+    return validateModeResult(JSON.parse(executed.stdout), mode, fields);
+  } catch {
+    return failure(mode, "native_invalid_report");
+  }
+}
+
+async function runBatchModes(
+  context: Context,
+  orderedModes: ("nlp" | "python")[],
+  options: NativeInspectionOptions,
+): Promise<NativeModeResult[] | undefined> {
+  const executable = options.pythonExecutable;
+  if (!executable || !isAbsolute(executable))
+    return orderedModes.map((mode) => failure(mode, "native_tool_unavailable"));
+  if (options.signal?.aborted)
+    return orderedModes.map((mode) => failure(mode, "native_cancelled"));
+  const timeout = options.timeoutMs ?? 60000;
+  const maximum = options.maxOutputBytes ?? 256 * 1024;
+  if (
+    !Number.isInteger(timeout) ||
+    timeout < 1 ||
+    timeout > 120000 ||
+    !Number.isInteger(maximum) ||
+    maximum < 1 ||
+    maximum > 1024 * 1024
+  )
+    return orderedModes.map((mode) => failure(mode, "native_invalid_input"));
+  const nlp = serializeFields(context, "nlp");
+  const python = serializeFields(context, "python");
+  const input = JSON.stringify({ nlp: nlp.payload, python: python.payload });
+  // If combined payload exceeds the single-process limit, fall back cleanly to
+  // per-mode invocations so individual 2 MiB budgets remain unchanged.
+  if (Buffer.byteLength(input) > 2 * 1024 * 1024) return undefined;
+  const executed = await invokePythonHelper(
+    executable,
+    "batch",
+    input,
+    timeout,
+    Math.min(1024 * 1024, maximum * 2),
+    options.signal,
+  );
+  if (executed.reason || executed.code !== 0)
+    return orderedModes.map((mode) =>
+      failure(mode, executed.reason ?? "native_failed"),
+    );
+  try {
+    const parsed: unknown = JSON.parse(executed.stdout);
+    if (
+      parsed === null ||
+      typeof parsed !== "object" ||
+      !Array.isArray((parsed as { modes?: unknown }).modes) ||
+      (parsed as { modes: unknown[] }).modes.length !== 2
+    )
+      throw Error("Invalid batch envelope");
+    const rawModes = (parsed as { modes: unknown[] }).modes;
+    if (
+      rawModes.some(
+        (rawMode) => Buffer.byteLength(JSON.stringify(rawMode)) > maximum,
+      )
+    )
+      return orderedModes.map((mode) => failure(mode, "native_output_limit"));
+    const validated = new Map<"nlp" | "python", NativeModeResult>([
+      ["nlp", validateModeResult(rawModes[0], "nlp", nlp.fields)],
+      ["python", validateModeResult(rawModes[1], "python", python.fields)],
+    ]);
+    return orderedModes.map((mode) => validated.get(mode)!);
+  } catch {
+    return orderedModes.map((mode) => failure(mode, "native_invalid_report"));
+  }
 }
 
 /** Trusted controller only; uploaded Python and n8n expressions never execute. */
@@ -359,8 +463,14 @@ export async function runNativeInspection(
         failure("python", "native_invalid_input"),
       ],
     };
+  const uniqueModes = [...new Set(requested)];
+  if (uniqueModes.length === 2) {
+    const batched = await runBatchModes(context, uniqueModes, options);
+    if (batched)
+      return { tool: "native_inspection", version: "1.0.0", modes: batched };
+  }
   const modes: NativeModeResult[] = [];
-  for (const mode of [...new Set(requested)])
+  for (const mode of uniqueModes)
     modes.push(await runMode(context, mode, options));
   return { tool: "native_inspection", version: "1.0.0", modes };
 }

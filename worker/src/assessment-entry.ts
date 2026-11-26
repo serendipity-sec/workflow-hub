@@ -39,13 +39,14 @@ try {
   const report = await assessBytes(bytes, {
     evidenceBytes,
     collectTools: async (context) => {
-      // Actual native programs, wholly inside the same network-less container.
-      const [gitleaks, native] = await Promise.all([
-        runGitleaks(context.fields, { executable: "/usr/local/bin/gitleaks" }),
-        runNativeInspection(context, {
-          pythonExecutable: "/opt/nlp/bin/python",
-        }),
-      ]);
+      // Run native scanners sequentially inside the 1-CPU / 96-PID container so
+      // Go runtime threads and Python/spaCy initialization never contend.
+      const gitleaks = await runGitleaks(context.fields, {
+        executable: "/usr/local/bin/gitleaks",
+      });
+      const native = await runNativeInspection(context, {
+        pythonExecutable: "/opt/nlp/bin/python",
+      });
       return { gitleaks, native };
     },
   });

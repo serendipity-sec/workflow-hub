@@ -6,6 +6,10 @@ import {
   type BoundedCodeHost,
 } from "./bounded-code.js";
 import { aiPromptInputs } from "./ai-flow.js";
+import {
+  matchCatalogServiceSource,
+  matchLocalCatalogEffect,
+} from "./node-catalog.js";
 import { preserveValueShape } from "./value-shape.js";
 import type { NormalizedNode } from "./n8n.js";
 import { isObject } from "./static-context.js";
@@ -739,6 +743,7 @@ class ValueFlowAnalyzer implements ValueFlow {
     text: string,
     depth: number,
   ): AbstractValue {
+    const hasCrossNodeToken = /\$\s*\(|\$(?:node|items)\b/.test(text);
     try {
       const ast = parseExpressionAt(text, 0, {
         ecmaVersion: "latest",
@@ -749,14 +754,26 @@ class ValueFlowAnalyzer implements ValueFlow {
         typeof ast.end !== "number" ||
         text.slice(ast.end).trim()
       )
-        return this.unknown(nodeKey, "expression_syntax_unsupported");
+        return this.unknown(
+          nodeKey,
+          "expression_syntax_unsupported",
+          hasCrossNodeToken
+            ? [this.unknown(nodeKey, "direct_reference_unconnected")]
+            : [],
+        );
       const stack: unknown[] = [ast];
       let count = 0;
       while (stack.length) {
         const value = stack.pop();
         if (!isObject(value)) continue;
         if (++count > valueFlowLimits.astNodes)
-          return this.unknown(nodeKey, "expression_ast_limit");
+          return this.unknown(
+            nodeKey,
+            "expression_ast_limit",
+            hasCrossNodeToken
+              ? [this.unknown(nodeKey, "direct_reference_unconnected")]
+              : [],
+          );
         for (const child of Object.values(value)) {
           if (Array.isArray(child)) stack.push(...child);
           else if (isObject(child)) stack.push(child);
@@ -764,7 +781,13 @@ class ValueFlowAnalyzer implements ValueFlow {
       }
       return this.astValue(nodeKey, ast, depth + 1);
     } catch {
-      return this.unknown(nodeKey, "expression_parse_unavailable");
+      return this.unknown(
+        nodeKey,
+        "expression_parse_unavailable",
+        hasCrossNodeToken
+          ? [this.unknown(nodeKey, "direct_reference_unconnected")]
+          : [],
+      );
     }
   }
 
@@ -826,6 +849,28 @@ class ValueFlowAnalyzer implements ValueFlow {
     if (ast.type === "ParenthesizedExpression" && isObject(ast.expression))
       return this.astValue(nodeKey, ast.expression, depth + 1);
     if (ast.type === "Literal") {
+      if (isObject(ast.regex)) {
+        const rawPattern =
+          typeof ast.raw === "string"
+            ? ast.raw
+            : String(ast.regex.pattern ?? "");
+        const unescapedDots = rawPattern.replace(/\\\./g, ".");
+        const base = join(
+          [
+            this.literal(nodeKey, rawPattern, "", depth + 1),
+            ...(unescapedDots !== rawPattern
+              ? [this.literal(nodeKey, unescapedDots, "", depth + 1)]
+              : []),
+          ],
+          nodeKey,
+        );
+        return {
+          ...base,
+          constant: undefined,
+          fieldsComplete: false,
+          valueId: hash(["regex_literal", nodeKey, rawPattern]),
+        };
+      }
       const value = this.literal(nodeKey, ast.value, "", depth + 1);
       if (ast.boundedClock === true) {
         delete value.constant;
@@ -837,7 +882,11 @@ class ValueFlowAnalyzer implements ValueFlow {
           : [];
         // Luxon format strings may emit quoted literal text. Formatting a
         // literal must not erase its existing secret/PII candidate classes.
-        return { ...join([value, ...arguments_], nodeKey), fullObject: false };
+        return {
+          ...join([value, ...arguments_], nodeKey),
+          fullObject: false,
+          fieldsComplete: false,
+        };
       }
       return value;
     }
@@ -854,7 +903,7 @@ class ValueFlowAnalyzer implements ValueFlow {
     }
     if (
       ast.type === "LogicalExpression" &&
-      ["||", "??"].includes(String(ast.operator)) &&
+      ["||", "??", "&&"].includes(String(ast.operator)) &&
       isObject(ast.left) &&
       isObject(ast.right)
     ) {
@@ -874,6 +923,120 @@ class ValueFlowAnalyzer implements ValueFlow {
           "logical_selection",
           ast.operator,
           values.map((v) => v.valueId),
+        ]),
+      };
+    }
+    if (
+      ast.type === "UnaryExpression" &&
+      ["!", "+", "-", "typeof", "void"].includes(String(ast.operator)) &&
+      isObject(ast.argument)
+    ) {
+      const argument = this.astValue(nodeKey, ast.argument, depth + 1);
+      if (
+        (ast.operator === "-" || ast.operator === "+") &&
+        argument.status === "resolved" &&
+        typeof argument.constant === "number" &&
+        Number.isFinite(argument.constant)
+      ) {
+        return {
+          ...argument,
+          constant:
+            ast.operator === "-" ? -argument.constant : +argument.constant,
+          valueId: hash([
+            "unary_numeric_literal",
+            ast.operator,
+            argument.valueId,
+          ]),
+        };
+      }
+      return this.transform(
+        nodeKey,
+        [argument],
+        ast.operator === "+" || ast.operator === "-"
+          ? "numeric_conversion"
+          : "string_processing",
+      );
+    }
+    if (
+      ast.type === "Identifier" &&
+      (ast.name === "$now" || ast.name === "$today")
+    ) {
+      return {
+        ...this.literal(nodeKey, "", "", depth + 1),
+        constant: undefined,
+        fieldsComplete: false,
+        sensitivityBasis: ["runtime_clock"],
+        valueId: hash(["runtime_clock", nodeKey, ast.name]),
+      };
+    }
+    if (
+      ast.type === "NewExpression" &&
+      isObject(ast.callee) &&
+      ast.callee.type === "Identifier" &&
+      ast.callee.name === "Date" &&
+      Array.isArray(ast.arguments) &&
+      ast.arguments.length <= 7 &&
+      ast.arguments.every(
+        (arg) => isObject(arg) && arg.type !== "SpreadElement",
+      )
+    ) {
+      const clockBase: AbstractValue = {
+        ...this.literal(nodeKey, "", "", depth + 1),
+        constant: undefined,
+        fieldsComplete: false,
+        sensitivityBasis: ["runtime_clock"],
+      };
+      const args = ast.arguments.map((arg) =>
+        this.astValue(nodeKey, arg as Record<string, unknown>, depth + 1),
+      );
+      const transformed = this.transform(
+        nodeKey,
+        [clockBase, ...args],
+        "string_processing",
+      );
+      return {
+        ...transformed,
+        constant: undefined,
+        fullObject: false,
+        fieldsComplete: false,
+        guards: [],
+        valueId: hash(["new_date", nodeKey, args.map((arg) => arg.valueId)]),
+      };
+    }
+    if (
+      ast.type === "Identifier" &&
+      (ast.name === "$itemIndex" || ast.name === "$runIndex")
+    ) {
+      return {
+        ...this.literal(nodeKey, 0, "", depth + 1),
+        constant: undefined,
+        fieldsComplete: false,
+        sensitivityBasis: ["runtime_metadata"],
+        valueId: hash(["runtime_metadata", nodeKey, ast.name]),
+      };
+    }
+    if (
+      ast.type === "MemberExpression" &&
+      ast.computed !== true &&
+      isObject(ast.object) &&
+      ast.object.type === "Identifier" &&
+      isObject(ast.property) &&
+      ast.property.type === "Identifier" &&
+      ((ast.object.name === "$workflow" &&
+        ["id", "name", "active"].includes(String(ast.property.name))) ||
+        (ast.object.name === "$execution" &&
+          ["id", "mode"].includes(String(ast.property.name))))
+    ) {
+      return {
+        ...this.literal(nodeKey, "", "", depth + 1),
+        constant: undefined,
+        fieldsComplete: false,
+        sensitivityBasis: ["runtime_metadata"],
+        valueId: hash([
+          "runtime_metadata",
+          nodeKey,
+          ast.object.name,
+          ast.property.name,
         ]),
       };
     }
@@ -914,6 +1077,56 @@ class ValueFlowAnalyzer implements ValueFlow {
     if (
       ast.type === "MemberExpression" &&
       isObject(ast.object) &&
+      ast.object.type === "Identifier" &&
+      ast.object.name === "$node" &&
+      isObject(ast.property)
+    ) {
+      const targetName =
+        ast.computed === true
+          ? ast.property.type === "Literal"
+            ? ast.property.value
+            : undefined
+          : ast.property.name;
+      if (typeof targetName !== "string") {
+        const dynamicKey = this.astValue(nodeKey, ast.property, depth + 1);
+        return this.unknown(nodeKey, "direct_reference_unconnected", [
+          dynamicKey,
+        ]);
+      }
+      const source = this.context.nodeByName.get(targetName);
+      if (!source || !this.connected(source.key, nodeKey))
+        return this.unknown(nodeKey, "direct_reference_unconnected");
+      return this.unknown(nodeKey, "expression_semantics_unsupported", [
+        this.nodeValue(source.key, [], 0, depth + 1),
+      ]);
+    }
+    if (
+      ast.type === "CallExpression" &&
+      isObject(ast.callee) &&
+      ast.callee.type === "Identifier" &&
+      (ast.callee.name === "$" || ast.callee.name === "$items") &&
+      Array.isArray(ast.arguments)
+    ) {
+      if (ast.arguments.length === 1 && isObject(ast.arguments[0])) {
+        const argVal = this.astValue(nodeKey, ast.arguments[0], depth + 1);
+        if (
+          argVal.status === "resolved" &&
+          typeof argVal.constant === "string"
+        ) {
+          const source = this.context.nodeByName.get(argVal.constant);
+          if (!source || !this.connected(source.key, nodeKey))
+            return this.unknown(nodeKey, "direct_reference_unconnected");
+          return this.unknown(nodeKey, "expression_semantics_unsupported", [
+            this.nodeValue(source.key, [], 0, depth + 1),
+          ]);
+        }
+        return this.unknown(nodeKey, "direct_reference_unconnected", [argVal]);
+      }
+      return this.unknown(nodeKey, "direct_reference_unconnected");
+    }
+    if (
+      ast.type === "MemberExpression" &&
+      isObject(ast.object) &&
       isObject(ast.property)
     ) {
       const key =
@@ -947,17 +1160,36 @@ class ValueFlowAnalyzer implements ValueFlow {
         name === "parseInt" ||
         name === "parseFloat" ||
         name === "encodeURIComponent" ||
+        name === "encodeURI" ||
+        name === "decodeURIComponent" ||
+        name === "decodeURI" ||
         name === "String" ||
         name === "Boolean"
       )
         return this.transform(
           nodeKey,
           [this.astValue(nodeKey, ast.arguments[0], depth + 1)],
-          name === "String" || name === "Boolean"
+          name === "String" ||
+            name === "Boolean" ||
+            name === "decodeURIComponent" ||
+            name === "decodeURI"
             ? "string_processing"
-            : name === "encodeURIComponent"
+            : name === "encodeURIComponent" || name === "encodeURI"
               ? "url_component_encoding"
               : "numeric_conversion",
+        );
+      if (
+        ast.callee.type === "MemberExpression" &&
+        ast.callee.computed !== true &&
+        isObject(ast.callee.object) &&
+        ast.callee.object.name === "Array" &&
+        isObject(ast.callee.property) &&
+        ast.callee.property.name === "isArray"
+      )
+        return this.transform(
+          nodeKey,
+          [this.astValue(nodeKey, ast.arguments[0], depth + 1)],
+          "string_processing",
         );
       if (
         ast.callee.type === "MemberExpression" &&
@@ -1031,6 +1263,119 @@ class ValueFlowAnalyzer implements ValueFlow {
     ) {
       const method = ast.callee.property.name;
       if (
+        isObject(ast.callee.object) &&
+        ast.callee.object.type === "Identifier" &&
+        ast.callee.object.name === "Date" &&
+        method === "now" &&
+        ast.arguments.length === 0
+      ) {
+        return {
+          ...this.literal(nodeKey, 0, "", depth + 1),
+          constant: undefined,
+          fieldsComplete: false,
+          sensitivityBasis: ["runtime_clock"],
+          valueId: hash(["date_now", nodeKey]),
+        };
+      }
+      if (
+        isObject(ast.callee.object) &&
+        ast.callee.object.type === "Identifier" &&
+        ast.callee.object.name === "Math" &&
+        [
+          "abs",
+          "ceil",
+          "floor",
+          "round",
+          "trunc",
+          "min",
+          "max",
+          "pow",
+          "sqrt",
+          "sign",
+          "random",
+        ].includes(String(method)) &&
+        ast.arguments.every((arg) => arg.type !== "SpreadElement")
+      ) {
+        if (method === "random" && ast.arguments.length === 0) {
+          return {
+            ...this.literal(nodeKey, 0, "", depth + 1),
+            constant: undefined,
+            fieldsComplete: false,
+            sensitivityBasis: ["runtime_metadata"],
+            valueId: hash(["math_random", nodeKey]),
+          };
+        }
+        if (ast.arguments.length > 0 && ast.arguments.length <= 16) {
+          return this.transform(
+            nodeKey,
+            ast.arguments.map((argument) =>
+              this.astValue(nodeKey, argument, depth + 1),
+            ),
+            "numeric_conversion",
+          );
+        }
+      }
+      if (
+        [
+          "toDateString",
+          "toISOString",
+          "toUTCString",
+          "toJSON",
+          "toLocaleDateString",
+          "toLocaleString",
+          "toLocaleTimeString",
+          "getFullYear",
+          "getMonth",
+          "getDate",
+          "getDay",
+          "getHours",
+          "getMinutes",
+          "getSeconds",
+          "getMilliseconds",
+          "getTime",
+          "getUTCFullYear",
+          "getUTCMonth",
+          "getUTCDate",
+          "toFormat",
+          "toISO",
+          "toISODate",
+          "toMillis",
+          "toSeconds",
+          "minus",
+          "plus",
+          "startOf",
+          "endOf",
+          "setZone",
+        ].includes(String(method)) &&
+        ast.arguments.length <= 4 &&
+        ast.arguments.every((arg) => arg.type !== "SpreadElement")
+      ) {
+        const receiver = this.astValue(nodeKey, ast.callee.object, depth + 1);
+        if (receiver.sensitivityBasis.includes("runtime_clock")) {
+          const args = ast.arguments.map((argument) =>
+            this.astValue(nodeKey, argument, depth + 1),
+          );
+          const transformed = this.transform(
+            nodeKey,
+            [receiver, ...args],
+            "string_processing",
+          );
+          return {
+            ...transformed,
+            constant: undefined,
+            fullObject: false,
+            fieldsComplete: false,
+            guards: [],
+            valueId: hash([
+              "clock_method",
+              String(method),
+              receiver.valueId,
+              args.map((arg) => arg.valueId),
+            ]),
+          };
+        }
+      }
+      if (
         [
           "trim",
           "trimStart",
@@ -1047,6 +1392,16 @@ class ValueFlowAnalyzer implements ValueFlow {
           "includes",
           "startsWith",
           "endsWith",
+          "padStart",
+          "padEnd",
+          "repeat",
+          "charAt",
+          "at",
+          "indexOf",
+          "lastIndexOf",
+          "search",
+          "localeCompare",
+          "normalize",
           "toString",
         ].includes(String(method))
       ) {
@@ -1107,18 +1462,41 @@ class ValueFlowAnalyzer implements ValueFlow {
     }
     if (
       ast.type === "BinaryExpression" &&
-      ast.operator === "+" &&
       isObject(ast.left) &&
       isObject(ast.right)
-    )
-      return this.transform(
-        nodeKey,
-        [
-          this.astValue(nodeKey, ast.left, depth + 1),
-          this.astValue(nodeKey, ast.right, depth + 1),
-        ],
-        "concatenation",
-      );
+    ) {
+      if (ast.operator === "+")
+        return this.transform(
+          nodeKey,
+          [
+            this.astValue(nodeKey, ast.left, depth + 1),
+            this.astValue(nodeKey, ast.right, depth + 1),
+          ],
+          "concatenation",
+        );
+      if (["-", "*", "/", "%", "**"].includes(String(ast.operator)))
+        return this.transform(
+          nodeKey,
+          [
+            this.astValue(nodeKey, ast.left, depth + 1),
+            this.astValue(nodeKey, ast.right, depth + 1),
+          ],
+          "numeric_conversion",
+        );
+      if (
+        ["===", "!==", "==", "!=", "<", "<=", ">", ">=", "in"].includes(
+          String(ast.operator),
+        )
+      )
+        return this.transform(
+          nodeKey,
+          [
+            this.astValue(nodeKey, ast.left, depth + 1),
+            this.astValue(nodeKey, ast.right, depth + 1),
+          ],
+          "string_processing",
+        );
+    }
     if (
       ast.type === "TemplateLiteral" &&
       Array.isArray(ast.expressions) &&
@@ -1361,7 +1739,7 @@ class ValueFlowAnalyzer implements ValueFlow {
       isObject(current.callee) &&
       current.callee.type === "MemberExpression" &&
       isObject(current.callee.property) &&
-      current.callee.property.name === "first" &&
+      ["first", "last"].includes(String(current.callee.property.name)) &&
       isObject(current.callee.object) &&
       Array.isArray(current.arguments) &&
       current.arguments.length === 0 &&
@@ -1386,6 +1764,37 @@ class ValueFlowAnalyzer implements ValueFlow {
           path: suffix.slice(1),
         };
     }
+  }
+
+  private parameterExpressions(
+    nodeKey: string,
+    parameters: unknown,
+    depth: number,
+  ): AbstractValue[] {
+    if (depth > 24) return [];
+    const results: AbstractValue[] = [];
+    const pending: { value: unknown; walkDepth: number }[] = [
+      { value: parameters, walkDepth: 0 },
+    ];
+    let visited = 0;
+    while (pending.length > 0 && visited++ < 256 && results.length < 32) {
+      const { value, walkDepth } = pending.pop()!;
+      if (walkDepth > 16) continue;
+      if (
+        typeof value === "string" &&
+        value.startsWith("=") &&
+        value.includes("{{")
+      ) {
+        results.push(this.resolveValue(nodeKey, value, {}, depth + 1));
+      } else if (Array.isArray(value)) {
+        for (const item of value.slice(0, 64))
+          pending.push({ value: item, walkDepth: walkDepth + 1 });
+      } else if (isObject(value)) {
+        for (const item of Object.values(value).slice(0, 64))
+          pending.push({ value: item, walkDepth: walkDepth + 1 });
+      }
+    }
+    return results;
   }
 
   private connected(from: string, to: string): boolean {
@@ -1571,6 +1980,55 @@ class ValueFlowAnalyzer implements ValueFlow {
       )
         result = this.mergeValue(node, path, depth + 1);
       else if (
+        matchLocalCatalogEffect(node) !== undefined &&
+        port === 0 &&
+        !this.context.unsupportedEdges.some(
+          (edge) => edge.to === node.key || edge.from === node.key,
+        )
+      ) {
+        const localCatalog = matchLocalCatalogEffect(node)!;
+        const incoming = this.context.edges.filter(
+          (edge) => edge.to === node.key,
+        );
+        const outgoing = this.context.edges.filter(
+          (edge) => edge.from === node.key,
+        );
+        const paramValues = this.parameterExpressions(
+          nodeKey,
+          node.parameters,
+          depth + 1,
+        );
+        if (
+          localCatalog.kind === "passthrough" &&
+          incoming.length === 1 &&
+          incoming.every((edge) => edge.input === 0) &&
+          outgoing.every((edge) => edge.output === 0)
+        ) {
+          result = this.input(nodeKey, path, depth + 1);
+          if (
+            paramValues.some((val) =>
+              val.diagnosticCodes.includes("direct_reference_unconnected"),
+            )
+          ) {
+            result = this.unknown(nodeKey, "direct_reference_unconnected", [
+              result,
+              ...paramValues,
+            ]);
+          }
+        } else if (
+          localCatalog.kind === "append_merge" &&
+          incoming.every((edge) => edge.input < localCatalog.inputs) &&
+          outgoing.every((edge) => edge.output === 0)
+        ) {
+          result = this.mergeValue(node, path, depth + 1);
+        } else {
+          result = this.unknown(nodeKey, "node_transform_unsupported", [
+            this.source(node, path, "node_output", depth + 1),
+            this.input(nodeKey, [], depth + 1),
+            ...paramValues,
+          ]);
+        }
+      } else if (
         node.type === prefix + "code" &&
         [1, 2].includes(node.typeVersion) &&
         port === 0
@@ -1609,6 +2067,7 @@ class ValueFlowAnalyzer implements ValueFlow {
           result = this.unknown(nodeKey, "node_transform_unsupported", [
             this.source(node, path, "node_output", depth + 1),
             this.input(nodeKey, [], depth + 1),
+            ...this.parameterExpressions(nodeKey, node.parameters, depth + 1),
           ]);
       }
       if (
@@ -1774,6 +2233,77 @@ class ValueFlowAnalyzer implements ValueFlow {
         guards: [],
         fieldsComplete: false,
       };
+    const catalogService = matchCatalogServiceSource(node);
+    if (catalogService) {
+      if (catalogService.kind === "html_extract") {
+        const extractedInput = this.input(
+          node.key,
+          [catalogService.sourceProperty],
+          depth + 1,
+        );
+        const wholeInput = this.input(node.key, [], depth + 1);
+        const nodeSource = this.source(node, path, "node_output", depth + 1);
+        nodeSource.trust = extractedInput.trust;
+        const paramValues = this.parameterExpressions(
+          node.key,
+          node.parameters,
+          depth + 1,
+        );
+        const merged = this.unknown(node.key, "field_projection_partial", [
+          nodeSource,
+          extractedInput,
+          wholeInput,
+          ...paramValues,
+        ]);
+        return {
+          ...merged,
+          trust:
+            extractedInput.trust === "external" ||
+            wholeInput.trust === "external"
+              ? "external"
+              : merged.trust,
+          guards: [],
+          fullObject: path.length === 0,
+          fieldsComplete: false,
+        };
+      }
+      const source = this.source(node, path, "node_output", depth + 1);
+      source.trust = "external";
+      if (
+        catalogService.piiFieldPattern &&
+        catalogService.piiBasis &&
+        (!path.length ||
+          path.some((part) => catalogService.piiFieldPattern!.test(part))) &&
+        !source.sensitivityBasis.some((basis) => basis.startsWith("trusted_"))
+      ) {
+        source.sensitivityClasses = unique([
+          ...source.sensitivityClasses,
+          "pii_candidate",
+        ]);
+        source.sensitivity =
+          source.sensitivity === "secret_candidate"
+            ? "secret_candidate"
+            : "pii_candidate";
+        source.sensitivityBasis = unique([
+          ...source.sensitivityBasis,
+          catalogService.piiBasis,
+        ]);
+      }
+      return {
+        ...this.unknown(
+          node.key,
+          catalogService.kind === "external_trigger"
+            ? this.context.edges.some((edge) => edge.to === node.key)
+              ? "trigger_input_connection_unresolved"
+              : "trigger_payload_schema_unverified"
+            : "service_response_shape_unverified",
+          [source],
+        ),
+        guards: [],
+        fullObject: path.length === 0,
+        fieldsComplete: false,
+      };
+    }
     return;
   }
 

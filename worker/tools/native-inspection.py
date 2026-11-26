@@ -66,6 +66,19 @@ def run(mode, fields):
             diagnostic("native_model_or_dependency_unavailable")
             return result
         entities = {"PERSON": "nlp_person_candidate", "LOCATION": "nlp_location_candidate", "EMAIL_ADDRESS": "nlp_email_candidate", "PHONE_NUMBER": "nlp_phone_candidate", "CREDIT_CARD": "nlp_payment_card_candidate", "IP_ADDRESS": "nlp_ip_address_candidate"}
+        format_hint = re.compile(r"[@\d:]")
+        artifacts_cache = {}
+        format_cache = {}
+        ner_cache = {}
+
+        def get_artifacts(chunk):
+            cached = artifacts_cache.get(chunk)
+            if cached is None:
+                cached = analyzer.nlp_engine.process_text(chunk, "en")
+                if len(artifacts_cache) < 512:
+                    artifacts_cache[chunk] = cached
+            return cached
+
         diagnostic("nlp_english_model_profile")
         chars = 0
         for offset, field in enumerate(fields):
@@ -85,9 +98,25 @@ def run(mode, fields):
                 # code, expressions and keys. Named entities have a separate scope.
                 formats = [name for name in entities if name not in ("PERSON", "LOCATION")]
                 for chunk_start, chunk in text_chunks(text):
-                    for match in analyzer.analyze(text=chunk, language="en", entities=formats, score_threshold=0.5):
-                        if match.entity_type in entities:
-                            finding(index, entities[match.entity_type], chunk_start + match.start, chunk_start + match.end)
+                    if not format_hint.search(chunk):
+                        continue
+                    cached_formats = format_cache.get(chunk)
+                    if cached_formats is None:
+                        cached_formats = [
+                            (match.entity_type, match.start, match.end)
+                            for match in analyzer.analyze(
+                                text=chunk,
+                                language="en",
+                                entities=formats,
+                                score_threshold=0.5,
+                                nlp_artifacts=get_artifacts(chunk),
+                            )
+                            if match.entity_type in entities
+                        ]
+                        if len(format_cache) < 512:
+                            format_cache[chunk] = cached_formats
+                    for entity_type, match_start, match_end in cached_formats:
+                        finding(index, entities[entity_type], chunk_start + match_start, chunk_start + match_end)
                 scope = field["namedEntities"]
                 if scope in ("metadata", "program"):
                     diagnostic("nlp_metadata_formats_only" if scope == "metadata" else "nlp_program_formats_only")
@@ -129,14 +158,29 @@ def run(mode, fields):
                     if not candidate.strip():
                         continue
                     for chunk_start, chunk in text_chunks(candidate):
-                        for match in analyzer.analyze(text=chunk, language="en", entities=["PERSON", "LOCATION"], score_threshold=0.5):
-                            span = chunk[match.start:match.end]
+                        cached_ner = ner_cache.get(chunk)
+                        if cached_ner is None:
+                            cached_ner = [
+                                (match.entity_type, match.start, match.end)
+                                for match in analyzer.analyze(
+                                    text=chunk,
+                                    language="en",
+                                    entities=["PERSON", "LOCATION"],
+                                    score_threshold=0.5,
+                                    nlp_artifacts=get_artifacts(chunk),
+                                )
+                                if match.entity_type in entities
+                            ]
+                            if len(ner_cache) < 512:
+                                ner_cache[chunk] = cached_ner
+                        for entity_type, match_start, match_end in cached_ner:
+                            span = chunk[match_start:match_end]
                             # Exact unambiguous syntax/product tokens in prose are not
                             # a person/location. Do not suppress names inside data.
                             if scope not in ("data", "json") and re.fullmatch(r"(?:JSON|Gmail|PostgreSQL|n8n|HTTP|HTTPS|API|OAuth2?|JavaScript|TypeScript|Slack)", span, re.IGNORECASE):
                                 diagnostic("nlp_technical_entity_filtered")
                                 continue
-                            finding(index, entities[match.entity_type], 0 if decoded_json else chunk_start + match.start, len(text) if decoded_json else chunk_start + match.end)
+                            finding(index, entities[entity_type], 0 if decoded_json else chunk_start + match_start, len(text) if decoded_json else chunk_start + match_end)
             except Exception:
                 diagnostic("nlp_field_analysis_failed", index)
     else:
@@ -234,31 +278,51 @@ def run(mode, fields):
     return result
 
 
+def validate_fields(mode, fields):
+    if not isinstance(fields, list) or len(fields) > 16384:
+        raise ValueError("fields")
+    seen = set()
+    for field in fields:
+        expected_keys = {"index", "value", "namedEntities"} if mode == "nlp" else {"index", "value"}
+        if mode == "python" and isinstance(field, dict) and "inputProfile" in field:
+            expected_keys.add("inputProfile")
+            if field["inputProfile"] not in ("code", "model_tool"):
+                raise ValueError("scope")
+        if not isinstance(field, dict) or set(field) != expected_keys or type(field["index"]) is not int or field["index"] < 0 or field["index"] in seen or not isinstance(field["value"], str):
+            raise ValueError("field")
+        if mode == "nlp" and field["namedEntities"] not in ("metadata", "program", "prose", "data", "template", "json"):
+            raise ValueError("scope")
+        seen.add(field["index"])
+
+
 def main():
-    mode = sys.argv[1] if len(sys.argv) == 2 and sys.argv[1] in ("nlp", "python") else None
+    mode = sys.argv[1] if len(sys.argv) == 2 and sys.argv[1] in ("nlp", "python", "batch") else None
     try:
         raw = sys.stdin.buffer.read(MAX_INPUT + 1)
         if mode is None or len(raw) > MAX_INPUT:
             raise ValueError("input")
         data = json.loads(raw.decode("utf-8", errors="strict"))
-        fields = data["fields"]
-        if not isinstance(fields, list) or len(fields) > 16384:
-            raise ValueError("fields")
-        seen = set()
-        for field in fields:
-            expected_keys = {"index", "value", "namedEntities"} if mode == "nlp" else {"index", "value"}
-            if mode == "python" and isinstance(field, dict) and "inputProfile" in field:
-                expected_keys.add("inputProfile")
-                if field["inputProfile"] not in ("code", "model_tool"):
-                    raise ValueError("scope")
-            if not isinstance(field, dict) or set(field) != expected_keys or type(field["index"]) is not int or field["index"] < 0 or field["index"] in seen or not isinstance(field["value"], str):
-                raise ValueError("field")
-            if mode == "nlp" and field["namedEntities"] not in ("metadata", "program", "prose", "data", "template", "json"):
-                raise ValueError("scope")
-            seen.add(field["index"])
-        result = run(mode, fields)
+        if mode == "batch":
+            if not isinstance(data, dict) or set(data) != {"nlp", "python"}:
+                raise ValueError("batch")
+            validate_fields("nlp", data["nlp"])
+            validate_fields("python", data["python"])
+            result = {"modes": [run("nlp", data["nlp"]), run("python", data["python"])]}
+        else:
+            if not isinstance(data, dict) or "fields" not in data:
+                raise ValueError("fields")
+            validate_fields(mode, data["fields"])
+            result = run(mode, data["fields"])
     except Exception:
-        result = {"mode": mode or "python", "status": "error", "findings": [], "diagnostics": [{"fieldIndex": None, "code": "native_invalid_input"}], "versions": dict(VERSIONS)}
+        if mode == "batch":
+            result = {
+                "modes": [
+                    {"mode": item, "status": "error", "findings": [], "diagnostics": [{"fieldIndex": None, "code": "native_invalid_input"}], "versions": dict(VERSIONS)}
+                    for item in ("nlp", "python")
+                ]
+            }
+        else:
+            result = {"mode": mode or "python", "status": "error", "findings": [], "diagnostics": [{"fieldIndex": None, "code": "native_invalid_input"}], "versions": dict(VERSIONS)}
     sys.stdout.write(json.dumps(result, separators=(",", ":")))
 
 
