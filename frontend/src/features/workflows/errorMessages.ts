@@ -20,10 +20,17 @@ const MESSAGES_BY_CODE: Record<string, string> = {
     '그사이 더 새로운 버전이 등록되었습니다. 최신 버전 기준으로 다시 비교해 주세요.',
   COMPARISON_NOT_FOUND:
     '비교 결과가 없거나 만료되었습니다. 파일을 다시 비교해 주세요.',
-  WORKFLOW_NOT_FOUND: '워크플로를 찾을 수 없습니다.',
-  WORKFLOW_VERSION_NOT_FOUND: '버전을 찾을 수 없습니다.',
+  WORKFLOW_NOT_FOUND:
+    '워크플로를 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.',
+  WORKFLOW_VERSION_NOT_FOUND:
+    '버전을 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.',
   STORAGE_UNAVAILABLE:
     '파일 저장소에 일시적인 문제가 있습니다. 잠시 후 다시 시도해 주세요.',
+  VERSION_DOWNLOAD_DISABLED:
+    '이 버전은 다운로드가 중지되어 있습니다. 다운로드를 다시 허용하면 내려받을 수 있습니다.',
+  RESTORE_UNAVAILABLE:
+    '복구할 수 없습니다. 복구 기한이 지났거나 원본 파일이 이미 정리되었습니다.',
+  NOT_DELETED: '삭제된 상태가 아닙니다. 이미 복구되었을 수 있습니다.',
 };
 
 function withRequestId(message: string, requestId?: string): string {

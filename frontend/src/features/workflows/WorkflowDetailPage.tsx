@@ -1,14 +1,16 @@
 import { useCallback, useState } from 'react';
-import { useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { useRequest } from '../../shared/api/useRequest';
 import { formatDateTime } from '../../shared/format';
-import { ButtonLink } from '../../shared/ui/Button';
+import { Button, ButtonLink } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
 import { Icon } from '../../shared/ui/Icon';
 import { PageHeader } from '../../shared/ui/PageHeader';
 import { ErrorState, LoadingState } from '../../shared/ui/PageStates';
+import { Tag } from '../../shared/ui/Tag';
 import { SecurityCheckPanel } from '../security/SecurityCheckPanel';
-import { getWorkflow } from './api';
+import { deleteWorkflow, getWorkflow } from './api';
+import { deletionNotice, isStaleError } from './deletion';
 import { describeWorkflowError } from './errorMessages';
 import { VersionList } from './VersionList';
 import { VersionRegisterPanel } from './VersionRegisterPanel';
@@ -35,13 +37,51 @@ function WorkflowDetail({ workflowId }: { workflowId: string }) {
     [workflowId],
   );
   const { state, retry, refresh } = useRequest(fetchWorkflow);
+  const navigate = useNavigate();
   const [notice, setNotice] = useState('');
   const [versionsKey, setVersionsKey] = useState(0);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  // One action at a time on this page: a version action in the list, a
+  // comparison or registration in the panel, or deleting the workflow.
+  const [versionBusy, setVersionBusy] = useState(false);
+  const [panelBusy, setPanelBusy] = useState(false);
+  const blocked = deleting || versionBusy || panelBusy;
+
+  function toggleDeleteConfirm(open: boolean) {
+    setDeleteError('');
+    setConfirmingDelete(open);
+  }
 
   function registered(versionLabel: string) {
     setNotice(`${versionLabel}을(를) 새 버전으로 등록했습니다.`);
     setVersionsKey((key) => key + 1);
     refresh();
+  }
+
+  /** A version was deleted, restored or its downloads changed; the latest may differ now. */
+  function versionChanged(message: string) {
+    setNotice(message);
+    refresh();
+  }
+
+  /** The workflow no longer exists for normal views, so go back to the list. */
+  function leave(message: string) {
+    void navigate('/workflows', { state: { notice: message } });
+  }
+
+  async function removeWorkflow() {
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      leave(deletionNotice(await deleteWorkflow(workflowId), null));
+    } catch (error) {
+      setDeleteError(describeWorkflowError(error));
+      setDeleting(false);
+      // Already deleted elsewhere: show the server's state instead of stale data.
+      if (isStaleError(error)) refresh();
+    }
   }
 
   if (state.status === 'loading') return <LoadingState />;
@@ -66,7 +106,50 @@ function WorkflowDetail({ workflowId }: { workflowId: string }) {
         eyebrow="워크플로"
         title={workflow.title}
         description={`등록일 ${formatDateTime(workflow.createdAt)}`}
+        actions={
+          <Button
+            variant="secondary"
+            disabled={blocked}
+            aria-expanded={confirmingDelete}
+            onClick={() => toggleDeleteConfirm(!confirmingDelete)}
+          >
+            워크플로 삭제
+          </Button>
+        }
       />
+      {confirmingDelete && (
+        <div
+          className="confirm-box page-confirm"
+          role="group"
+          aria-label="워크플로 삭제 확인"
+        >
+          <p className="confirm-warning">
+            이 워크플로와 남아 있는 모든 버전을 삭제합니다.
+          </p>
+          <p>
+            삭제하면 바로 목록·다운로드·비교에서 빠집니다. 복구 기한 안에는 내
+            워크플로의 &apos;삭제된 항목 보기&apos;에서 되살릴 수 있습니다.
+          </p>
+          <div className="confirm-actions">
+            <Button
+              size="sm"
+              disabled={blocked}
+              onClick={() => void removeWorkflow()}
+            >
+              {deleting ? '삭제하는 중…' : '워크플로 삭제'}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={deleting}
+              onClick={() => toggleDeleteConfirm(false)}
+            >
+              취소
+            </Button>
+          </div>
+          {deleteError && <p role="alert">{deleteError}</p>}
+        </div>
+      )}
       <div aria-live="polite">
         {notice && <p className="flash">{notice}</p>}
       </div>
@@ -78,14 +161,29 @@ function WorkflowDetail({ workflowId }: { workflowId: string }) {
             {latest && (
               <p className="muted">{formatDateTime(latest.createdAt)} 등록</p>
             )}
+            {latest && !latest.downloadEnabled && (
+              <Tag tone="outline" className="latest-tag">
+                다운로드 중지
+              </Tag>
+            )}
           </Card>
-          <VersionList key={versionsKey} workflowId={workflowId} />
+          <VersionList
+            workflowId={workflowId}
+            reloadSignal={versionsKey}
+            locked={deleting || panelBusy}
+            onBusyChange={setVersionBusy}
+            onChanged={versionChanged}
+            onStale={refresh}
+            onWorkflowDeleted={leave}
+          />
         </div>
         <div className="stack">
           <VersionRegisterPanel
             key={latest?.versionId ?? 'none'}
             workflowId={workflowId}
             latest={latest}
+            locked={deleting || versionBusy}
+            onBusyChange={setPanelBusy}
             onRegistered={registered}
           />
           <SecurityCheckPanel versionLabel={latest?.versionLabel} />

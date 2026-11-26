@@ -42,6 +42,17 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.row-card.is-deleted {
+  background: transparent;
+  border: 1px dashed var(--line-strong);
+  box-shadow: none;
+}
+.row-card.is-deleted:hover {
+  transform: none;
+}
+.row-card.is-deleted .row-icon {
+  background: var(--muted);
+}
 .row-arrow {
   display: grid;
   place-items: center;
@@ -91,16 +102,100 @@
 }
 .version-list li {
   display: grid;
-  grid-template-columns: 72px 1fr auto;
-  align-items: center;
-  gap: 12px;
+  gap: 8px;
   padding: 10px 12px 10px 16px;
   border-radius: var(--r-md);
   background: rgba(255, 255, 255, 0.7);
   border: 1px solid var(--glass-border);
 }
+.version-row {
+  display: grid;
+  grid-template-columns: 72px 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
 .version-label {
   font-weight: 700;
+}
+.version-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.version-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.version-note {
+  margin: 0;
+  font-size: 0.85rem;
+}
+/* Deleted items stay visible only to be restored; they read as set aside. */
+.version-list li.is-deleted {
+  background: transparent;
+  border: 1px dashed var(--line-strong);
+}
+.version-list li.is-deleted .version-label {
+  color: var(--muted);
+}
+.latest-card .latest-tag {
+  justify-self: start;
+  margin-top: 6px;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* ---------- Delete confirmation and toggles ---------- */
+.card-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 8px;
+}
+.card .card-heading h2 {
+  margin: 0;
+}
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.list-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 12px;
+}
+.confirm-box {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--line-strong);
+}
+.confirm-box p {
+  margin: 0;
+}
+.confirm-warning {
+  color: var(--danger);
+  font-weight: 600;
+}
+.confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.page-confirm {
+  margin: 0 0 16px;
 }
 
 /* ---------- Upload ---------- */
@@ -243,11 +338,12 @@
   }
 }
 @media (max-width: 520px) {
-  .version-list li {
-    grid-template-columns: 1fr auto;
+  .version-row {
+    grid-template-columns: auto 1fr;
   }
-  .version-list li .muted {
-    grid-column: 1;
+  .version-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
   }
 }
 

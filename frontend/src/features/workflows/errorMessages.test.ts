@@ -48,6 +48,29 @@ describe('describeWorkflowError', () => {
     ).toMatch(/한도/);
   });
 
+  it('explains stopped downloads instead of a generic permission error', () => {
+    const message = describeWorkflowError(
+      new ApiError(403, 'VERSION_DOWNLOAD_DISABLED'),
+    );
+    expect(message).toMatch(/다운로드가 중지/);
+    expect(message).not.toMatch(/권한/);
+  });
+
+  it('explains why a delete or restore was refused', () => {
+    expect(
+      describeWorkflowError(new ApiError(409, 'RESTORE_UNAVAILABLE')),
+    ).toMatch(/복구할 수 없습니다/);
+    expect(describeWorkflowError(new ApiError(409, 'NOT_DELETED'))).toMatch(
+      /이미 복구/,
+    );
+    expect(
+      describeWorkflowError(new ApiError(404, 'WORKFLOW_VERSION_NOT_FOUND')),
+    ).toMatch(/이미 삭제/);
+    expect(
+      describeWorkflowError(new ApiError(503, 'STORAGE_UNAVAILABLE')),
+    ).toMatch(/다시 시도/);
+  });
+
   it('never throws for unexpected values', () => {
     expect(describeWorkflowError('boom')).toMatch(/알 수 없는/);
     expect(describeWorkflowError(null)).toMatch(/알 수 없는/);

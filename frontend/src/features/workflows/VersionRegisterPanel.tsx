@@ -59,10 +59,15 @@ const SUMMARY_ITEMS: { key: keyof Comparison['summary']; label: string }[] = [
 export function VersionRegisterPanel({
   workflowId,
   latest,
+  locked,
+  onBusyChange,
   onRegistered,
 }: {
   workflowId: string;
   latest: VersionMetadata | null;
+  /** Set while another part of the page runs an action, e.g. deleting a version. */
+  locked: boolean;
+  onBusyChange: (busy: boolean) => void;
   onRegistered: (versionLabel: string) => void;
 }) {
   const [file, setFile] = useState<File | null>(null);
@@ -70,7 +75,7 @@ export function VersionRegisterPanel({
   const [baseVersionId, setBaseVersionId] = useState(latest?.versionId ?? '');
   const [comparison, setComparison] = useState<Comparison | null>(null);
   const [updateType, setUpdateType] = useState<UpdateType>('MINOR');
-  const [busy, setBusy] = useState<'compare' | 'register' | null>(null);
+  const [busy, setBusyState] = useState<'compare' | 'register' | null>(null);
   const [error, setError] = useState<PanelError | null>(null);
   // One key per (comparison, update type), kept for the whole comparison: retrying
   // the same registration must not create a duplicate version, even after trying
@@ -82,6 +87,11 @@ export function VersionRegisterPanel({
   // The newest version is unknown after a conflict without version info, so the
   // default compare is blocked until the page is reloaded.
   const [baseStale, setBaseStale] = useState(false);
+
+  function setBusy(next: 'compare' | 'register' | null) {
+    setBusyState(next);
+    onBusyChange(next !== null);
+  }
 
   function keyFor(comparisonId: string, type: UpdateType): string {
     if (registration.current?.comparisonId !== comparisonId) {
@@ -168,7 +178,7 @@ export function VersionRegisterPanel({
   }
 
   const rows = comparison ? describeChanges(comparison) : [];
-  const idle = busy === null;
+  const idle = busy === null && !locked;
   const conflictLatest =
     error?.kind === 'latest-changed' ? error.latest : undefined;
 
