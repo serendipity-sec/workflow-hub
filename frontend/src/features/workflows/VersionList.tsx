@@ -279,8 +279,10 @@ function VersionRows({
     );
   // Forget the refusal as soon as the reload settles without supporting the
   // question, so an old refusal cannot come back on a later reload or retry.
+  // Never while its confirmed delete is running: the outcome decides then.
   const dropRefusal =
     lastVersion !== null &&
+    !working(lastVersion, 'delete') &&
     (state.status === 'error' || (state.status === 'ready' && !askAgain));
   useEffect(() => {
     if (dropRefusal) onLastVersionStale();
@@ -307,7 +309,8 @@ function VersionRows({
             <LastVersionPrompt
               versionLabel={lastVersion.versionLabel}
               deleting={working(lastVersion, 'delete')}
-              disabled={!idle}
+              // Not while more versions load: they could change the answer.
+              disabled={!idle || state.loadingMore}
               onConfirm={() => actions.remove(lastVersion, true)}
               onCancel={onLastVersionCancel}
             />
