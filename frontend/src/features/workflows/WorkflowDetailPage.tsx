@@ -167,6 +167,9 @@ function WorkflowDetail({ workflowId }: { workflowId: string }) {
             )}
             {latest && (
               <FileIdentity
+                // A new latest version gets a fresh copy state, so "copied"
+                // never names a version whose hash is not on the clipboard.
+                key={latest.versionId}
                 name={`최신 버전 ${latest.versionLabel}`}
                 sha256={latest.sha256}
                 sizeBytes={latest.sizeBytes}
