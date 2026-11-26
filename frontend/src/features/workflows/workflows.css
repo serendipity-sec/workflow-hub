@@ -355,3 +355,47 @@
     transform: none;
   }
 }
+
+/* ---------- File identity (hash and size) ---------- */
+.file-identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 0.82rem;
+  min-width: 0;
+}
+.file-identity code {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+.file-identity-copy {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.file-identity-copy:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.latest-card .file-identity {
+  margin-top: 6px;
+}
+.file-identity-full {
+  user-select: all;
+}
+/* Read by screen readers only; the button label shows the same state. */
+.file-identity-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

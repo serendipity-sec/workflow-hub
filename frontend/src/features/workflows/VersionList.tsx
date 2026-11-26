@@ -27,6 +27,7 @@ import {
 } from './deletion';
 import type { LastVersionRisk } from './deletion';
 import { describeWorkflowError } from './errorMessages';
+import { FileIdentity } from './FileIdentity';
 import type { VersionMetadata } from './types';
 import './workflows.css';
 
@@ -164,8 +165,9 @@ export function VersionList({
         </label>
       </div>
       <p className="muted">
-        각 버전은 등록 당시의 원본 그대로 내려받을 수 있습니다. 삭제한 버전은
-        복구 기한까지 되살릴 수 있습니다.
+        각 버전은 등록 당시의 원본 그대로 내려받을 수 있습니다. 내려받은 파일의
+        SHA-256을 아래 값과 비교하면 같은 파일인지 확인할 수 있습니다. 삭제한
+        버전은 복구 기한까지 되살릴 수 있습니다.
       </p>
       <VersionRows
         key={`${includeDeleted}-${reloadKey}-${reloadSignal}`}
@@ -304,6 +306,11 @@ function VersionRows({
                       )}
                     </span>
                   </div>
+                  <FileIdentity
+                    name={version.versionLabel}
+                    sha256={version.sha256}
+                    sizeBytes={version.sizeBytes}
+                  />
                   {deleted && version.restoreUntil && (
                     <p className="muted version-note">
                       {restoreDeadline(version.restoreUntil)}
