@@ -13,6 +13,7 @@ import { deleteWorkflow, getWorkflow } from './api';
 import { deletionNotice, isStaleError } from './deletion';
 import { describeWorkflowError } from './errorMessages';
 import { FileIdentity } from './FileIdentity';
+import { noticeOnPanelBusy } from './pageNotice';
 import { VersionList } from './VersionList';
 import { VersionRegisterPanel } from './VersionRegisterPanel';
 import './workflows.css';
@@ -201,8 +202,7 @@ function WorkflowDetail({ workflowId }: { workflowId: string }) {
             locked={deleting || versionBusy || panelBusy}
             onBusyChange={(busy) => {
               setPanelBusy(busy);
-              // A new comparison or registration makes the previous notice stale.
-              if (busy) setNotice('');
+              setNotice((current) => noticeOnPanelBusy(current, busy));
             }}
             onRegistered={registered}
           />
