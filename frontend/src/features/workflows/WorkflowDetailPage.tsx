@@ -182,7 +182,9 @@ function WorkflowDetail({ workflowId }: { workflowId: string }) {
             key={latest?.versionId ?? 'none'}
             workflowId={workflowId}
             latest={latest}
-            locked={deleting || versionBusy}
+            // panelBusy too: a refresh can swap in a new panel while the old
+            // one's request is still running, and the new panel must wait for it.
+            locked={deleting || versionBusy || panelBusy}
             onBusyChange={setPanelBusy}
             onRegistered={registered}
           />
