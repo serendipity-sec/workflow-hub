@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { ApiError } from '../../shared/api/client';
 import { formatDateTime } from '../../shared/format';
 import {
+  deleteConfirmation,
   deletionNotice,
   isDeleted,
+  isLastVersionRemaining,
   isStaleError,
+  LAST_VERSION_PROMPT,
   lastVersionRisk,
   noticeFrom,
   restoreDeadline,
@@ -78,6 +81,64 @@ describe('lastVersionRisk', () => {
     expect(lastVersionRisk(v1, [version('v2')], false, false)).toBe('not-last');
     expect(lastVersionRisk(v1, [version('v1', true)], false, true)).toBe(
       'last',
+    );
+  });
+});
+
+describe('deleteConfirmation', () => {
+  it('lets the workflow go only when the confirmation warned about it', () => {
+    expect(deleteConfirmation('last', false)).toEqual({
+      askAboutWorkflow: false,
+      allowWorkflowDelete: true,
+    });
+    expect(deleteConfirmation('maybe-last', false).allowWorkflowDelete).toBe(
+      true,
+    );
+  });
+
+  it('keeps the workflow for a plain version delete', () => {
+    expect(deleteConfirmation('not-last', false)).toEqual({
+      askAboutWorkflow: false,
+      allowWorkflowDelete: false,
+    });
+  });
+
+  it('asks about the whole workflow after the server refused a version-only delete', () => {
+    expect(deleteConfirmation('last', true)).toEqual({
+      askAboutWorkflow: true,
+      allowWorkflowDelete: true,
+    });
+  });
+
+  it('goes back to a version-only delete once another version is alive again', () => {
+    // e.g. a new version was registered after the refusal.
+    expect(deleteConfirmation('not-last', true)).toEqual({
+      askAboutWorkflow: false,
+      allowWorkflowDelete: false,
+    });
+  });
+});
+
+describe('isLastVersionRemaining', () => {
+  it('recognizes the refusal of a version-only delete', () => {
+    expect(
+      isLastVersionRemaining(new ApiError(409, 'LAST_VERSION_REMAINING')),
+    ).toBe(true);
+  });
+
+  it('ignores other conflicts and failures', () => {
+    expect(isLastVersionRemaining(new ApiError(409, 'NOT_DELETED'))).toBe(
+      false,
+    );
+    expect(isLastVersionRemaining(new ApiError(409))).toBe(false);
+    expect(isLastVersionRemaining(new TypeError('Failed to fetch'))).toBe(
+      false,
+    );
+  });
+
+  it('asks again about the whole workflow', () => {
+    expect(LAST_VERSION_PROMPT).toBe(
+      '마지막 버전이 되었습니다. 워크플로 전체를 삭제할까요?',
     );
   });
 });

@@ -69,6 +69,9 @@ describe('describeWorkflowError', () => {
     expect(
       describeWorkflowError(new ApiError(503, 'STORAGE_UNAVAILABLE')),
     ).toMatch(/다시 시도/);
+    expect(
+      describeWorkflowError(new ApiError(409, 'LAST_VERSION_REMAINING')),
+    ).toMatch(/아무것도 삭제하지 않았습니다/);
   });
 
   it('never throws for unexpected values', () => {

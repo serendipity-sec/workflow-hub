@@ -1,5 +1,6 @@
 package dev.workflowhub.common.api;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -200,6 +201,21 @@ class ApiDocsTests {
             .andExpect(jsonPath(include + ".required").value(false))
             .andExpect(jsonPath(include + ".schema.default").value(false));
       }
+    }
+
+    @Test
+    void documentsTheOptionThatRefusesDeletingTheLastVersion() throws Exception {
+      String allow = DELETE_VERSION + ".parameters[?(@.name=='allowWorkflowDelete')]";
+      mvc.perform(get("/v3/api-docs"))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath(allow + ".in").value("query"))
+          .andExpect(jsonPath(allow + ".required").value(false))
+          .andExpect(jsonPath(allow + ".schema.type").value("boolean"))
+          .andExpect(jsonPath(allow + ".schema.default").value(true))
+          .andExpect(jsonPath(DELETE_VERSION + ".responses['400']").exists())
+          .andExpect(
+              jsonPath(DELETE_VERSION + ".responses['409'].description")
+                  .value(containsString("LAST_VERSION_REMAINING")));
     }
 
     @Test

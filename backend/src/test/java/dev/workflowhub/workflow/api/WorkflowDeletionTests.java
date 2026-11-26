@@ -205,6 +205,120 @@ class WorkflowDeletionTests {
   }
 
   @Test
+  void anExplicitlyAllowedDeleteOfTheLastVersionStillDeletesTheWholeWorkflow() throws Exception {
+    Workflow w = workflow("v1");
+
+    mvc.perform(
+            delete(VERSION, w.id(), w.version("v1"))
+                .param("allowWorkflowDelete", "true")
+                .with(user(OWNER)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.workflowDeleted").value(true));
+
+    mvc.perform(get(WORKFLOW, w.id()).with(user(OWNER))).andExpect(status().isNotFound());
+  }
+
+  @Test
+  void aDeleteThatMustKeepTheWorkflowIsRefusedForTheLastVersionAndChangesNothing()
+      throws Exception {
+    Workflow w = workflow("v1");
+    List<String> objects = versionObjects();
+
+    mvc.perform(
+            delete(VERSION, w.id(), w.version("v1"))
+                .param("allowWorkflowDelete", "false")
+                .with(user(OWNER)))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("LAST_VERSION_REMAINING"));
+
+    assertThat(deletedCount(w.id())).isZero();
+    assertThat(workflowIsDeleted(w.id())).isFalse();
+    assertThat(versionRow(w.version("v1")).get("delete_after")).isNull();
+    assertThat(versionObjects()).isEqualTo(objects);
+    mvc.perform(get(WORKFLOW, w.id()).with(user(OWNER))).andExpect(status().isOk());
+    mvc.perform(get(VERSIONS, w.id()).with(user(OWNER)))
+        .andExpect(jsonPath("$.data.items", hasSize(1)));
+  }
+
+  @Test
+  void aDeleteThatMustKeepTheWorkflowIsRefusedWhenAnotherTabDeletedTheOtherVersionsFirst()
+      throws Exception {
+    Workflow w = workflow("v1", "v1.1");
+    // 화면은 v1을 "버전만 삭제"로 확인했지만, 그사이 다른 탭이 v1.1을 지웠다.
+    mvc.perform(delete(VERSION, w.id(), w.version("v1.1")).with(user(OWNER)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.workflowDeleted").value(false));
+
+    mvc.perform(
+            delete(VERSION, w.id(), w.version("v1"))
+                .param("allowWorkflowDelete", "false")
+                .with(user(OWNER)))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("LAST_VERSION_REMAINING"));
+
+    assertThat(deletedCount(w.id())).isEqualTo(1);
+    assertThat(workflowIsDeleted(w.id())).isFalse();
+    mvc.perform(get(WORKFLOW, w.id()).with(user(OWNER)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.latestVersion.versionId").value(w.version("v1").toString()));
+
+    // 사용자가 워크플로 전체 삭제를 다시 확인하면 조건 없이 삭제할 수 있다.
+    mvc.perform(delete(WORKFLOW, w.id()).with(user(OWNER)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.workflowDeleted").value(true));
+  }
+
+  @Test
+  void aDeleteThatMustKeepTheWorkflowDeletesOnlyTheVersionWhileOthersRemain() throws Exception {
+    Workflow w = workflow("v1", "v1.1");
+
+    mvc.perform(
+            delete(VERSION, w.id(), w.version("v1.1"))
+                .param("allowWorkflowDelete", "false")
+                .with(user(OWNER)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.workflowDeleted").value(false))
+        .andExpect(jsonPath("$.data.versionId").value(w.version("v1.1").toString()));
+
+    assertThat(deletedCount(w.id())).isEqualTo(1);
+    assertThat(workflowIsDeleted(w.id())).isFalse();
+  }
+
+  @Test
+  void aDeleteThatMustKeepTheWorkflowAnswersNotFoundForOtherUsersBeforeTheLastVersionCheck()
+      throws Exception {
+    Workflow w = workflow("v1");
+
+    // 남의 워크플로가 마지막 버전인지 409로 드러나지 않아야 한다.
+    mvc.perform(
+            delete(VERSION, w.id(), w.version("v1"))
+                .param("allowWorkflowDelete", "false")
+                .with(user(OTHER_USER)))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value("WORKFLOW_VERSION_NOT_FOUND"));
+
+    assertThat(deletedCount(w.id())).isZero();
+    assertThat(workflowIsDeleted(w.id())).isFalse();
+  }
+
+  // 빈 값과 1·yes는 Spring이 참으로 바꾸지만, 더 많이 지우는 기본값으로 처리되지 않게 거절한다.
+  @ParameterizedTest
+  @ValueSource(strings = {"", "maybe", "2", "1", "yes", "TRUE"})
+  void rejectsAnAllowWorkflowDeleteThatIsNotABooleanWithoutDeleting(String value) throws Exception {
+    Workflow w = workflow("v1");
+
+    mvc.perform(
+            delete(VERSION, w.id(), w.version("v1"))
+                .param("allowWorkflowDelete", value)
+                .with(user(OWNER)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+
+    assertThat(deletedCount(w.id())).isZero();
+    assertThat(workflowIsDeleted(w.id())).isFalse();
+  }
+
+  @Test
   void deletingAWorkflowKeepsTheEarlierDeadlineOfAnAlreadyDeletedVersion() throws Exception {
     Workflow w = workflow("v1", "v1.1", "v1.2");
     mvc.perform(delete(VERSION, w.id(), w.version("v1.2")).with(user(OWNER)))
@@ -310,6 +424,40 @@ class WorkflowDeletionTests {
       pool.shutdownNow();
     }
     mvc.perform(get(WORKFLOW, w.id()).with(user(OWNER))).andExpect(status().isNotFound());
+  }
+
+  @Test
+  void twoConcurrentDeletesThatMustKeepTheWorkflowLeaveOneVersionAndTheWorkflowAlive()
+      throws Exception {
+    Workflow w = workflow("v1", "v1.1");
+    List<Callable<Integer>> calls = new ArrayList<>();
+    for (String label : List.of("v1", "v1.1")) {
+      calls.add(
+          () ->
+              mvc.perform(
+                      delete(VERSION, w.id(), w.version(label))
+                          .param("allowWorkflowDelete", "false")
+                          .with(user(OWNER)))
+                  .andReturn()
+                  .getResponse()
+                  .getStatus());
+    }
+    ExecutorService pool = Executors.newFixedThreadPool(2);
+    try {
+      List<Integer> statuses = new ArrayList<>();
+      // 제한 시간 안에 끝나지 않은 작업은 취소되고, 그 결과를 읽을 때 CancellationException으로 테스트가 실패한다.
+      for (Future<Integer> future : pool.invokeAll(calls, 30, TimeUnit.SECONDS)) {
+        statuses.add(future.get());
+      }
+      // 워크플로 행 잠금으로 순서가 정해져, 먼저 들어간 요청만 버전을 지우고 나중 요청은 마지막 버전이라 거절된다.
+      assertThat(statuses).containsExactlyInAnyOrder(200, 409);
+    } finally {
+      pool.shutdownNow();
+    }
+    assertThat(deletedCount(w.id())).isEqualTo(1);
+    assertThat(workflowIsDeleted(w.id())).isFalse();
+    mvc.perform(get(VERSIONS, w.id()).with(user(OWNER)))
+        .andExpect(jsonPath("$.data.items", hasSize(1)));
   }
 
   // ---- 삭제 목록 ----
@@ -927,6 +1075,13 @@ class WorkflowDeletionTests {
             "SELECT count(*) FROM workflow_hub.workflow_versions WHERE workflow_id = :id AND deleted_at IS NOT NULL")
         .param("id", workflowId)
         .query(Long.class)
+        .single();
+  }
+
+  private boolean workflowIsDeleted(UUID workflowId) {
+    return jdbc.sql("SELECT deleted_at IS NOT NULL FROM workflow_hub.workflows WHERE id = :id")
+        .param("id", workflowId)
+        .query(Boolean.class)
         .single();
   }
 

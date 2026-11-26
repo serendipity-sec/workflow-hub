@@ -123,14 +123,38 @@ describe('delete and restore', () => {
       ),
     );
 
-    await deleteVersion('w', 'v 1');
+    await deleteVersion('w', 'v 1', { allowWorkflowDelete: true });
     const result = await deleteWorkflow('w');
 
     expect(authenticatedFetch.mock.calls).toEqual([
-      ['/api/workflows/w/versions/v%201', { method: 'DELETE' }],
+      [
+        '/api/workflows/w/versions/v%201?allowWorkflowDelete=true',
+        { method: 'DELETE' },
+      ],
       ['/api/workflows/w', { method: 'DELETE' }],
     ]);
     expect(result.restoreUntil).toBe('2026-11-29T04:15:30Z');
+  });
+
+  it('asks the server to keep the workflow for a version-only delete', async () => {
+    authenticatedFetch.mockImplementation(() =>
+      Promise.resolve(
+        ok({
+          workflowId: 'w',
+          versionId: 'v',
+          workflowDeleted: false,
+          deletedAt: '2026-11-22T04:15:30Z',
+          restoreUntil: '2026-11-29T04:15:30Z',
+        }),
+      ),
+    );
+
+    await deleteVersion('w', 'v', { allowWorkflowDelete: false });
+
+    expect(authenticatedFetch).toHaveBeenCalledWith(
+      '/api/workflows/w/versions/v?allowWorkflowDelete=false',
+      { method: 'DELETE' },
+    );
   });
 
   it('posts to the restore paths without a body', async () => {

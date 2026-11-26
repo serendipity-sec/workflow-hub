@@ -73,13 +73,22 @@ export async function setDownloadAvailability(
   return readData(response);
 }
 
-/** Deleting the only remaining version deletes the whole workflow (`workflowDeleted`). */
+/**
+ * Deleting the only remaining version deletes the whole workflow
+ * (`workflowDeleted`). With `allowWorkflowDelete: false` the server refuses that
+ * case with 409 `LAST_VERSION_REMAINING` and changes nothing, so a delete the
+ * user confirmed for one version never removes the workflow.
+ */
 export async function deleteVersion(
   workflowId: string,
   versionId: string,
+  options: { allowWorkflowDelete: boolean },
 ): Promise<DeletionResult> {
+  const query = new URLSearchParams({
+    allowWorkflowDelete: String(options.allowWorkflowDelete),
+  });
   const response = await authenticatedFetch(
-    versionPath(workflowId, versionId),
+    `${versionPath(workflowId, versionId)}?${query.toString()}`,
     { method: 'DELETE' },
   );
   return readData(response);
