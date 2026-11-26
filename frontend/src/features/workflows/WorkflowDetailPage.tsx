@@ -199,7 +199,11 @@ function WorkflowDetail({ workflowId }: { workflowId: string }) {
             // panelBusy too: a refresh can swap in a new panel while the old
             // one's request is still running, and the new panel must wait for it.
             locked={deleting || versionBusy || panelBusy}
-            onBusyChange={setPanelBusy}
+            onBusyChange={(busy) => {
+              setPanelBusy(busy);
+              // A new comparison or registration makes the previous notice stale.
+              if (busy) setNotice('');
+            }}
             onRegistered={registered}
           />
           <SecurityCheckPanel versionLabel={latest?.versionLabel} />

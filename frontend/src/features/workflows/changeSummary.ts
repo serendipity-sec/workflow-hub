@@ -43,8 +43,20 @@ function describeTarget(change: Change, comparison: Comparison): string {
   return `${nodeName(graph, connection.sourceId)} → ${nodeName(graph, connection.targetId)}`;
 }
 
+/**
+ * Field paths are JSON Pointers (RFC 6901). Shows them without the leading "/"
+ * and with escapes undone: "~1" is "/", then "~0" is "~".
+ */
+export function displayPath(pointer: string): string {
+  return pointer
+    .replace(/^\//, '')
+    .split('/')
+    .map((segment) => segment.replace(/~1/g, '/').replace(/~0/g, '~'))
+    .join('/');
+}
+
 function describeField(field: FieldChange): string {
-  const path = field.path.replace(/^\//, '');
+  const path = displayPath(field.path);
   if (field.before === undefined && field.after === undefined) {
     return `${path} (값은 표시하지 않음)`;
   }
