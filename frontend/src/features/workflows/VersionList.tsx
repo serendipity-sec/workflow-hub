@@ -18,9 +18,12 @@ import {
   setDownloadAvailability,
 } from './api';
 import {
+  deleteConfirmation,
   deletionNotice,
   isDeleted,
+  isLastVersionRemaining,
   isStaleError,
+  LAST_VERSION_PROMPT,
   lastVersionRisk,
   restoreDeadline,
   restoreNotice,
@@ -28,7 +31,7 @@ import {
 import type { LastVersionRisk } from './deletion';
 import { describeWorkflowError } from './errorMessages';
 import { FileIdentity } from './FileIdentity';
-import type { VersionMetadata } from './types';
+import type { DeletionResult, VersionMetadata } from './types';
 import './workflows.css';
 
 type Action = 'download' | 'availability' | 'delete' | 'restore';
@@ -37,7 +40,8 @@ type Busy = { versionId: string; action: Action };
 type Actions = {
   download: (version: VersionMetadata) => void;
   toggleDownload: (version: VersionMetadata) => void;
-  remove: (version: VersionMetadata) => void;
+  /** `allowWorkflowDelete` is true only when the user confirmed that outcome. */
+  remove: (version: VersionMetadata, allowWorkflowDelete: boolean) => void;
   restore: (version: VersionMetadata) => void;
 };
 
@@ -76,6 +80,8 @@ export function VersionList({
   // Kept here, not in the rows, so a reload or toggle cannot drop the lock.
   const [busy, setBusy] = useState<Busy | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  // The version the server reported as the last one after a version-only delete.
+  const [lastVersionId, setLastVersionId] = useState<string | null>(null);
   const [actionError, setActionError] = useState('');
 
   function updateBusy(next: Busy | null) {
@@ -83,8 +89,13 @@ export function VersionList({
     onBusyChange(next !== null);
   }
 
-  function reload() {
+  function closeConfirm() {
     setConfirmingId(null);
+    setLastVersionId(null);
+  }
+
+  function reload() {
+    closeConfirm();
     setReloadKey((key) => key + 1);
   }
 
@@ -126,9 +137,24 @@ export function VersionList({
             : `${version.versionLabel}의 다운로드를 중지했습니다. 조회와 비교에는 계속 쓸 수 있습니다.`,
         );
       }),
-    remove: (version) =>
+    remove: (version, allowWorkflowDelete) =>
       void run(version, 'delete', async () => {
-        const result = await deleteVersion(workflowId, version.versionId);
+        let result: DeletionResult;
+        try {
+          result = await deleteVersion(workflowId, version.versionId, {
+            allowWorkflowDelete,
+          });
+        } catch (error) {
+          if (!isLastVersionRemaining(error)) throw error;
+          // Nothing was deleted: the other versions went away elsewhere. Reload
+          // the list and keep this confirmation open to ask about the workflow.
+          setReloadKey((key) => key + 1);
+          setConfirmingId(version.versionId);
+          setLastVersionId(version.versionId);
+          setActionError(describeWorkflowError(error));
+          await onStale();
+          return;
+        }
         const notice = deletionNotice(result, version.versionLabel);
         if (result.workflowDeleted) {
           onWorkflowDeleted(notice);
@@ -157,7 +183,7 @@ export function VersionList({
             checked={includeDeleted}
             disabled={!idle}
             onChange={(event) => {
-              setConfirmingId(null);
+              closeConfirm();
               setIncludeDeleted(event.target.checked);
             }}
           />
@@ -176,11 +202,13 @@ export function VersionList({
         busy={busy}
         idle={idle}
         confirmingId={confirmingId}
-        onConfirmToggle={(versionId) =>
+        lastVersionId={lastVersionId}
+        onConfirmToggle={(versionId) => {
+          setLastVersionId(null);
           setConfirmingId((current) =>
             current === versionId ? null : versionId,
-          )
-        }
+          );
+        }}
         actions={actions}
       />
       {actionError && <p role="alert">{actionError}</p>}
@@ -194,6 +222,7 @@ function VersionRows({
   busy,
   idle,
   confirmingId,
+  lastVersionId,
   onConfirmToggle,
   actions,
 }: {
@@ -202,6 +231,7 @@ function VersionRows({
   busy: Busy | null;
   idle: boolean;
   confirmingId: string | null;
+  lastVersionId: string | null;
   onConfirmToggle: (versionId: string) => void;
   actions: Actions;
 }) {
@@ -325,9 +355,12 @@ function VersionRows({
                         state.nextCursor !== null,
                         includeDeleted,
                       )}
+                      serverSaysLast={lastVersionId === version.versionId}
                       deleting={working(version, 'delete')}
                       disabled={!idle}
-                      onConfirm={() => actions.remove(version)}
+                      onConfirm={(allowWorkflowDelete) =>
+                        actions.remove(version, allowWorkflowDelete)
+                      }
                       onCancel={() => onConfirmToggle(version.versionId)}
                     />
                   )}
@@ -363,6 +396,7 @@ const RISK_WARNINGS: Record<LastVersionRisk, string> = {
 function DeleteConfirm({
   versionLabel,
   risk,
+  serverSaysLast,
   deleting,
   disabled,
   onConfirm,
@@ -370,12 +404,18 @@ function DeleteConfirm({
 }: {
   versionLabel: string;
   risk: LastVersionRisk;
+  /** The server refused a version-only delete because this became the last version. */
+  serverSaysLast: boolean;
   deleting: boolean;
   disabled: boolean;
-  onConfirm: () => void;
+  onConfirm: (allowWorkflowDelete: boolean) => void;
   onCancel: () => void;
 }) {
-  const warning = RISK_WARNINGS[risk];
+  const { askAboutWorkflow, allowWorkflowDelete } = deleteConfirmation(
+    risk,
+    serverSaysLast,
+  );
+  const warning = askAboutWorkflow ? LAST_VERSION_PROMPT : RISK_WARNINGS[risk];
   return (
     <div
       className="confirm-box"
@@ -388,8 +428,16 @@ function DeleteConfirm({
         수 있고, 같은 버전 번호는 다시 쓰지 않습니다.
       </p>
       <div className="confirm-actions">
-        <Button size="sm" disabled={disabled} onClick={onConfirm}>
-          {deleting ? '삭제하는 중…' : `${versionLabel} 삭제`}
+        <Button
+          size="sm"
+          disabled={disabled}
+          onClick={() => onConfirm(allowWorkflowDelete)}
+        >
+          {deleting
+            ? '삭제하는 중…'
+            : askAboutWorkflow
+              ? '워크플로 전체 삭제'
+              : `${versionLabel} 삭제`}
         </Button>
         <Button
           variant="ghost"

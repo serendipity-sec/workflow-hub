@@ -41,6 +41,39 @@ export function lastVersionRisk(
 }
 
 /**
+ * How to confirm a version delete.
+ * - `allowWorkflowDelete`: only a confirmation that warned about deleting the
+ *   workflow allows it; a plain "delete this version" asks the server to refuse
+ *   when the version has become the last one meanwhile.
+ * - `askAboutWorkflow`: after such a refusal (`serverSaysLast`), ask again about
+ *   the whole workflow, but only while the reloaded list still shows the version
+ *   as the last one. A version registered or restored since then makes it a
+ *   version-only delete again.
+ */
+export function deleteConfirmation(
+  risk: LastVersionRisk,
+  serverSaysLast: boolean,
+): { askAboutWorkflow: boolean; allowWorkflowDelete: boolean } {
+  const askAboutWorkflow = serverSaysLast && risk !== 'not-last';
+  return {
+    askAboutWorkflow,
+    allowWorkflowDelete: askAboutWorkflow || risk !== 'not-last',
+  };
+}
+
+/** Asked again when the server refused a version-only delete of the last version. */
+export const LAST_VERSION_PROMPT =
+  '마지막 버전이 되었습니다. 워크플로 전체를 삭제할까요?';
+
+/**
+ * True when the server refused a version-only delete because the version became
+ * the last one (e.g. the others were deleted in another tab). Nothing changed.
+ */
+export function isLastVersionRemaining(error: unknown): boolean {
+  return error instanceof ApiError && error.code === 'LAST_VERSION_REMAINING';
+}
+
+/**
  * One line for the page after a delete. `versionLabel` is the deleted version,
  * or null when the whole workflow was deleted directly.
  */

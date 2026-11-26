@@ -52,8 +52,12 @@ public class WorkflowDeletionService {
     this.grace = grace;
   }
 
-  /** 살아 있는 버전이 이 하나뿐이면 워크플로 전체를 삭제한다. */
-  public Deletion deleteVersion(String owner, String workflowId, String versionId) {
+  /**
+   * 살아 있는 버전이 이 하나뿐이면 워크플로 전체를 삭제한다. allowWorkflowDelete가 false이면 그 경우 아무것도 바꾸지 않고 거절한다(#46). 화면에서
+   * "버전만 삭제"로 확인한 뒤 다른 탭·기기에서 나머지 버전이 지워졌을 때, 사용자가 확인하지 않은 워크플로 전체 삭제를 막기 위해서다.
+   */
+  public Deletion deleteVersion(
+      String owner, String workflowId, String versionId, boolean allowWorkflowDelete) {
     UUID workflow = parseId(workflowId, WorkflowQueryException::versionNotFound);
     UUID version = parseId(versionId, WorkflowQueryException::versionNotFound);
     Deletion result =
@@ -77,6 +81,13 @@ public class WorkflowDeletionService {
                     .param("id", version)
                     .update();
                 return new Deletion(workflow, version, false, now.toInstant(), after.toInstant());
+              }
+              if (!allowWorkflowDelete) {
+                log.warn(
+                    "event=workflow.version.delete_refused workflowId={} versionId={} reason=last_version",
+                    workflow,
+                    version);
+                throw WorkflowQueryException.lastVersionRemaining();
               }
               deleteWorkflowRows(workflow, now, after);
               return new Deletion(workflow, version, true, now.toInstant(), after.toInstant());

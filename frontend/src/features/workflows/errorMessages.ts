@@ -31,6 +31,8 @@ const MESSAGES_BY_CODE: Record<string, string> = {
   RESTORE_UNAVAILABLE:
     '복구할 수 없습니다. 복구 기한이 지났거나 원본 파일이 이미 정리되었습니다.',
   NOT_DELETED: '삭제된 상태가 아닙니다. 이미 복구되었을 수 있습니다.',
+  LAST_VERSION_REMAINING:
+    '그사이 다른 버전이 삭제되어 이 버전이 마지막 버전이 되었습니다. 아무것도 삭제하지 않았습니다.',
 };
 
 function withRequestId(message: string, requestId?: string): string {

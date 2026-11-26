@@ -22,6 +22,11 @@ public class WorkflowQueryException extends RuntimeException {
         HttpStatus.BAD_REQUEST, "BAD_REQUEST", "downloadEnabled must be a boolean");
   }
 
+  public static WorkflowQueryException invalidAllowWorkflowDelete() {
+    return new WorkflowQueryException(
+        HttpStatus.BAD_REQUEST, "BAD_REQUEST", "allowWorkflowDelete must be true or false");
+  }
+
   static WorkflowQueryException invalidCursor() {
     return new WorkflowQueryException(HttpStatus.BAD_REQUEST, "INVALID_CURSOR", "Invalid cursor");
   }
@@ -49,6 +54,13 @@ public class WorkflowQueryException extends RuntimeException {
   static WorkflowQueryException notDeleted() {
     return new WorkflowQueryException(
         HttpStatus.CONFLICT, "NOT_DELETED", "The target is not deleted");
+  }
+
+  static WorkflowQueryException lastVersionRemaining() {
+    return new WorkflowQueryException(
+        HttpStatus.CONFLICT,
+        "LAST_VERSION_REMAINING",
+        "This is the last version; deleting it would delete the workflow");
   }
 
   static WorkflowQueryException restoreUnavailable() {

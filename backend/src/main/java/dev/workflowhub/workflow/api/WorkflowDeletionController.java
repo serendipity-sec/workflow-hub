@@ -5,6 +5,7 @@ import dev.workflowhub.common.api.ApiError;
 import dev.workflowhub.workflow.service.WorkflowDeletionService;
 import dev.workflowhub.workflow.service.WorkflowDeletionService.Deletion;
 import dev.workflowhub.workflow.service.WorkflowDeletionService.Restoration;
+import dev.workflowhub.workflow.service.WorkflowQueryException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -22,6 +23,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** 소유자의 버전·워크플로 삭제와 복구(#37). 삭제하면 즉시 조회·다운로드에서 제외되고, 복구 기간이 지나면 원본이 지워진다. */
@@ -68,6 +70,9 @@ public class WorkflowDeletionController {
           선택한 버전을 삭제한다. 삭제를 수락하는 즉시 조회·다운로드·비교에서 제외되고, 같은 번호는 다시 쓰지 않는다. \
           원본은 restoreUntil(기본 7일 뒤)까지 보관하며 그 안에는 복구할 수 있고, 이후 S3 원본을 지운다. \
           살아 있는 버전이 이 하나뿐이면 워크플로 전체를 삭제하고 workflowDeleted가 true다. \
+          allowWorkflowDelete=false를 보내면 그 경우 아무것도 바꾸지 않고 409 LAST_VERSION_REMAINING으로 거절한다. \
+          "버전만 삭제"로 확인한 화면은 이 값을 보내, 그사이 다른 탭·기기에서 나머지 버전이 지워졌을 때 \
+          워크플로 전체를 지우지 않고 사용자에게 다시 묻는다. \
           같은 요청을 다시 보내면 이미 삭제된 버전이므로 404다.""")
   @ApiResponses({
     @ApiResponse(
@@ -89,6 +94,10 @@ public class WorkflowDeletionController {
                             }}
                             """))),
     @ApiResponse(
+        responseCode = "400",
+        description = "allowWorkflowDelete가 true나 false가 아니다. 빈 값도 해당한다(BAD_REQUEST). 아무것도 바뀌지 않았다",
+        content = @Content(schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
         responseCode = "401",
         description = UNAUTHORIZED,
         content = @Content(schema = @Schema(implementation = ApiError.class))),
@@ -96,6 +105,19 @@ public class WorkflowDeletionController {
         responseCode = "404",
         description = VERSION_NOT_FOUND,
         content = @Content(schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "409",
+        description =
+            "allowWorkflowDelete=false인데 살아 있는 마지막 버전이다(LAST_VERSION_REMAINING). 아무것도 바뀌지 않았다",
+        content =
+            @Content(
+                schema = @Schema(implementation = ApiError.class),
+                examples =
+                    @ExampleObject(
+                        value =
+                            """
+                            {"code":"LAST_VERSION_REMAINING","message":"This is the last version; deleting it would delete the workflow","requestId":"3f1c0f5e-52a8-4d2b-9a43-6b2f6f8f0c11"}
+                            """))),
     @ApiResponse(
         responseCode = "500",
         description = SERVER_ERROR,
@@ -114,8 +136,34 @@ public class WorkflowDeletionController {
               description = "삭제할 버전 ID",
               schema = @Schema(format = "uuid"),
               example = VERSION_ID)
-          String versionId) {
-    return DeletionResponse.of(deletion.deleteVersion(jwt.getSubject(), workflowId, versionId));
+          String versionId,
+      @RequestParam(name = "allowWorkflowDelete", required = false)
+          @Parameter(
+              description =
+                  "마지막 버전일 때 워크플로 전체 삭제를 허용할지. false이면 그 경우 409로 거절한다. 생략하면 true(기존 동작). 값은 true 또는 false만 받는다",
+              schema = @Schema(type = "boolean", defaultValue = "true"))
+          String allowWorkflowDelete) {
+    return DeletionResponse.of(
+        deletion.deleteVersion(
+            jwt.getSubject(),
+            workflowId,
+            versionId,
+            parseAllowWorkflowDelete(allowWorkflowDelete)));
+  }
+
+  /**
+   * 생략하면 기존 동작(true)이다. 빈 값이나 1·yes처럼 Spring이 참으로 바꾸는 값은 거절한다. 기본값이 더 많이 지우는 쪽이라, 값을 채우지 못한 요청이
+   * 워크플로 전체 삭제로 처리되지 않게 하기 위해서다.
+   */
+  private static boolean parseAllowWorkflowDelete(String value) {
+    if (value == null) {
+      return true;
+    }
+    return switch (value) {
+      case "true" -> true;
+      case "false" -> false;
+      default -> throw WorkflowQueryException.invalidAllowWorkflowDelete();
+    };
   }
 
   @DeleteMapping(path = "/api/workflows/{workflowId}", produces = MediaType.APPLICATION_JSON_VALUE)
