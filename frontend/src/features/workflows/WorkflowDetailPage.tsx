@@ -13,6 +13,7 @@ import { deleteWorkflow, getWorkflow } from './api';
 import { deletionNotice, isStaleError } from './deletion';
 import { describeWorkflowError } from './errorMessages';
 import { FileIdentity } from './FileIdentity';
+import { noticeOnPanelBusy } from './pageNotice';
 import { VersionList } from './VersionList';
 import { VersionRegisterPanel } from './VersionRegisterPanel';
 import './workflows.css';
@@ -199,7 +200,10 @@ function WorkflowDetail({ workflowId }: { workflowId: string }) {
             // panelBusy too: a refresh can swap in a new panel while the old
             // one's request is still running, and the new panel must wait for it.
             locked={deleting || versionBusy || panelBusy}
-            onBusyChange={setPanelBusy}
+            onBusyChange={(busy) => {
+              setPanelBusy(busy);
+              setNotice((current) => noticeOnPanelBusy(current, busy));
+            }}
             onRegistered={registered}
           />
           <SecurityCheckPanel versionLabel={latest?.versionLabel} />

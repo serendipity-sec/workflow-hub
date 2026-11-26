@@ -280,8 +280,9 @@ export function VersionRegisterPanel({
                   <span className="change-kind">{row.kindLabel}</span>
                   <div>
                     <strong>{row.target}</strong>
-                    {row.fields.map((field) => (
-                      <p key={field} className="muted">
+                    {row.fields.map((field, index) => (
+                      // Two fields can read the same, so the text alone is not a key.
+                      <p key={`${index}-${field}`} className="muted">
                         {field}
                       </p>
                     ))}

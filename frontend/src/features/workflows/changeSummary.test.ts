@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { describeChanges, hasChanges } from './changeSummary';
+import { describeChanges, displayPath, hasChanges } from './changeSummary';
 import type { Comparison } from './types';
 
 const comparison: Comparison = {
@@ -91,5 +91,18 @@ describe('hasChanges', () => {
   it('is false when the server reports no changes', () => {
     expect(hasChanges({ ...comparison, changes: [] })).toBe(false);
     expect(hasChanges(comparison)).toBe(true);
+  });
+});
+
+describe('displayPath', () => {
+  it('drops the leading slash', () => {
+    expect(displayPath('/parameters/url')).toBe('parameters/url');
+  });
+
+  it('undoes JSON Pointer escapes in each segment', () => {
+    expect(displayPath('/parameters/a~1b')).toBe('parameters/a/b');
+    expect(displayPath('/parameters/a~0b')).toBe('parameters/a~b');
+    // "~01" is an escaped "~" followed by "1", not a slash.
+    expect(displayPath('/parameters/~01')).toBe('parameters/~1');
   });
 });
