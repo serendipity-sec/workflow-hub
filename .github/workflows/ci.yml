@@ -37,7 +37,6 @@ jobs:
               - '.github/workflows/ci.yml'
             worker:
               - 'worker/**'
-              - 'contracts/**'
               - '.github/workflows/ci.yml'
   repository:
     runs-on: ubuntu-latest

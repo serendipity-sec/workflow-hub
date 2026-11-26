@@ -1,0 +1,315 @@
+/* Home screen only. Tokens live in app/styles.css, parts in shared/ui. */
+
+.home {
+  display: grid;
+  gap: clamp(24px, 4vw, 40px);
+}
+
+/* ---------- Heading ---------- */
+.home-head h1 {
+  margin: 0 0 16px;
+  font-size: clamp(2.8rem, 8vw, 5.4rem);
+  font-weight: 700;
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+}
+.home-head h1 span {
+  display: block;
+}
+.eyebrow {
+  margin: 0 0 14px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+}
+.home-lead {
+  max-width: 36em;
+  margin: 0;
+  font-size: clamp(0.98rem, 1.5vw, 1.08rem);
+  color: var(--ink-2);
+}
+
+/* ---------- Card grid ---------- */
+.bento {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-areas:
+    'flow flow stat version'
+    'notes notes start start';
+  gap: 16px;
+}
+.bento-flow {
+  grid-area: flow;
+}
+.bento-stat {
+  grid-area: stat;
+}
+.bento-version {
+  grid-area: version;
+}
+.bento-notes {
+  grid-area: notes;
+}
+.bento-start {
+  grid-area: start;
+}
+.bento .card h2 {
+  margin-bottom: 14px;
+  font-size: 1.05rem;
+}
+
+/* Service flow: staggered pills, like a small timeline. */
+.flow {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+.flow-item {
+  margin-left: calc(var(--i) * 22px);
+}
+.flow-item p {
+  margin: 6px 0 0 6px;
+  font-size: 0.88rem;
+}
+.flow-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 8px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1.5px dashed var(--line-strong);
+  color: var(--ink-2);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+.flow-pill.is-on {
+  border: 1.5px solid var(--ink);
+  background: var(--ink);
+  color: #fff;
+}
+.flow-num {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(20, 20, 24, 0.08);
+  font-size: 0.8rem;
+}
+.flow-pill.is-on .flow-num {
+  background: #fff;
+  color: var(--ink);
+}
+.flow-state {
+  margin-right: 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+/* Stat card */
+.bento-stat {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+}
+.bento-stat p {
+  margin: 0;
+}
+.stat-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.stat-value {
+  font-size: 3.4rem;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  line-height: 1.1;
+}
+.stat-value span {
+  font-size: 1.6rem;
+  color: var(--muted);
+}
+.stat-bar {
+  height: 8px;
+  margin: 8px 0 10px;
+  border-radius: var(--r-pill);
+  background: rgba(20, 20, 24, 0.1);
+  overflow: hidden;
+}
+.stat-bar span {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+}
+
+/* Version illustration (dark card) */
+.timeline {
+  padding: 24px;
+}
+.timeline-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.timeline-tag {
+  color: rgba(255, 255, 255, 0.7);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.timeline-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+.timeline-rows::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 22px;
+  bottom: 22px;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.18);
+}
+.timeline-rows li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px auto 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+}
+.timeline-dot {
+  z-index: 1;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #1b1b1e;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+}
+.is-latest .timeline-dot {
+  background: #fff;
+  border-color: #fff;
+}
+.timeline-file {
+  display: none;
+}
+
+/* How files are kept: file-list style rows */
+.notes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.notes li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--glass-border);
+}
+.notes-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--ink);
+  color: #fff;
+}
+.notes p {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+/* Start card (dark) */
+.bento-start {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: clamp(24px, 3vw, 36px);
+}
+.bento-start h2 {
+  margin: 0 0 4px;
+  font-size: clamp(1.3rem, 2.4vw, 1.8rem);
+}
+.bento-start p {
+  margin: 0;
+}
+.start-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+}
+.start-link {
+  color: rgba(255, 255, 255, 0.85);
+}
+.card-dark .start-link:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ---------- Motion ---------- */
+/* The page enters once on load. Nothing else moves. */
+.enter {
+  animation: enter 0.6s ease-out both;
+}
+.enter-late {
+  animation-delay: 0.12s;
+}
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .enter {
+    animation: none;
+  }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1100px) {
+  .bento {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      'flow flow'
+      'stat version'
+      'notes notes'
+      'start start';
+  }
+}
+@media (max-width: 620px) {
+  .bento {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'flow'
+      'stat'
+      'version'
+      'notes'
+      'start';
+  }
+  .flow-item {
+    margin-left: 0;
+  }
+  .start-actions .btn {
+    flex: 1 1 100%;
+  }
+}

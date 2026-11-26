@@ -36,14 +36,14 @@ Claude Code는 `/start-task <이슈 번호>`, `/finish-task`로 실행한다. �
 
 1. `git status --short --branch`와 현재 경로를 확인한다. 기존 변경을 보존한다.
 2. `README.md`, `docs/PLAN.md`, `docs/ARCHITECTURE.md`를 읽는다.
-3. 작업 영역의 `AGENTS.md`와 `contracts/openapi.yaml`을 확인한다.
+3. 작업 영역의 `AGENTS.md`와 관련 API 컨트롤러의 OpenAPI 어노테이션을 확인한다.
 4. 이슈의 목적, 수정 범위, 완료 조건, 결정 사항을 기준으로 작은 단위로 구현한다.
 
 ## 기준 문서
 
 - 제품 범위와 결정 상태: `docs/PLAN.md`
 - 구조와 인증·데이터 경계: `docs/ARCHITECTURE.md`
-- 구현된 HTTP API: `contracts/openapi.yaml`
+- 구현된 HTTP API: 백엔드 컨트롤러의 OpenAPI 어노테이션(Swagger UI `/swagger-ui.html`, `/v3/api-docs`)
 - 보안 워커의 지원 범위·작업 계약·검증 기록: `worker/README.md`와 `worker/docs/`
 - DB 구조: 향후 추가되는 백엔드 마이그레이션. 설계 문서는 실행된 스키마가 아니다.
 - 스타일: 포매터와 린터 설정. 명세와 구현이 충돌하면 보고하고 함께 정정한다.
@@ -52,7 +52,7 @@ Claude Code는 `/start-task <이슈 번호>`, `/finish-task`로 실행한다. �
 ## 공통 규칙
 
 - `frontend/`, `backend/`, `worker/`를 이 저장소에서 관리한다. 워커는 독립 패키지와 별도의 실행·자원 경계를 유지한다.
-- 워커의 정적 검사·재검사와 로컬 검증은 코드와 테스트 결과를 기준으로 설명한다. 실제 팀 API 연동·사용자 기능·배포는 각 환경에서 검증한 뒤 완료로 기록한다.
+- 벡터 검색·공개 공유·실제 서비스 보안 검사 연동은 현재 구현된 기능으로 표현하지 않는다. 워커의 정적 검사·재검사와 로컬 검증은 `worker/` 코드와 테스트 결과를 기준으로 설명하며, 실제 팀 API 연동·사용자 기능·배포는 각 환경에서 검증한 뒤 완료로 기록한다.
 - Spring Boot는 Supabase JWT를 검증한다. 자체 JWT 발급·서버 로그인 세션·자체 RTR을 추가하지 않는다.
 - Supabase SDK 하나가 브라우저 토큰 갱신을 관리한다. 별도 자동 갱신 타이머를 추가하지 않는다.
 - 사용자 ID는 검증된 토큰에서 얻는다. 요청 본문의 owner ID를 신뢰하지 않는다.

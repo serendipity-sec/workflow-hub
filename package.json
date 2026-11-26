@@ -8,14 +8,12 @@
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "lint:contract": "redocly lint --config .redocly.yaml contracts/openapi.yaml",
-    "check": "npm run format:check && npm run lint:contract",
+    "check": "npm run format:check",
     "check:pr-title": "node scripts/check-pr-title.mjs",
     "setup:skills": "node scripts/setup-skills.mjs",
     "test:tooling": "node --test scripts/check-pr-title.test.mjs scripts/setup-skills.test.mjs"
   },
   "devDependencies": {
-    "@redocly/cli": "2.82.0",
     "prettier": "3.10.1"
   }
 }

@@ -1,0 +1,401 @@
+/* Workflow screens: list, detail, upload. Tokens in app/styles.css. */
+
+/* ---------- List ---------- */
+.row-list {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.row-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 22px 16px 16px;
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow);
+  text-decoration: none;
+  transition: transform 0.18s ease;
+}
+.row-card:hover {
+  transform: translateY(-2px);
+}
+.row-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--ink);
+  color: #fff;
+}
+.row-main {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+.row-main strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row-card.is-deleted {
+  background: transparent;
+  border: 1px dashed var(--line-strong);
+  box-shadow: none;
+}
+.row-card.is-deleted:hover {
+  transform: none;
+}
+.row-card.is-deleted .row-icon {
+  background: var(--muted);
+}
+.row-arrow {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--ink);
+}
+
+/* ---------- Detail ---------- */
+.back-link {
+  margin: 0 0 12px -8px;
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+.latest-card {
+  display: grid;
+  gap: 4px;
+}
+.latest-label {
+  margin: 0;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+.latest-version {
+  margin: 0;
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+}
+.latest-card .muted {
+  margin: 0;
+}
+
+.version-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.version-list li {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px 10px 16px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--glass-border);
+}
+.version-row {
+  display: grid;
+  grid-template-columns: 72px 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+.version-label {
+  font-weight: 700;
+}
+.version-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.version-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.version-note {
+  margin: 0;
+  font-size: 0.85rem;
+}
+/* Deleted items stay visible only to be restored; they read as set aside. */
+.version-list li.is-deleted {
+  background: transparent;
+  border: 1px dashed var(--line-strong);
+}
+.version-list li.is-deleted .version-label {
+  color: var(--muted);
+}
+.latest-card .latest-tag {
+  justify-self: start;
+  margin-top: 6px;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* ---------- Delete confirmation and toggles ---------- */
+.card-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 8px;
+}
+.card .card-heading h2 {
+  margin: 0;
+}
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.list-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 12px;
+}
+.confirm-box {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--line-strong);
+}
+.confirm-box p {
+  margin: 0;
+}
+.confirm-warning {
+  color: var(--danger);
+  font-weight: 600;
+}
+.confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.page-confirm {
+  margin: 0 0 16px;
+}
+
+/* ---------- Upload ---------- */
+.upload-form {
+  display: grid;
+  gap: 20px;
+  max-width: 600px;
+}
+.upload-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+/* ---------- New version panel ---------- */
+.register-form {
+  display: grid;
+  gap: 14px;
+  margin: 16px 0;
+}
+.register-alert {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  margin: 12px 0;
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--line-strong);
+}
+.register-alert p {
+  margin: 0;
+}
+.register-result {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line-strong);
+}
+.register-result h3,
+.register-result p {
+  margin: 0;
+}
+.change-stats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+  gap: 8px;
+}
+.change-stats li {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.7);
+}
+.change-stats strong {
+  font-size: 1.4rem;
+  letter-spacing: -0.03em;
+}
+.change-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  max-height: 320px;
+  overflow: auto;
+}
+.change-list li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.7);
+}
+.change-list li > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.change-list p {
+  margin: 0;
+  font-size: 0.85rem;
+}
+.change-kind {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.update-type {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.update-type legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-weight: 600;
+}
+.update-type label {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--glass-border);
+  cursor: pointer;
+}
+.update-type label span {
+  display: grid;
+  gap: 2px;
+}
+.flash {
+  margin: 0 0 16px;
+  padding: 12px 18px;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: #fff;
+  font-weight: 600;
+}
+
+@media (max-width: 800px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 520px) {
+  .version-row {
+    grid-template-columns: auto 1fr;
+  }
+  .version-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-card {
+    transition: none;
+  }
+  .row-card:hover {
+    transform: none;
+  }
+}
+
+/* ---------- File identity (hash and size) ---------- */
+.file-identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 0.82rem;
+  min-width: 0;
+}
+.file-identity code {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+.file-identity-copy {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.file-identity-copy:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.latest-card .file-identity {
+  margin-top: 6px;
+}
+.file-identity-full {
+  user-select: all;
+}
+/* Read by screen readers only; the button label shows the same state. */
+.file-identity-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

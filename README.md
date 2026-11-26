@@ -21,21 +21,26 @@ n8n의 템플릿 심사·보안 감사·버전 리뷰, 제3자 공유 경로, �
 
 ## 현재 구현 상태
 
-저장소의 코드와 [OpenAPI 계약](contracts/openapi.yaml) 기준입니다. 외부 서비스는 배포 환경에서 연결을 검증해야 합니다.
+저장소의 코드와 백엔드의 OpenAPI 문서(Swagger UI) 기준입니다. 외부 서비스는 배포 환경에서 연결을 검증해야 합니다.
 
-| 영역                         | 상태                                                              |
-| ---------------------------- | ----------------------------------------------------------------- |
-| 프론트·백엔드 기반           | 실행 구조, 로그인 연결 코드, JWT 검증, 개발 도구·검사 설정이 있음 |
-| 구현된 HTTP API              | 상태 확인과 인증된 사용자 확인. 정확한 계약은 OpenAPI 참조        |
-| 워크플로·버전 DB 기반        | PostgreSQL 연결·Flyway 및 소유자/버전 메타데이터 스키마·제약 구현 |
-| 워크플로 서비스·S3 저장      | CRUD·업로드·조회·다운로드·번호 발급·파일 불변성 강제는 후속 구현  |
-| 저장소 비밀정보 검사         | GitHub Actions에서 Gitleaks로 Git 커밋 이력 검사                  |
-| 보안 워커                    | n8n 정적 분석·보안 변화 비교, 합성 파일 CLI 및 루프백 계약 테스트 |
-| 사용자 파일의 검사·수정·공개 | 작업 API, 실제 파일 저장·접근, 결과·정책 및 화면은 후속 구현      |
+| 영역                         | 상태                                                                                                                                                                                                                                                                                                                  |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 프론트·백엔드 기반           | 실행 구조, Google 로그인(Supabase)·JWT 검증, 개발 도구·검사 설정이 있음. 개발 환경에서 실제 Google 로그인과 `/api/me`·토큰 갱신·로그아웃을 확인함([#13](https://github.com/serendipity-sec/workflow-hub/pull/13))                                                                                                     |
+| 구현된 HTTP API              | 상태·사용자 확인, 최초 업로드, 소유자별 조회, 변경점 비교·버전 등록, 원본 다운로드·허용 상태 변경, 버전·워크플로 삭제와 복구. 정확한 계약은 OpenAPI 참조                                                                                                                                                              |
+| 프론트엔드 화면              | 로그인, 워크플로 업로드·목록·상세, 버전 이력·원본 다운로드, 수정본 비교와 작은/큰 수정 등록([#40](https://github.com/serendipity-sec/workflow-hub/pull/40)), 버전·워크플로 삭제·복구와 버전별 다운로드 허용·중지([#42](https://github.com/serendipity-sec/workflow-hub/pull/42)). 보안 검사 영역은 "준비 중" 자리표시 |
+| 워크플로·버전 DB 기반        | PostgreSQL 연결·Flyway 및 소유자/버전 메타데이터 스키마·제약 구현                                                                                                                                                                                                                                                     |
+| 워크플로 서비스·S3 저장      | 비공개 원본·비교 파일 저장 및 소유자별 다운로드 구현. 개발용 S3에서 업로드·비교·등록·다운로드를 수동 확인함(#40 작성자 기록). 삭제 후 복구·원본 정리와 덮어쓰기 거부는 실제 S3에서 미검증                                                                                                                             |
+| 저장소 비밀정보 검사         | GitHub Actions에서 Gitleaks로 Git 커밋 이력 검사                                                                                                                                                                                                                                                                      |
+| 보안 워커                    | `worker/`의 n8n 정적 분석·보안 변화 비교, 합성 파일 CLI 및 루프백 계약 테스트                                                                                                                                                                                                                                         |
+| 사용자 파일의 검사·수정·공개 | 작업 API, 실제 파일 저장·접근, 결과·정책 및 화면은 후속 구현                                                                                                                                                                                                                                                          |
 
 제품 범위·우선순위·결정 상태는 [개발 계획](docs/PLAN.md), 검사 방식과 지원 범위는 [보안 설계안](docs/SECURITY_DESIGN.md)에서 관리합니다.
 
 [#8](https://github.com/serendipity-sec/workflow-hub/issues/8)·[#10](https://github.com/serendipity-sec/workflow-hub/pull/10)에 따라 새 워크플로는 `v1`에서 시작하고, 작은 업데이트는 `v1.1`, `v1.2`, 주요 업데이트는 `v2`처럼 다음 정수 버전으로 올립니다. 파생 기능을 도입하면 파생본은 독립 워크플로의 `v1`이며, 부모·자식 버전 트리는 현재 DB 모델에 포함하지 않습니다. 수정 기준과 결과 버전, 출처·검사 이력의 연결은 후속 보안 확장 제안입니다.
+
+[#27](https://github.com/serendipity-sec/workflow-hub/issues/27)의 `MINOR`는 선택한 계열의 최신 버전에서 올립니다. `v2` 등록 후에도 `v1.1`에서 `v1.2`를 만들 수 있습니다. `MAJOR`는 번호가 가장 높은 계열의 최신 버전에서 올립니다. 다운로드를 중지한 버전은 소유자가 다시 허용할 수 있습니다.
+
+[#37](https://github.com/serendipity-sec/workflow-hub/issues/37)의 삭제는 버전을 지우지 않고 삭제 표시만 해서 즉시 조회·다운로드·비교에서 제외하며, 삭제한 번호는 다시 쓰지 않습니다. 소유자는 삭제 후 유예 기간(`WORKFLOW_DELETE_GRACE`, 기본 7일) 안에 복구할 수 있습니다. 실제 복구 기한은 삭제 응답의 `restoreUntil`로 확인하며, 유예 기간이 지나면 S3 원본을 지우므로 복구할 수 없습니다. 살아 있는 버전이 하나뿐일 때 그 버전을 삭제하면 워크플로 전체가 삭제됩니다. 삭제된 항목은 목록의 `includeDeleted=true`로 조회합니다.
 
 ## 기술 스택
 
@@ -108,7 +113,7 @@ cd backend
 .\gradlew.bat bootRun
 ```
 
-실행 전에 `backend/.env.example`을 참고해 `DATABASE_URL`(JDBC URL), `DATABASE_USERNAME`, `DATABASE_PASSWORD`를 터미널이나 IDE의 프로세스 환경변수로 지정합니다. Supabase JWT issuer, JWKS 등 인증 설정도 환경변수로 전달합니다. Spring Boot는 `.env` 파일을 자동으로 읽지 않습니다.
+실행 전에 `backend/.env.example`을 참고해 `DATABASE_URL`(JDBC URL), `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `WORKFLOW_BUCKET`(S3 없이 실행할 때는 아무 이름)을 터미널이나 IDE의 프로세스 환경변수로 지정합니다. Supabase JWT issuer, JWKS 등 인증 설정도 환경변수로 전달합니다. Spring Boot는 `.env` 파일을 자동으로 읽지 않습니다.
 
 백엔드는 시작 시 Flyway로 `backend/src/main/resources/db/migration/`의 마이그레이션을 적용합니다. 초기 연결 계정은 `workflow_hub` 스키마와 테이블·마이그레이션 이력을 관리할 권한이 필요합니다. Supabase에서는 이 스키마를 Data API의 exposed schemas에 추가하지 않습니다. 현재 하나의 datasource로 마이그레이션도 실행하므로 운영 역할 분리는 별도 보강 대상입니다.
 
@@ -159,8 +164,9 @@ npm run build
 - [보안 워커의 지원 범위·실행·검증 기록](worker/README.md)
 - [차별화 근거와 검증 계획](docs/DIFFERENTIATION.md)
 - [외부 연동과 배포 준비](docs/SETUP.md)
-- [구현된 API 명세](contracts/openapi.yaml)
-- [합성 워크플로 샘플](contracts/examples/minimal-workflow.json)
+- [n8n JSON 입력 한도와 측정 기록](docs/INPUT_LIMITS.md)
+- API 명세: 백엔드를 `API_DOCS_ENABLED=true`로 실행하고 `/swagger-ui.html` 확인 ([설정](docs/SETUP.md))
+- [합성 워크플로 샘플](backend/src/test/resources/samples/minimal-workflow.json)
 
 ## 기여하기
 
@@ -173,8 +179,9 @@ npm run build
 
 ## 데이터 처리 원칙
 
-- 워크플로·버전 메타데이터의 PostgreSQL 스키마가 구현되어 있습니다. 서비스 API, 실제 비공개 S3 저장, 파일 해시·검사 기록은 후속 구현 대상입니다.
+- 소유자별 업로드·조회·버전 등록·다운로드 API는 PostgreSQL 메타데이터와 비공개 S3의 원본 바이트를 사용합니다. 버전별 원본 파일 해시·크기를 서버가 기록하고 버전 조회 응답에 포함합니다(V6 이전 버전은 미확인). 검사 기록은 후속 범위입니다.
 - 업로드한 워크플로·Code 노드·표현식을 서버에서 실행하지 않습니다.
+- 최초 업로드와 버전 비교는 중첩 깊이 64·노드 300·연결 1,500 한도(환경 변수로 조정)를 넘는 JSON을 `422 WORKFLOW_LIMIT_EXCEEDED`로 거절하며, 거절된 요청은 S3와 DB에 아무것도 남기지 않습니다. 값의 근거와 측정·미검증 항목은 [입력 한도 문서](docs/INPUT_LIMITS.md)에 있습니다.
 - 검사 결과에도 비밀정보가 포함될 수 있으므로, 결과 마스킹과 접근 권한을 함께 설계합니다.
 - 공개 기능은 특정 버전과 공개용 결과를 대상으로 하며, 다른 비공개 버전·원본·상세 결과를 자동 공개하지 않는 방향으로 검토합니다.
 - 검사한 파일과 다운로드 파일의 일치를 확인하더라도, 사용자가 수정한 파일이나 실제 n8n 실행 환경 전체의 안전성을 보증하지 않습니다.

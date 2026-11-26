@@ -1,0 +1,550 @@
+package dev.workflowhub.workflow.api;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import dev.workflowhub.common.api.ApiError;
+import dev.workflowhub.workflow.service.WorkflowQueryException;
+import dev.workflowhub.workflow.service.WorkflowQueryService;
+import dev.workflowhub.workflow.service.WorkflowQueryService.VersionItem;
+import dev.workflowhub.workflow.service.WorkflowQueryService.WorkflowItem;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.headers.Header;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+import java.util.regex.Pattern;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import tools.jackson.databind.JsonNode;
+
+@RestController
+@RequestMapping(produces = MediaType.APPLICATION_JSON_VALUE)
+@Tag(name = "workflows")
+public class WorkflowQueryController {
+  private static final String WORKFLOW_ID = "0b6a8d7e-2f4c-4e0a-9a43-1d1f5c3e7a10";
+  private static final String VERSION_ID = "5d2f7c1a-8b3e-4c6d-a1f0-9e4b2c7d8a33";
+  private static final String TITLE = "주문 접수 Slack 알림";
+  private static final String REGISTERED_AT = "2026-11-22T04:15:30Z";
+  private static final String RESTORE_UNTIL_AT = "2026-11-29T04:15:30Z";
+  private static final String CURSOR_PARAMETER = "다음 페이지를 요청할 때 같은 목록의 nextCursor 값을 그대로 사용한다";
+  private static final String END_CURSOR = "다음 페이지에 사용할 값. 마지막 페이지에서는 null";
+  private static final String LATEST_VERSION = "가장 최근에 등록한 버전. 등록된 버전이 없으면 null";
+  private static final String FILE_HASH =
+      "서버가 S3에 저장한 원본 바이트의 SHA-256(소문자 hex 64자). 해시를 기록하기 전에 등록된 버전은 null";
+  private static final String FILE_SIZE = "서버가 S3에 저장한 원본 바이트 수. 기록하기 전에 등록된 버전은 null";
+  private static final String BAD_PAGINATION =
+      "limit이 정수 범위를 벗어나거나(INVALID_LIMIT), cursor가 유효하지 않거나(INVALID_CURSOR), includeDeleted가 불리언 값이 아니다(BAD_REQUEST)";
+  private static final String INCLUDE_DELETED =
+      "true이면 복구 후보인 삭제 항목도 함께 반환한다. 복구 후보는 삭제 상태이고 복구 기간 안이며 원본 삭제가 시작되지 않은 항목이다. 삭제 항목에는 deletedAt과 restoreUntil이 있고, 복구 기간이 끝났거나 원본이 지워졌거나 지워지는 중인 항목은 반환하지 않는다. 목록은 DB 상태만 보므로 저장소에 원본이 없으면 복구 요청은 409 RESTORE_UNAVAILABLE로 거절될 수 있다. 기본값은 false이며, 삭제된 항목을 제외한다";
+  private static final String DELETED_AT = "삭제한 시각. 삭제된 항목에만 있다";
+  private static final String RESTORE_UNTIL = "이 시각까지 복구할 수 있다. 삭제된 항목에만 있다";
+  private static final String UNAUTHORIZED = "토큰이 없거나 유효하지 않다";
+  private static final String NOT_FOUND = "요청한 ID의 소유 워크플로를 찾을 수 없다(WORKFLOW_NOT_FOUND)";
+  private static final String VERSION_NOT_FOUND =
+      "요청한 소유 워크플로 버전을 찾을 수 없다(WORKFLOW_VERSION_NOT_FOUND)";
+  private static final String SERVER_ERROR = "예상하지 못한 서버 오류. 응답의 requestId로 서버 로그를 찾는다";
+  private static final Pattern UNSAFE_FILENAME_CHARACTERS =
+      Pattern.compile("[\\p{Cc}\\p{Cf}\\\\/:*?\"<>|]");
+  private final WorkflowQueryService queries;
+
+  public WorkflowQueryController(WorkflowQueryService queries) {
+    this.queries = queries;
+  }
+
+  @GetMapping("/api/me/workflows")
+  @Operation(
+      summary = "내 워크플로 목록",
+      description =
+          "로그인 사용자가 소유한 워크플로를 최근 등록순으로 조회한다. 삭제한 워크플로는 includeDeleted=true일 때만, 복구 기간 안에서 함께 반환한다.")
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "워크플로 목록을 조회했다",
+        content =
+            @Content(
+                schema = @Schema(implementation = WorkflowListResponse.class),
+                examples =
+                    @ExampleObject(
+                        name = "빈 목록",
+                        value =
+                            """
+                    {"data":{"items":[],"nextCursor":null}}
+                    """))),
+    @ApiResponse(
+        responseCode = "400",
+        description = BAD_PAGINATION,
+        content = @Content(schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "401",
+        description = UNAUTHORIZED,
+        content = @Content(schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "500",
+        description = SERVER_ERROR,
+        content = @Content(schema = @Schema(implementation = ApiError.class)))
+  })
+  public WorkflowListResponse listWorkflows(
+      @AuthenticationPrincipal @Parameter(hidden = true) Jwt jwt,
+      @RequestParam(name = "limit", required = false)
+          @Parameter(
+              description = "한 페이지에서 조회할 최대 항목 수",
+              schema =
+                  @Schema(
+                      type = "integer",
+                      format = "int32",
+                      minimum = "1",
+                      maximum = "100",
+                      defaultValue = "20"))
+          String limit,
+      @RequestParam(name = "cursor", required = false) @Parameter(description = CURSOR_PARAMETER)
+          String cursor,
+      @RequestParam(name = "includeDeleted", defaultValue = "false")
+          @Parameter(
+              description = INCLUDE_DELETED,
+              schema = @Schema(type = "boolean", defaultValue = "false"))
+          boolean includeDeleted) {
+    var page = queries.listWorkflows(jwt.getSubject(), parseLimit(limit), cursor, includeDeleted);
+    var items = page.items().stream().map(WorkflowSummary::from).toList();
+    return new WorkflowListResponse(new WorkflowListData(items, page.nextCursor()));
+  }
+
+  @GetMapping("/api/workflows/{workflowId}")
+  @Operation(summary = "내 워크플로 상세와 최신 버전")
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "워크플로 상세를 조회했다",
+        content =
+            @Content(
+                schema = @Schema(implementation = WorkflowDetailResponse.class),
+                examples =
+                    @ExampleObject(
+                        value =
+                            """
+                            {"data":{
+                              "workflowId":"0b6a8d7e-2f4c-4e0a-9a43-1d1f5c3e7a10",
+                              "title":"주문 접수 Slack 알림",
+                              "createdAt":"2026-11-22T04:15:30Z",
+                              "latestVersion":{
+                                "versionId":"5d2f7c1a-8b3e-4c6d-a1f0-9e4b2c7d8a33",
+                                "versionLabel":"v1",
+                                "createdAt":"2026-11-22T04:15:30Z",
+                                "downloadEnabled":true,
+                                "sha256":"3c700c2454485bca511c63f2fdb89dbbde0dc674c08ef0f8a1c1dcc3201ae3f8",
+                                "sizeBytes":52
+                              }
+                            }}
+                            """))),
+    @ApiResponse(
+        responseCode = "401",
+        description = UNAUTHORIZED,
+        content = @Content(schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "404",
+        description = NOT_FOUND,
+        content = @Content(schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "500",
+        description = SERVER_ERROR,
+        content = @Content(schema = @Schema(implementation = ApiError.class)))
+  })
+  public WorkflowDetailResponse getWorkflow(
+      @AuthenticationPrincipal @Parameter(hidden = true) Jwt jwt,
+      @PathVariable("workflowId")
+          @Parameter(
+              description = "워크플로 ID",
+              schema = @Schema(format = "uuid"),
+              example = WORKFLOW_ID)
+          String workflowId) {
+    var workflow = queries.getWorkflow(jwt.getSubject(), workflowId);
+    return new WorkflowDetailResponse(
+        new WorkflowDetailData(
+            workflow.workflowId(),
+            workflow.title(),
+            VersionMetadata.from(workflow.latestVersion()),
+            workflow.createdAt()));
+  }
+
+  @GetMapping("/api/workflows/{workflowId}/versions")
+  @Operation(
+      summary = "내 워크플로 버전 목록",
+      description =
+          "내가 소유한 워크플로의 버전을 최근 등록순으로 조회한다. 삭제한 버전은 includeDeleted=true일 때만, 복구 기간 안에서 함께 반환한다. 삭제한 워크플로의 버전도 이 옵션으로 조회한다.")
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "버전 목록을 조회했다",
+        content =
+            @Content(
+                schema = @Schema(implementation = VersionListResponse.class),
+                examples =
+                    @ExampleObject(
+                        value =
+                            """
+                            {"data":{"items":[{
+                              "versionId":"5d2f7c1a-8b3e-4c6d-a1f0-9e4b2c7d8a33",
+                              "versionLabel":"v1",
+                              "createdAt":"2026-11-22T04:15:30Z",
+                              "downloadEnabled":true,
+                              "sha256":"3c700c2454485bca511c63f2fdb89dbbde0dc674c08ef0f8a1c1dcc3201ae3f8",
+                              "sizeBytes":52
+                            }],"nextCursor":null}}
+                            """))),
+    @ApiResponse(
+        responseCode = "400",
+        description = BAD_PAGINATION,
+        content = @Content(schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "401",
+        description = UNAUTHORIZED,
+        content = @Content(schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "404",
+        description = NOT_FOUND,
+        content = @Content(schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "500",
+        description = SERVER_ERROR,
+        content = @Content(schema = @Schema(implementation = ApiError.class)))
+  })
+  public VersionListResponse listVersions(
+      @AuthenticationPrincipal @Parameter(hidden = true) Jwt jwt,
+      @PathVariable("workflowId")
+          @Parameter(
+              description = "워크플로 ID",
+              schema = @Schema(format = "uuid"),
+              example = WORKFLOW_ID)
+          String workflowId,
+      @RequestParam(name = "limit", required = false)
+          @Parameter(
+              description = "한 페이지에서 조회할 최대 항목 수",
+              schema =
+                  @Schema(
+                      type = "integer",
+                      format = "int32",
+                      minimum = "1",
+                      maximum = "100",
+                      defaultValue = "20"))
+          String limit,
+      @RequestParam(name = "cursor", required = false) @Parameter(description = CURSOR_PARAMETER)
+          String cursor,
+      @RequestParam(name = "includeDeleted", defaultValue = "false")
+          @Parameter(
+              description = INCLUDE_DELETED,
+              schema = @Schema(type = "boolean", defaultValue = "false"))
+          boolean includeDeleted) {
+    var page =
+        queries.listVersions(
+            jwt.getSubject(), workflowId, parseLimit(limit), cursor, includeDeleted);
+    var items = page.items().stream().map(VersionMetadata::from).toList();
+    return new VersionListResponse(new VersionListData(items, page.nextCursor()));
+  }
+
+  @PatchMapping(
+      path = "/api/workflows/{workflowId}/versions/{versionId}/download-availability",
+      consumes = MediaType.APPLICATION_JSON_VALUE)
+  @Operation(
+      summary = "내 워크플로 버전의 다운로드 상태 변경",
+      description = "선택한 버전의 원본 JSON 다운로드를 허용하거나 중지한다. 원본 파일은 보관한다.")
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "선택한 버전의 다운로드 상태를 설정했다",
+        content =
+            @Content(
+                schema = @Schema(implementation = DownloadAvailabilityResponse.class),
+                examples =
+                    @ExampleObject(
+                        value =
+                            """
+                            {"data":{
+                              "workflowId":"0b6a8d7e-2f4c-4e0a-9a43-1d1f5c3e7a10",
+                              "versionId":"5d2f7c1a-8b3e-4c6d-a1f0-9e4b2c7d8a33",
+                              "downloadEnabled":false
+                            }}
+                            """))),
+    @ApiResponse(
+        responseCode = "400",
+        description = "JSON 본문이 잘못됐거나 downloadEnabled가 불리언 값이 아니다(BAD_REQUEST)",
+        content = @Content(schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "401",
+        description = UNAUTHORIZED,
+        content = @Content(schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "404",
+        description = VERSION_NOT_FOUND,
+        content = @Content(schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "415",
+        description = "지원하지 않는 요청 본문 형식(UNSUPPORTED_MEDIA_TYPE)",
+        content = @Content(schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "500",
+        description = SERVER_ERROR,
+        content = @Content(schema = @Schema(implementation = ApiError.class)))
+  })
+  public DownloadAvailabilityResponse setDownloadAvailability(
+      @AuthenticationPrincipal @Parameter(hidden = true) Jwt jwt,
+      @PathVariable("workflowId")
+          @Parameter(
+              description = "워크플로 ID",
+              schema = @Schema(format = "uuid"),
+              example = WORKFLOW_ID)
+          String workflowId,
+      @PathVariable("versionId")
+          @Parameter(
+              description = "다운로드 상태를 변경할 버전 ID",
+              schema = @Schema(format = "uuid"),
+              example = VERSION_ID)
+          String versionId,
+      @RequestBody DownloadAvailabilityRequest request) {
+    JsonNode enabled = request.downloadEnabled();
+    if (enabled == null || !enabled.isBoolean()) {
+      throw WorkflowQueryException.invalidDownloadAvailability();
+    }
+    var availability =
+        queries.updateDownloadAvailability(
+            jwt.getSubject(), workflowId, versionId, enabled.booleanValue());
+    return new DownloadAvailabilityResponse(
+        new DownloadAvailabilityData(
+            availability.workflowId(), availability.versionId(), availability.downloadEnabled()));
+  }
+
+  @GetMapping("/api/workflows/{workflowId}/versions/{versionId}/download")
+  @Operation(
+      summary = "내 워크플로 버전 원본 다운로드",
+      description = "로그인 사용자가 소유한 워크플로에서 다운로드가 허용된 버전의 원본 JSON 바이트를 첨부 파일로 받는다.")
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "선택한 버전의 원본 JSON 파일",
+        headers =
+            @Header(
+                name = HttpHeaders.CONTENT_DISPOSITION,
+                description = "UTF-8 첨부 파일명. 워크플로 제목과 선택한 버전 라벨을 붙인 {title}-{versionLabel}.json",
+                schema = @Schema(type = "string")),
+        content =
+            @Content(
+                mediaType = MediaType.APPLICATION_JSON_VALUE,
+                schema = @Schema(type = "string", format = "binary"))),
+    @ApiResponse(
+        responseCode = "401",
+        description = UNAUTHORIZED,
+        content =
+            @Content(
+                mediaType = MediaType.APPLICATION_JSON_VALUE,
+                schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "403",
+        description = "선택한 버전의 다운로드가 중지되어 있다(VERSION_DOWNLOAD_DISABLED)",
+        content =
+            @Content(
+                mediaType = MediaType.APPLICATION_JSON_VALUE,
+                schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "404",
+        description = VERSION_NOT_FOUND,
+        content =
+            @Content(
+                mediaType = MediaType.APPLICATION_JSON_VALUE,
+                schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "500",
+        description = SERVER_ERROR,
+        content =
+            @Content(
+                mediaType = MediaType.APPLICATION_JSON_VALUE,
+                schema = @Schema(implementation = ApiError.class))),
+    @ApiResponse(
+        responseCode = "503",
+        description = "원본 파일을 저장소에서 읽을 수 없다(STORAGE_UNAVAILABLE)",
+        content =
+            @Content(
+                mediaType = MediaType.APPLICATION_JSON_VALUE,
+                schema = @Schema(implementation = ApiError.class)))
+  })
+  public ResponseEntity<byte[]> downloadVersion(
+      @AuthenticationPrincipal @Parameter(hidden = true) Jwt jwt,
+      @PathVariable("workflowId")
+          @Parameter(
+              description = "워크플로 ID",
+              schema = @Schema(format = "uuid"),
+              example = WORKFLOW_ID)
+          String workflowId,
+      @PathVariable("versionId")
+          @Parameter(
+              description = "다운로드할 버전 ID",
+              schema = @Schema(format = "uuid"),
+              example = VERSION_ID)
+          String versionId) {
+    var download = queries.downloadVersion(jwt.getSubject(), workflowId, versionId);
+    String filename = download.title() + "-" + download.versionLabel() + ".json";
+    var disposition =
+        ContentDisposition.attachment()
+            .filename(
+                UNSAFE_FILENAME_CHARACTERS.matcher(filename).replaceAll("_"),
+                StandardCharsets.UTF_8)
+            .build();
+    return ResponseEntity.ok()
+        .contentType(MediaType.APPLICATION_JSON)
+        .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+        .body(download.content());
+  }
+
+  private static Integer parseLimit(String limit) {
+    if (limit == null) {
+      return null;
+    }
+    try {
+      return Integer.valueOf(limit);
+    } catch (NumberFormatException e) {
+      throw WorkflowQueryException.invalidLimit();
+    }
+  }
+
+  @Schema(requiredProperties = "data")
+  public record WorkflowListResponse(WorkflowListData data) {}
+
+  @Schema(requiredProperties = "data")
+  public record WorkflowDetailResponse(WorkflowDetailData data) {}
+
+  @Schema(requiredProperties = "data")
+  public record VersionListResponse(VersionListData data) {}
+
+  @Schema(requiredProperties = "downloadEnabled")
+  public record DownloadAvailabilityRequest(
+      @Schema(description = "원본 JSON 다운로드 허용 여부", implementation = Boolean.class, example = "false")
+          JsonNode downloadEnabled) {}
+
+  @Schema(requiredProperties = "data")
+  public record DownloadAvailabilityResponse(DownloadAvailabilityData data) {}
+
+  @Schema(requiredProperties = {"workflowId", "versionId", "downloadEnabled"})
+  public record DownloadAvailabilityData(
+      @Schema(example = WORKFLOW_ID) UUID workflowId,
+      @Schema(example = VERSION_ID) UUID versionId,
+      @Schema(example = "false") boolean downloadEnabled) {}
+
+  @Schema(requiredProperties = {"items", "nextCursor"})
+  public record WorkflowListData(
+      List<WorkflowSummary> items,
+      @JsonInclude(JsonInclude.Include.ALWAYS)
+          @Schema(
+              description = END_CURSOR,
+              types = {"string", "null"})
+          String nextCursor) {}
+
+  @Schema(requiredProperties = {"items", "nextCursor"})
+  public record VersionListData(
+      List<VersionMetadata> items,
+      @JsonInclude(JsonInclude.Include.ALWAYS)
+          @Schema(
+              description = END_CURSOR,
+              types = {"string", "null"})
+          String nextCursor) {}
+
+  @Schema(requiredProperties = {"workflowId", "title", "latestVersion"})
+  public record WorkflowSummary(
+      @Schema(example = WORKFLOW_ID) UUID workflowId,
+      @Schema(example = TITLE) String title,
+      @JsonInclude(JsonInclude.Include.ALWAYS)
+          @Schema(
+              description = LATEST_VERSION,
+              types = {"object", "null"},
+              schemaResolution = Schema.SchemaResolution.INLINE)
+          VersionMetadata latestVersion,
+      @JsonInclude(JsonInclude.Include.NON_NULL)
+          @Schema(description = DELETED_AT, example = REGISTERED_AT)
+          Instant deletedAt,
+      @JsonInclude(JsonInclude.Include.NON_NULL)
+          @Schema(description = RESTORE_UNTIL, example = RESTORE_UNTIL_AT)
+          Instant restoreUntil) {
+    private static WorkflowSummary from(WorkflowItem item) {
+      return new WorkflowSummary(
+          item.workflowId(),
+          item.title(),
+          VersionMetadata.from(item.latestVersion()),
+          item.deletedAt(),
+          item.restoreUntil());
+    }
+  }
+
+  @Schema(requiredProperties = {"workflowId", "title", "latestVersion", "createdAt"})
+  public record WorkflowDetailData(
+      @Schema(example = WORKFLOW_ID) UUID workflowId,
+      @Schema(example = TITLE) String title,
+      @JsonInclude(JsonInclude.Include.ALWAYS)
+          @Schema(
+              description = LATEST_VERSION,
+              types = {"object", "null"},
+              schemaResolution = Schema.SchemaResolution.INLINE)
+          VersionMetadata latestVersion,
+      @Schema(example = REGISTERED_AT) Instant createdAt) {}
+
+  @Schema(
+      requiredProperties = {
+        "versionId",
+        "versionLabel",
+        "createdAt",
+        "downloadEnabled",
+        "sha256",
+        "sizeBytes"
+      })
+  public record VersionMetadata(
+      @Schema(example = VERSION_ID) UUID versionId,
+      @Schema(example = "v1") String versionLabel,
+      @Schema(example = REGISTERED_AT) Instant createdAt,
+      @Schema(description = "원본 JSON 다운로드 허용 여부", example = "true") boolean downloadEnabled,
+      @JsonInclude(JsonInclude.Include.ALWAYS)
+          @Schema(
+              description = FILE_HASH,
+              example = "3c700c2454485bca511c63f2fdb89dbbde0dc674c08ef0f8a1c1dcc3201ae3f8",
+              types = {"string", "null"})
+          String sha256,
+      @JsonInclude(JsonInclude.Include.ALWAYS)
+          @Schema(
+              description = FILE_SIZE,
+              example = "52",
+              types = {"integer", "null"},
+              format = "int64")
+          Long sizeBytes,
+      @JsonInclude(JsonInclude.Include.NON_NULL)
+          @Schema(description = DELETED_AT, example = REGISTERED_AT)
+          Instant deletedAt,
+      @JsonInclude(JsonInclude.Include.NON_NULL)
+          @Schema(description = RESTORE_UNTIL, example = RESTORE_UNTIL_AT)
+          Instant restoreUntil) {
+    private static VersionMetadata from(VersionItem item) {
+      return item == null
+          ? null
+          : new VersionMetadata(
+              item.versionId(),
+              item.versionLabel(),
+              item.createdAt(),
+              item.downloadEnabled(),
+              item.sha256(),
+              item.sizeBytes(),
+              item.deletedAt(),
+              item.restoreUntil());
+    }
+  }
+}

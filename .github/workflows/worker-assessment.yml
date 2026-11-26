@@ -1,7 +1,10 @@
 name: Worker assessment
 on:
   push:
-    branches: [feat/14-integrate-security-worker]
+    branches: [main]
+    paths: ['worker/**', '.github/workflows/worker-assessment.yml']
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths: ['worker/**', '.github/workflows/worker-assessment.yml']
   workflow_dispatch:
 permissions:
@@ -29,12 +32,12 @@ jobs:
       - run: node validation/verify-legacy-current.mjs evidence-local/ci-legacy-results.json
       - name: Build the pinned assessment runtime
         run: |
-          docker build -f Dockerfile.assessment-runtime -t workflow-worker-assessment-runtime:0.9.0 .
-          docker build -f Dockerfile.assessment -t workflow-worker-assessment:0.9.0 .
+          docker build -f Dockerfile.assessment-runtime -t workflow-worker-assessment-runtime:0.10.0 .
+          docker build -f Dockerfile.assessment --build-arg RUNTIME_IMAGE=workflow-worker-assessment-runtime:0.10.0 -t workflow-worker-assessment:0.10.0 .
       - name: Verify actual tools and OS isolation
         run: |
           export WORKER_DOCKER_PATH="$(command -v docker)"
-          export WORKER_ASSESSMENT_IMAGE="$(docker image inspect --format '{{.Id}}' workflow-worker-assessment:0.9.0)"
+          export WORKER_ASSESSMENT_IMAGE="$(docker image inspect --format '{{.Id}}' workflow-worker-assessment:0.10.0)"
           node validation/verify-assessment-runtime.mjs
           node validation/verify-native-profile.mjs
         env:

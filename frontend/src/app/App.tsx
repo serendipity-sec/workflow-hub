@@ -1,18 +1,32 @@
-import { AuthPanel } from '../features/auth/AuthPanel';
-import { WorkflowIntro } from '../features/workflows/WorkflowIntro';
+import { BrowserRouter, Route, Routes } from 'react-router';
+import { AuthProvider } from '../features/auth/AuthProvider';
+import { RequireAuth } from '../features/auth/RequireAuth';
+import { HomePage } from '../features/home/HomePage';
+import { WorkflowDetailPage } from '../features/workflows/WorkflowDetailPage';
+import { WorkflowListPage } from '../features/workflows/WorkflowListPage';
+import { WorkflowUploadPage } from '../features/workflows/WorkflowUploadPage';
+import { Layout } from './Layout';
+import { NotFoundPage } from './NotFoundPage';
 
 export function App() {
   return (
-    <main>
-      <header>
-        <p className="eyebrow">WORKFLOW HUB</p>
-        <h1>자동화를 기록하고, 이어가세요.</h1>
-        <p>n8n 워크플로와 수정 계보를 위한 팀 프로젝트</p>
-      </header>
-      <div className="grid">
-        <WorkflowIntro />
-        <AuthPanel />
-      </div>
-    </main>
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route index element={<HomePage />} />
+            <Route element={<RequireAuth />}>
+              <Route path="workflows" element={<WorkflowListPage />} />
+              <Route path="workflows/new" element={<WorkflowUploadPage />} />
+              <Route
+                path="workflows/:workflowId"
+                element={<WorkflowDetailPage />}
+              />
+            </Route>
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }

@@ -9,4 +9,4 @@ infra:
       - any-glob-to-any-file: ['.github/**', '.claude/**', 'scripts/**', '*.json', '.*']
 docs:
   - changed-files:
-      - any-glob-to-any-file: ['**/*.md', 'contracts/**']
+      - any-glob-to-any-file: '**/*.md'
