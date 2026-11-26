@@ -40,7 +40,7 @@ n8n의 템플릿 심사·보안 감사·버전 리뷰, 제3자 공유 경로, �
 
 [#27](https://github.com/serendipity-sec/workflow-hub/issues/27)의 `MINOR`는 선택한 계열의 최신 버전에서 올립니다. `v2` 등록 후에도 `v1.1`에서 `v1.2`를 만들 수 있습니다. `MAJOR`는 번호가 가장 높은 계열의 최신 버전에서 올립니다. 다운로드를 중지한 버전은 소유자가 다시 허용할 수 있습니다.
 
-[#37](https://github.com/serendipity-sec/workflow-hub/issues/37)의 삭제는 버전을 지우지 않고 삭제 표시만 해서 즉시 조회·다운로드·비교에서 제외하며, 삭제한 번호는 다시 쓰지 않습니다. 소유자는 삭제 후 유예 기간(`WORKFLOW_DELETE_GRACE`, 기본 7일) 안에 복구할 수 있습니다. 실제 복구 기한은 삭제 응답의 `restoreUntil`로 확인하며, 유예 기간이 지나면 S3 원본을 지우므로 복구할 수 없습니다. 살아 있는 버전이 하나뿐일 때 그 버전을 삭제하면 워크플로 전체가 삭제됩니다. 삭제된 항목은 목록의 `includeDeleted=true`로 조회합니다.
+[#37](https://github.com/serendipity-sec/workflow-hub/issues/37)의 삭제는 버전을 지우지 않고 삭제 표시만 해서 즉시 조회·다운로드·비교에서 제외하며, 삭제한 번호는 다시 쓰지 않습니다. 소유자는 삭제 후 유예 기간(`WORKFLOW_DELETE_GRACE`, 기본 7일) 안에 복구할 수 있습니다. 실제 복구 기한은 삭제 응답의 `restoreUntil`로 확인하며, 유예 기간이 지나면 S3 원본을 지우므로 복구할 수 없습니다. 살아 있는 버전이 하나뿐일 때 그 버전을 삭제하면 워크플로 전체가 삭제됩니다. 화면에서 워크플로 삭제 경고 없이 확인한 버전 삭제는 `allowWorkflowDelete=false`를 보내므로, 그사이 다른 곳에서 나머지 버전이 지워졌다면 서버가 `409 LAST_VERSION_REMAINING`으로 거절하고 화면이 다시 불러온 목록을 기준으로 워크플로 전체 삭제를 다시 묻습니다([#46](https://github.com/serendipity-sec/workflow-hub/issues/46)). 삭제된 항목은 목록의 `includeDeleted=true`로 조회합니다.
 
 ## 기술 스택
 
