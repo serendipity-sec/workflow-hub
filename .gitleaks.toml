@@ -176,11 +176,14 @@ regexes = [
   '''^\s*"src/api-client\.ts": "758705f5e03b7d2d7fdf02f3887d0eb83be3cbc7de5cc2a73705d9bdf673c718",?\s*$''',
 ]
 
-# Exact 0.9.0 evidence digests; file hashes recomputed and synthetic identities matched to preserved receipts.
+# Exact 0.9.0 and 0.10.0 evidence digests; file hashes recomputed and synthetic identities matched to preserved receipts.
 
 [[rules.allowlists]]
 condition = "AND"
-paths = ['''^worker/validation/assessment-runtime-0\.9\.0-results\.json$''']
+paths = [
+  '''^worker/validation/assessment-runtime-0\.9\.0-results\.json$''',
+  '''^worker/validation/assessment-runtime-0\.10\.0-results\.json$''',
+]
 regexTarget = "line"
 regexes = [
   '''^\s*"advisoryKey": "1eaff43b29c0b79e6191fd50efa574e867fcfd5ec5e99734eb4a7b8fb5fb379e",?\s*$''',
