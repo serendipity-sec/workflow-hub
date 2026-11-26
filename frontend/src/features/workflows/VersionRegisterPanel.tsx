@@ -68,7 +68,8 @@ export function VersionRegisterPanel({
   /** Set while another part of the page runs an action, e.g. deleting a version. */
   locked: boolean;
   onBusyChange: (busy: boolean) => void;
-  onRegistered: (versionLabel: string) => void;
+  /** The panel stays busy until the returned page reload has finished. */
+  onRegistered: (versionLabel: string) => Promise<void>;
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [inputKey, setInputKey] = useState(0);
@@ -146,7 +147,7 @@ export function VersionRegisterPanel({
       setFile(null);
       setInputKey((key) => key + 1);
       setBaseVersionId(result.versionId);
-      onRegistered(result.versionLabel);
+      await onRegistered(result.versionLabel);
     } catch (registerError) {
       // The comparison is stale after 409/404; ask for a fresh one.
       if (

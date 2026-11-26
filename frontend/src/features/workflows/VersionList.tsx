@@ -59,10 +59,13 @@ export function VersionList({
   /** Set while another part of the page runs an action. */
   locked: boolean;
   onBusyChange: (busy: boolean) => void;
-  /** A version changed; the page shows `notice` and reloads the latest version. */
-  onChanged: (notice: string) => void;
+  /**
+   * A version changed; the page shows `notice` and reloads the latest version.
+   * The action stays busy until the returned reload has finished.
+   */
+  onChanged: (notice: string) => Promise<void>;
   /** The server no longer has what the page shows, e.g. deleted in another tab. */
-  onStale: () => void;
+  onStale: () => Promise<void>;
   /** The last version was deleted, so the whole workflow is deleted too. */
   onWorkflowDeleted: (notice: string) => void;
 }) {
@@ -98,7 +101,7 @@ export function VersionList({
       // Deleted, restored or cleaned up elsewhere: show the server's state.
       if (isStaleError(error)) {
         reload();
-        onStale();
+        await onStale();
       }
     } finally {
       updateBusy(null);
@@ -115,12 +118,12 @@ export function VersionList({
           version.versionId,
           !version.downloadEnabled,
         );
-        onChanged(
+        reload();
+        await onChanged(
           result.downloadEnabled
             ? `${version.versionLabel}의 다운로드를 다시 허용했습니다.`
             : `${version.versionLabel}의 다운로드를 중지했습니다. 조회와 비교에는 계속 쓸 수 있습니다.`,
         );
-        reload();
       }),
     remove: (version) =>
       void run(version, 'delete', async () => {
@@ -130,14 +133,14 @@ export function VersionList({
           onWorkflowDeleted(notice);
           return;
         }
-        onChanged(notice);
         reload();
+        await onChanged(notice);
       }),
     restore: (version) =>
       void run(version, 'restore', async () => {
         const result = await restoreVersion(workflowId, version.versionId);
-        onChanged(restoreNotice(result, version.versionLabel));
         reload();
+        await onChanged(restoreNotice(result, version.versionLabel));
       }),
   };
 

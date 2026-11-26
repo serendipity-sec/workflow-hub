@@ -54,16 +54,19 @@ function WorkflowDetail({ workflowId }: { workflowId: string }) {
     setConfirmingDelete(open);
   }
 
-  function registered(versionLabel: string) {
+  // Both return the detail reload, so the caller keeps its lock until the page
+  // shows the new latest version. Otherwise a comparison started in between
+  // would be lost when the panel is replaced for the new latest version.
+  function registered(versionLabel: string): Promise<void> {
     setNotice(`${versionLabel}을(를) 새 버전으로 등록했습니다.`);
     setVersionsKey((key) => key + 1);
-    refresh();
+    return refresh();
   }
 
   /** A version was deleted, restored or its downloads changed; the latest may differ now. */
-  function versionChanged(message: string) {
+  function versionChanged(message: string): Promise<void> {
     setNotice(message);
-    refresh();
+    return refresh();
   }
 
   /** The workflow no longer exists for normal views, so go back to the list. */
@@ -80,7 +83,7 @@ function WorkflowDetail({ workflowId }: { workflowId: string }) {
       setDeleteError(describeWorkflowError(error));
       setDeleting(false);
       // Already deleted elsewhere: show the server's state instead of stale data.
-      if (isStaleError(error)) refresh();
+      if (isStaleError(error)) void refresh();
     }
   }
 
