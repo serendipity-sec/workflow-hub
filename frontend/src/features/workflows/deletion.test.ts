@@ -20,6 +20,8 @@ function version(id: string, deleted = false): VersionMetadata {
     versionLabel: id,
     createdAt: '2026-11-22T04:15:30Z',
     downloadEnabled: true,
+    sha256: null,
+    sizeBytes: null,
     ...(deleted
       ? { deletedAt: '2026-11-22T05:00:00Z', restoreUntil: RESTORE_UNTIL }
       : {}),

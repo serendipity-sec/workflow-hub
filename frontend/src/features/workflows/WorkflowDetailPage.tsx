@@ -12,6 +12,7 @@ import { SecurityCheckPanel } from '../security/SecurityCheckPanel';
 import { deleteWorkflow, getWorkflow } from './api';
 import { deletionNotice, isStaleError } from './deletion';
 import { describeWorkflowError } from './errorMessages';
+import { FileIdentity } from './FileIdentity';
 import { VersionList } from './VersionList';
 import { VersionRegisterPanel } from './VersionRegisterPanel';
 import './workflows.css';
@@ -163,6 +164,13 @@ function WorkflowDetail({ workflowId }: { workflowId: string }) {
             <p className="latest-version">{latest?.versionLabel ?? '없음'}</p>
             {latest && (
               <p className="muted">{formatDateTime(latest.createdAt)} 등록</p>
+            )}
+            {latest && (
+              <FileIdentity
+                name={`최신 버전 ${latest.versionLabel}`}
+                sha256={latest.sha256}
+                sizeBytes={latest.sizeBytes}
+              />
             )}
             {latest && !latest.downloadEnabled && (
               <Tag tone="outline" className="latest-tag">

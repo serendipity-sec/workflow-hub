@@ -12,6 +12,12 @@ export type VersionReference = {
 export type VersionMetadata = VersionReference & {
   /** False after the owner stopped downloads. The version can still be viewed and compared. */
   downloadEnabled: boolean;
+  /**
+   * SHA-256 (lowercase hex) and byte size of the exact bytes the server stored.
+   * Both are null for versions registered before they were recorded (#29).
+   */
+  sha256: string | null;
+  sizeBytes: number | null;
   /** Only on deleted versions, which are listed with `includeDeleted=true`. */
   deletedAt?: string;
   /** Deadline for restoring a deleted version, shown exactly as the server sent it. */
