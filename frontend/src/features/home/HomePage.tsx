@@ -22,7 +22,7 @@ const STEPS: Step[] = [
   {
     title: '변경점 비교와 새 버전',
     description: '수정본을 비교하고 v1.1이나 v2로 등록합니다.',
-    available: false,
+    available: true,
   },
   {
     title: '보안 검사와 수정 안내',
