@@ -15,6 +15,7 @@ import {
   type AssessmentEvidence,
   type DataClass,
 } from "./assessment-evidence.js";
+import { isExternalValue } from "./value-flow.js";
 import type { AbstractValue, ValueFlow } from "./value-flow.js";
 import {
   binaryInputProvenance,
@@ -1341,7 +1342,7 @@ function promptData(
     const tools = related(context, node, "ai_tool").filter(
       (tool) => !tool.disabled,
     );
-    if (tools.length && values.some((value) => value.trust === "external"))
+    if (tools.length && values.some((value) => isExternalValue(value)))
       scope.finding("ai_external_prompt_may_influence_tool_selection", {
         severity: "medium",
         claim: "candidate",

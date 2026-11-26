@@ -31,6 +31,10 @@ export const scannerResultSchema = z
         }),
       )
       .max(4096),
+    diagnostics: z
+      .array(z.enum(["tool_cross_field_match"]))
+      .max(16)
+      .optional(),
     reason: z
       .enum([
         "tool_unavailable",
@@ -48,7 +52,9 @@ export const scannerResultSchema = z
   .refine((result) =>
     result.status === "completed"
       ? result.reason === undefined
-      : result.reason !== undefined && result.findings.length === 0,
+      : result.reason !== undefined &&
+        result.findings.length === 0 &&
+        result.diagnostics === undefined,
   );
 
 export function staticError(

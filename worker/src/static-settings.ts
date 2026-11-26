@@ -15,6 +15,9 @@ import type {
 // Field semantics checked against n8n source commit
 // 86dff76e10efba250a4d3e57760e4eb5d2bbea25. typeVersion is not an npm version.
 const webhookVersions = new Set([2, 2.1, 2.2]);
+const formTriggerVersions = new Set([2, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6]);
+const chatTriggerVersions = new Set([1, 1.1, 1.2, 1.3, 1.4]);
+const mcpTriggerVersions = new Set([1, 1.1, 2]);
 const httpVersions = new Set([3, 4, 4.1, 4.2, 4.3, 4.4, 4.5]);
 const codeVersions = new Set([1, 2]);
 const subworkflowVersions = new Set([1, 1.1, 1.2, 1.3, 1.4]);
@@ -113,13 +116,69 @@ function present(object: JsonObject, key: string): boolean {
 
 function requestAuthentication(context: Context): RuleResult {
   const rule = makeRule("N8N_REQUEST_AUTH_SETTINGS", "request_auth");
+  const triggerSpecs: Record<
+    string,
+    {
+      versions: Set<number>;
+      credentials: Record<string, string | null>;
+      requirePublic?: boolean;
+    }
+  > = {
+    "n8n-nodes-base.webhook": {
+      versions: webhookVersions,
+      credentials: {
+        basicAuth: "httpBasicAuth",
+        headerAuth: "httpHeaderAuth",
+        jwtAuth: "jwtAuth",
+      },
+    },
+    "n8n-nodes-base.formTrigger": {
+      versions: formTriggerVersions,
+      credentials: {
+        basicAuth: "httpBasicAuth",
+      },
+    },
+    "@n8n/n8n-nodes-langchain.chatTrigger": {
+      versions: chatTriggerVersions,
+      requirePublic: true,
+      credentials: {
+        basicAuth: "httpBasicAuth",
+        n8nUserAuth: null,
+      },
+    },
+    "@n8n/n8n-nodes-langchain.mcpTrigger": {
+      versions: mcpTriggerVersions,
+      credentials: {
+        bearerAuth: "httpBearerAuth",
+        headerAuth: "httpHeaderAuth",
+      },
+    },
+  };
   for (const node of context.nodes) {
-    if (node.type !== "n8n-nodes-base.webhook") continue;
+    const spec = Object.hasOwn(triggerSpecs, node.type)
+      ? triggerSpecs[node.type]
+      : undefined;
+    if (!spec) continue;
     const scope = new Scope(rule, node);
-    if (!webhookVersions.has(node.typeVersion)) {
+    if (!spec.versions.has(node.typeVersion)) {
       scope.diagnostic("unsupported_node_version", "/typeVersion");
       scope.finish();
       continue;
+    }
+    if (spec.requirePublic) {
+      const publicAccess = node.parameters.public;
+      if (publicAccess === undefined || publicAccess === false) {
+        scope.finish();
+        continue;
+      }
+      if (publicAccess !== true) {
+        scope.diagnostic(
+          "unsupported_authentication_mode",
+          "/parameters/public",
+        );
+        scope.finish();
+        continue;
+      }
     }
     const authentication = present(node.parameters, "authentication")
       ? node.parameters.authentication
@@ -127,14 +186,12 @@ function requestAuthentication(context: Context): RuleResult {
     const location = present(node.parameters, "authentication")
       ? "/parameters/authentication"
       : "/parameters";
-    const credentialName =
-      authentication === "basicAuth"
-        ? "httpBasicAuth"
-        : authentication === "headerAuth"
-          ? "httpHeaderAuth"
-          : authentication === "jwtAuth"
-            ? "jwtAuth"
-            : undefined;
+    const hasConfiguredCredential =
+      typeof authentication === "string" &&
+      Object.hasOwn(spec.credentials, authentication);
+    const credentialName = hasConfiguredCredential
+      ? spec.credentials[authentication]
+      : undefined;
     if (authentication === "none") {
       scope.finding(
         present(node.parameters, "authentication")
@@ -148,7 +205,7 @@ function requestAuthentication(context: Context): RuleResult {
           "workflow_activation_unverified",
         ],
       );
-    } else if (credentialName !== undefined) {
+    } else if (hasConfiguredCredential) {
       scope.finding(
         "webhook_authentication_configured",
         location,
@@ -159,20 +216,22 @@ function requestAuthentication(context: Context): RuleResult {
           "upstream_authentication_not_observed",
         ],
       );
-      const credentials = node.raw.credentials;
-      const reference = isObject(credentials)
-        ? credentials[credentialName]
-        : undefined;
-      if (
-        !isObject(reference) ||
-        ![reference.id, reference.name].some(
-          (value) => typeof value === "string" && value.trim().length > 0,
-        )
-      ) {
-        scope.diagnostic(
-          "authentication_credential_reference_missing",
-          present(node.raw, "credentials") ? "/credentials" : "",
-        );
+      if (credentialName) {
+        const credentials = node.raw.credentials;
+        const reference = isObject(credentials)
+          ? credentials[credentialName]
+          : undefined;
+        if (
+          !isObject(reference) ||
+          ![reference.id, reference.name].some(
+            (value) => typeof value === "string" && value.trim().length > 0,
+          )
+        ) {
+          scope.diagnostic(
+            "authentication_credential_reference_missing",
+            present(node.raw, "credentials") ? "/credentials" : "",
+          );
+        }
       }
     } else {
       scope.diagnostic("unsupported_authentication_mode", location);
@@ -185,7 +244,11 @@ function requestAuthentication(context: Context): RuleResult {
 function transportSettings(context: Context): RuleResult {
   const rule = makeRule("N8N_TRANSPORT_SETTINGS", "transport");
   for (const node of context.nodes) {
-    if (node.type !== "n8n-nodes-base.httpRequest") continue;
+    if (
+      node.type !== "n8n-nodes-base.httpRequest" &&
+      node.type !== "n8n-nodes-base.httpRequestTool"
+    )
+      continue;
     const scope = new Scope(rule, node);
     if (!httpVersions.has(node.typeVersion)) {
       scope.diagnostic("unsupported_node_version", "/typeVersion");

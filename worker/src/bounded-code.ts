@@ -1065,7 +1065,7 @@ export function analyzeBoundedCode(
               fields[key.slice(1).replace(/~1/g, "/").replace(/~0/g, "~")] =
                 value;
           } else {
-            uncertain.push(spread);
+            uncertain.push(...Object.values(fields), spread);
             fields = Object.create(null);
           }
           continue;

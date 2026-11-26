@@ -6,7 +6,7 @@ import { isObject } from "./static-context.js";
 import type { NormalizedNode } from "./n8n.js";
 import { locationFor, stableId } from "./static-contract.js";
 import type { Finding, RuleResult } from "./static-contract.js";
-import { buildValueFlow } from "./value-flow.js";
+import { buildValueFlow, isExternalValue } from "./value-flow.js";
 import type { AbstractValue, ValueFlow } from "./value-flow.js";
 import { isStructuredPostgres } from "./definition-risks.js";
 
@@ -821,12 +821,7 @@ const member = (ast: Record<string, unknown>): string | undefined => {
       : ast.property.name;
   return typeof name === "string" ? name : undefined;
 };
-const hasExternal = (value: AbstractValue | undefined): boolean =>
-  !!value &&
-  (value.trust === "external" ||
-    value.origins.some(
-      (origin) => origin.kind === "webhook" || origin.kind === "subworkflow",
-    ));
+const hasExternal = isExternalValue;
 
 function javascriptRules(context: Context, flow: ValueFlow): RuleResult {
   const result = rule("N8N_ADVANCED_EXECUTION", "code_execution");

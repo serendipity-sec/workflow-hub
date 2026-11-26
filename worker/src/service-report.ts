@@ -327,6 +327,7 @@ describe(
     "native_model_or_dependency_unavailable",
     "nlp_field_analysis_failed",
     "python_analysis_failed",
+    "tool_cross_field_match",
   ],
   "analysisGaps",
   "검사 도구가 일부 작업을 완료하지 못함",
@@ -850,6 +851,7 @@ function computeSinkReachableNodes(
     )
   )
     return "all";
+  const allNodes = new Map(summary.nodes.map((node) => [node.nodeKey, node]));
   const active = new Map(
     summary.nodes
       .filter((node) => !node.disabled)
@@ -858,7 +860,16 @@ function computeSinkReachableNodes(
   const forward = new Map<string, string[]>();
   const reverse = new Map<string, string[]>();
   for (const edge of summary.edges) {
-    if (!active.has(edge.from) || !active.has(edge.to)) continue;
+    const fromNode = allNodes.get(edge.from);
+    const toNode = allNodes.get(edge.to);
+    if (!fromNode || !toNode) continue;
+    if (edge.channel === "main") {
+      // Disabled nodes pass through their first main input in n8n.
+      if (toNode.disabled && edge.input !== 0) continue;
+      if (fromNode.disabled && edge.output !== 0) continue;
+    } else if (fromNode.disabled || toNode.disabled) {
+      continue;
+    }
     const fwd = forward.get(edge.from) ?? [];
     fwd.push(edge.to);
     forward.set(edge.from, fwd);
@@ -868,6 +879,7 @@ function computeSinkReachableNodes(
   }
   const reachable = new Set<string>();
   const sinkRoles = new Set(["write", "send", "execute", "respond", "unknown"]);
+  const forwardSeen = new Set<string>();
   const forwardQueue: string[] = [];
   for (const node of active.values()) {
     if (node.roles.some((role) => sinkRoles.has(role)))
@@ -878,14 +890,20 @@ function computeSinkReachableNodes(
     if (
       (node.roles.includes("trigger") && node.roles.includes("respond")) ||
       (node.kind === "subworkflow" && node.roles.includes("trigger"))
-    )
-      forwardQueue.push(node.nodeKey);
+    ) {
+      reachable.add(node.nodeKey);
+      if (!forwardSeen.has(node.nodeKey)) {
+        forwardSeen.add(node.nodeKey);
+        forwardQueue.push(node.nodeKey);
+      }
+    }
   }
   while (forwardQueue.length > 0) {
     const current = forwardQueue.pop()!;
     for (const downstream of forward.get(current) ?? []) {
-      if (!reachable.has(downstream)) {
-        reachable.add(downstream);
+      reachable.add(downstream);
+      if (!forwardSeen.has(downstream)) {
+        forwardSeen.add(downstream);
         forwardQueue.push(downstream);
       }
     }

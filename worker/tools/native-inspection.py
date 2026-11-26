@@ -10,6 +10,17 @@ import sys
 MAX_INPUT = 2 * 1024 * 1024
 MAX_FINDINGS = 256
 VERSIONS = {"python": sys.version.split()[0], "presidio": None, "spacy": None, "model": None}
+SCOPE_ONLY_CODES = {
+    "nlp_english_model_profile",
+    "nlp_language_outside_profile",
+    "nlp_metadata_formats_only",
+    "nlp_program_formats_only",
+    "nlp_template_literal_text_only",
+    "nlp_json_string_values_only",
+    "nlp_technical_entity_filtered",
+    "nlp_chunked_text_profile",
+    "python_static_profile_limited",
+}
 logging.disable(logging.CRITICAL)
 
 
@@ -35,8 +46,19 @@ def run(mode, fields):
 
     def diagnostic(code, index=None):
         item = {"fieldIndex": index, "code": code}
-        if item not in result["diagnostics"] and len(result["diagnostics"]) < 256:
+        if item in result["diagnostics"]:
+            return
+        if code in SCOPE_ONLY_CODES:
+            if len(result["diagnostics"]) < 240:
+                result["diagnostics"].append(item)
+            return
+        if len(result["diagnostics"]) < 256:
             result["diagnostics"].append(item)
+            return
+        for offset in range(len(result["diagnostics"]) - 1, -1, -1):
+            if result["diagnostics"][offset]["code"] in SCOPE_ONLY_CODES:
+                result["diagnostics"][offset] = item
+                return
 
     def finding(index, code, start=None, end=None, line=None):
         item = {"fieldIndex": index, "code": code, "start": start, "end": end, "line": line}
@@ -295,6 +317,14 @@ def validate_fields(mode, fields):
         seen.add(field["index"])
 
 
+def run_batch_mode(item_mode, payload):
+    try:
+        validate_fields(item_mode, payload)
+        return run(item_mode, payload)
+    except Exception:
+        return {"mode": item_mode, "status": "error", "findings": [], "diagnostics": [{"fieldIndex": None, "code": "native_invalid_input"}], "versions": dict(VERSIONS)}
+
+
 def main():
     mode = sys.argv[1] if len(sys.argv) == 2 and sys.argv[1] in ("nlp", "python", "batch") else None
     try:
@@ -305,9 +335,7 @@ def main():
         if mode == "batch":
             if not isinstance(data, dict) or set(data) != {"nlp", "python"}:
                 raise ValueError("batch")
-            validate_fields("nlp", data["nlp"])
-            validate_fields("python", data["python"])
-            result = {"modes": [run("nlp", data["nlp"]), run("python", data["python"])]}
+            result = {"modes": [run_batch_mode("nlp", data["nlp"]), run_batch_mode("python", data["python"])]}
         else:
             if not isinstance(data, dict) or "fields" not in data:
                 raise ValueError("fields")

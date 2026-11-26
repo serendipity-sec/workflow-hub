@@ -1315,15 +1315,20 @@ function sendProfile(node: NormalizedNode): Profile | undefined {
   const p = node.parameters;
   const type = node.type.slice(base.length);
   if (
-    !["emailSend", "gmail", "slack", "telegram", "httpRequest"].includes(
-      type,
-    ) ||
+    ![
+      "emailSend",
+      "gmail",
+      "slack",
+      "telegram",
+      "httpRequest",
+      "httpRequestTool",
+    ].includes(type) ||
     !node.type.startsWith(base)
   )
     return;
   const profile: Profile = {
     sink:
-      type === "httpRequest"
+      type === "httpRequest" || type === "httpRequestTool"
         ? "http"
         : type === "emailSend" || type === "gmail"
           ? "email"
@@ -1332,7 +1337,7 @@ function sendProfile(node: NormalizedNode): Profile | undefined {
     content: [],
     diagnostics: [],
   };
-  if (type === "httpRequest") {
+  if (type === "httpRequest" || type === "httpRequestTool") {
     if (!httpVersions.includes(node.typeVersion))
       return unsupported(profile, "unsupported_node_version");
     add(profile, "recipients", "url", p.url, true);

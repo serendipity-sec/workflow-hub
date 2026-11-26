@@ -187,7 +187,7 @@ register(
    ai_vector_query_connection_unresolved ai_vector_update_profile_unreviewed ai_vector_reranker_unreviewed
    ai_lookup_tool_request_content_unverified binary_pinned_output_unverified
    binary_connection_unresolved ai_chat_message_type_unresolved binary_expression_effects_unresolved
-   code_loop_carried_state_unverified`,
+   code_loop_carried_state_unverified tool_cross_field_match`,
   {
     kind: "analyzer_extension",
     scopeOnly: false,

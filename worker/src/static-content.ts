@@ -124,6 +124,7 @@ export function analyzeContent(
   ) {
     addDiagnostic(secrets, "tool_invalid_report");
   } else {
+    for (const code of gitleaks.diagnostics ?? []) addDiagnostic(secrets, code);
     for (const match of gitleaks.findings) {
       const field = fields.get(match.fieldIndex);
       if (!field || !/^[a-z0-9][a-z0-9_-]{0,127}$/.test(match.ruleId)) {

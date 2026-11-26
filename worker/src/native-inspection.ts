@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { Context, ScalarField } from "./static-context.js";
 import type { Finding, RuleResult, StaticLocation } from "./static-contract.js";
 import { stableId } from "./static-contract.js";
+import { serviceDiagnosticDisposition } from "./service-scope.js";
 
 const modeSchema = z.enum(["nlp", "python"]);
 const findingCode = z.enum([
@@ -157,14 +158,20 @@ function pythonNode(node: Context["nodes"][number]): boolean {
     !node.disabled &&
     ((node.type === "n8n-nodes-base.code" &&
       node.typeVersion === 2 &&
-      ["python", "pythonNative"].includes(String(node.parameters.language))) ||
+      (node.parameters.language === "python" ||
+        node.parameters.language === "pythonNative")) ||
       (node.type === "@n8n/n8n-nodes-langchain.toolCode" &&
         [1, 1.1, 1.2, 1.3].includes(node.typeVersion) &&
         node.parameters.language === "python"))
   );
 }
 function fieldsFor(context: Context, mode: "nlp" | "python"): ScalarField[] {
-  if (mode === "nlp") return context.fields;
+  if (mode === "nlp")
+    return context.fields.filter(
+      (field) =>
+        field.value.trim().length > 0 &&
+        (field.kind === "value" || /[@\d:]/.test(field.value)),
+    );
   const pointers = new Set(
     context.nodes
       .filter(pythonNode)
@@ -403,6 +410,8 @@ async function runBatchModes(
     return orderedModes.map((mode) => failure(mode, "native_invalid_input"));
   const nlp = serializeFields(context, "nlp");
   const python = serializeFields(context, "python");
+  if (nlp.fields.length > 16384 || python.fields.length > 16384)
+    return undefined;
   const input = JSON.stringify({ nlp: nlp.payload, python: python.payload });
   // If combined payload exceeds the single-process limit, fall back cleanly to
   // per-mode invocations so individual 2 MiB budgets remain unchanged.
@@ -508,6 +517,14 @@ export function analyzeNativeInspection(
             rule("PYTHON_STATIC_CAPABILITIES", "code_execution"),
             rule("PYTHON_STATIC_OUTPUT", "output"),
           ];
+    const dispositionRank: Record<
+      ReturnType<typeof serviceDiagnosticDisposition>,
+      number
+    > = {
+      analysisGaps: 0,
+      environmentChecks: 1,
+      scopeNotes: 2,
+    };
     const addDiagnostic = (
       target: RuleResult,
       code: string,
@@ -516,13 +533,46 @@ export function analyzeNativeInspection(
       const location =
         fieldIndex === null ? root : (fields.get(fieldIndex)?.location ?? root);
       const id = stableId(target.ruleId, location, code);
-      if (
-        !target.diagnostics.some((item) => item.id === id) &&
-        target.diagnostics.length < 128
-      )
+      if (target.diagnostics.some((item) => item.id === id)) return;
+      const disposition = serviceDiagnosticDisposition(code);
+      if (disposition === "scopeNotes") {
+        if (target.diagnostics.length < 120)
+          target.diagnostics.push({ id, code, location });
+        return;
+      }
+      if (target.diagnostics.length < 128) {
         target.diagnostics.push({ id, code, location });
+        return;
+      }
+      if (disposition === "analysisGaps") {
+        for (let index = target.diagnostics.length - 1; index >= 0; index--) {
+          if (
+            serviceDiagnosticDisposition(target.diagnostics[index]!.code) ===
+            "scopeNotes"
+          ) {
+            target.diagnostics[index] = { id, code, location };
+            return;
+          }
+        }
+        const limitId = stableId(
+          target.ruleId,
+          root,
+          "native_input_scope_limit",
+        );
+        if (!target.diagnostics.some((item) => item.id === limitId)) {
+          target.diagnostics[target.diagnostics.length - 1] = {
+            id: limitId,
+            code: "native_input_scope_limit",
+            location: root,
+          };
+        }
+      }
     };
-    for (const item of mode.diagnostics)
+    for (const item of [...mode.diagnostics].sort(
+      (a, b) =>
+        dispositionRank[serviceDiagnosticDisposition(a.code)] -
+        dispositionRank[serviceDiagnosticDisposition(b.code)],
+    ))
       for (const target of rules)
         addDiagnostic(target, item.code, item.fieldIndex);
     const selectedIndices = new Set(
@@ -547,7 +597,8 @@ export function analyzeNativeInspection(
         !field ||
         !selectedIndices.has(item.fieldIndex) ||
         (item.end !== null && item.end > Array.from(field.value).length) ||
-        (item.line !== null && item.line > field.value.split(/\r?\n/).length)
+        (item.line !== null &&
+          item.line > field.value.split(/\r\n|\r|\n/).length)
       ) {
         addDiagnostic(target, "native_invalid_report", null);
         continue;

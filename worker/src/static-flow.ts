@@ -759,6 +759,8 @@ function rule(ruleId: string, category: Category): RuleResult {
   };
 }
 
+let activeDiagnostics: Set<string> | undefined;
+
 function evaluate(
   result: RuleResult,
   node: NormalizedNode,
@@ -769,14 +771,23 @@ function evaluate(
   const previousDiagnostics = new Set(
     result.diagnostics.map((item) => item.id),
   );
-  checks();
+  const recorded = new Set<string>();
+  const priorActive = activeDiagnostics;
+  activeDiagnostics = recorded;
+  try {
+    checks();
+  } finally {
+    activeDiagnostics = priorActive;
+  }
   const location = locationFor(node, suffix);
   const findings = result.findings.filter(
     (item) => !previousFindings.has(item.id),
   );
-  const diagnostics = result.diagnostics.filter(
-    (item) => !previousDiagnostics.has(item.id),
-  );
+  const diagnostics = result.diagnostics
+    .filter((item) => !previousDiagnostics.has(item.id))
+    .map((item) => item.id);
+  for (const id of recorded)
+    if (!diagnostics.includes(id)) diagnostics.push(id);
   result.coverage.push({
     location,
     status: diagnostics.length
@@ -785,7 +796,7 @@ function evaluate(
         : "unsupported"
       : "checked",
     findingIds: findings.map((item) => item.id),
-    diagnosticIds: diagnostics.map((item) => item.id),
+    diagnosticIds: diagnostics,
   });
 }
 
@@ -793,10 +804,25 @@ function diagnostic(
   result: RuleResult,
   location: StaticLocation,
   code: string,
-): void {
-  const id = stableId(result.ruleId, location, code);
-  if (!result.diagnostics.some((item) => item.id === id))
-    result.diagnostics.push({ id, code, location });
+): string {
+  let targetLocation = location;
+  let targetCode = code;
+  let id = stableId(result.ruleId, targetLocation, targetCode);
+  if (!result.diagnostics.some((item) => item.id === id)) {
+    if (result.diagnostics.length >= 255) {
+      targetLocation = rootLocation;
+      targetCode = "definition_diagnostic_limit";
+      id = stableId(result.ruleId, targetLocation, targetCode);
+    }
+    if (!result.diagnostics.some((item) => item.id === id))
+      result.diagnostics.push({
+        id,
+        code: targetCode,
+        location: targetLocation,
+      });
+  }
+  activeDiagnostics?.add(id);
+  return id;
 }
 
 function finding(
@@ -823,9 +849,8 @@ function finding(
     // earlier informational findings. The displaced location remains explicit
     // partial coverage, and all coverage references stay schema-consistent.
     const omitted = result.findings.splice(replace, 1)[0]!;
-    diagnostic(result, omitted.location, "definition_finding_limit");
-    const limitId = stableId(
-      result.ruleId,
+    const limitId = diagnostic(
+      result,
       omitted.location,
       "definition_finding_limit",
     );
@@ -1501,8 +1526,7 @@ function addUnknownCoverage(context: FlowContext, results: RuleResult[]): void {
         ),
     )) {
       const location = locationFor(node);
-      const id = stableId(result.ruleId, location, "opaque_node_effects");
-      result.diagnostics.push({ id, code: "opaque_node_effects", location });
+      const id = diagnostic(result, location, "opaque_node_effects");
       result.coverage.push({
         location,
         status: "unsupported",
@@ -1511,16 +1535,7 @@ function addUnknownCoverage(context: FlowContext, results: RuleResult[]): void {
       });
     }
     if (context.topology === "partial") {
-      const id = stableId(
-        result.ruleId,
-        rootLocation,
-        "partial_workflow_topology",
-      );
-      result.diagnostics.push({
-        id,
-        code: "partial_workflow_topology",
-        location: rootLocation,
-      });
+      const id = diagnostic(result, rootLocation, "partial_workflow_topology");
       result.coverage.push({
         location: rootLocation,
         status: "partial",

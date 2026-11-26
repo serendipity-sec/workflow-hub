@@ -4,13 +4,10 @@ import { isObject } from "./static-context.js";
 import { locationFor, stableId } from "./static-contract.js";
 import type { Category, Finding, RuleResult } from "./static-contract.js";
 import type { AbstractValue, ValueFlow } from "./value-flow.js";
+import { isExternalValue } from "./value-flow.js";
 
 const base = "n8n-nodes-base.";
-const external = (value: AbstractValue) =>
-  value.trust === "external" ||
-  value.origins.some((origin) =>
-    ["webhook", "subworkflow"].includes(origin.kind),
-  );
+const external = isExternalValue;
 const makeRule = (ruleId: string, category: Category): RuleResult => ({
   ruleId,
   category,

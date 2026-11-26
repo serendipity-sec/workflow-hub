@@ -284,6 +284,16 @@ function projectionShapeFits(values: AbstractValue[]): boolean {
   return true;
 }
 
+export function isExternalValue(value: AbstractValue | undefined): boolean {
+  return (
+    !!value &&
+    (value.trust === "external" ||
+      value.origins.some(
+        (origin) => origin.kind === "webhook" || origin.kind === "subworkflow",
+      ))
+  );
+}
+
 function join(
   values: AbstractValue[],
   nodeKey: string,
@@ -345,7 +355,7 @@ function join(
     sensitivity: sensitivityClasses[0]!,
     sensitivityClasses,
     sensitivityBasis: unique(values.flatMap((value) => value.sensitivityBasis)),
-    trust: values.every((value) => value.trust === "external")
+    trust: values.some((value) => value.trust === "external")
       ? "external"
       : values.every((value) => value.trust === "internal")
         ? "internal"
@@ -649,19 +659,29 @@ class ValueFlowAnalyzer implements ValueFlow {
     const exact = exactMatches.sort(
       (a, b) => severity(b.sensitivity) - severity(a.sensitivity),
     )[0];
+    const credential = kind === "credential";
     const result: AbstractValue = {
       status: "resolved",
       presence: "unknown",
       origins: [{ nodeKey: node.key, fieldPath, kind }],
-      sensitivity: exact?.sensitivity ?? inferred.sensitivity,
-      sensitivityClasses: exact
-        ? unique(exactMatches.map((item) => item.sensitivity))
-        : [inferred.sensitivity],
-      sensitivityBasis: exact
-        ? ["trusted_" + exact.provenance + "_annotation"]
-        : inferred.basis,
-      trust:
-        kind === "webhook" || kind === "subworkflow" ? "external" : "unknown",
+      sensitivity: credential
+        ? "secret_candidate"
+        : (exact?.sensitivity ?? inferred.sensitivity),
+      sensitivityClasses: credential
+        ? ["secret_candidate"]
+        : exact
+          ? unique(exactMatches.map((item) => item.sensitivity))
+          : [inferred.sensitivity],
+      sensitivityBasis: credential
+        ? ["credential_reference"]
+        : exact
+          ? ["trusted_" + exact.provenance + "_annotation"]
+          : inferred.basis,
+      trust: credential
+        ? "internal"
+        : kind === "webhook" || kind === "subworkflow"
+          ? "external"
+          : "unknown",
       transforms: [],
       guards: [],
       paths: [[node.key]],
@@ -3315,8 +3335,7 @@ class ValueFlowAnalyzer implements ValueFlow {
     if (
       (node.typeVersion >= 2 &&
         (node.parameters.language ?? "javaScript") !== "javaScript") ||
-      typeof source !== "string" ||
-      (node.parameters.mode ?? "runOnceForAllItems") !== "runOnceForAllItems"
+      typeof source !== "string"
     )
       return this.simpleCodeValue(node, path, depth);
     const host: BoundedCodeHost = {
@@ -3335,10 +3354,17 @@ class ValueFlowAnalyzer implements ValueFlow {
       this.codeOutputs.set(node.key, structuredClone(output));
       return this.project(output, path, node.key, depth + 1);
     };
-    if (
-      typeof source === "string" &&
-      source.length > valueFlowLimits.expressionCharacters
-    )
+    if ((node.parameters.mode ?? "runOnceForAllItems") !== "runOnceForAllItems")
+      return finish(
+        observeInvalidCode(
+          source,
+          host,
+          source.length > valueFlowLimits.expressionCharacters
+            ? "code_source_size_limit"
+            : "code_item_mode_unresolved",
+        ),
+      );
+    if (source.length > valueFlowLimits.expressionCharacters)
       return finish(observeInvalidCode(source, host, "code_source_size_limit"));
     const simple = this.simpleCodeValue(node, path, depth);
     if (

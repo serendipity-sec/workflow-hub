@@ -15,11 +15,13 @@ export type GitleaksReason =
   | "tool_input_limit"
   | "tool_invalid_report"
   | "tool_cleanup_failed";
+export type GitleaksDiagnosticCode = "tool_cross_field_match";
 export type GitleaksResult = {
   tool: "gitleaks";
   version: typeof gitleaksVersion;
   status: "completed" | "error";
   findings: { fieldIndex: number; ruleId: string }[];
+  diagnostics?: GitleaksDiagnosticCode[];
   reason?: GitleaksReason;
 };
 export type GitleaksOptions = {
@@ -130,11 +132,13 @@ export async function runGitleaks(
     maxOutputBytes > 2 * 1024 * 1024
   )
     return fail("tool_input_limit");
-  if (fields.length > 16_384) return fail("tool_input_limit");
   const ranges: { first: number; last: number; fieldIndex: number }[] = [];
-  const parts: string[] = [];
-  let nextLine = 1;
+  // Begin stdin with an ASCII text header so Gitleaks never classifies the
+  // leading payload bytes as binary application/* and skips scanning with 0.
+  const parts: string[] = ["__WORKFLOW_SCAN_TEXT_HEADER__\n"];
+  let nextLine = 2;
   let totalBytes = 0;
+  let activeCount = 0;
   const seen = new Set<number>();
   for (const field of fields) {
     if (
@@ -145,6 +149,9 @@ export async function runGitleaks(
     )
       return fail("tool_input_limit");
     seen.add(field.index);
+    if (field.value.trim().length === 0) continue;
+    activeCount++;
+    if (activeCount > 16_384) return fail("tool_input_limit");
     totalBytes += Buffer.byteLength(field.value) + 32;
     if (totalBytes > 2 * 1024 * 1024) return fail("tool_input_limit");
     const text = field.value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
@@ -246,6 +253,7 @@ export async function runGitleaks(
           result = fail("tool_invalid_report");
         else {
           const findings: GitleaksResult["findings"] = [];
+          const diagnostics: GitleaksDiagnosticCode[] = [];
           let valid = true;
           for (const entry of report) {
             if (
@@ -262,10 +270,26 @@ export async function runGitleaks(
               valid = false;
               break;
             }
-            const field = ranges.find(
+            let field = ranges.find(
               (range) =>
                 entry.StartLine >= range.first && entry.EndLine <= range.last,
             );
+            if (!field) {
+              const startField = ranges.find(
+                (range) =>
+                  entry.StartLine >= range.first &&
+                  entry.StartLine <= range.last,
+              );
+              const endField = ranges.find(
+                (range) =>
+                  entry.EndLine >= range.first && entry.EndLine <= range.last,
+              );
+              if (startField && endField) {
+                field = startField;
+                if (!diagnostics.includes("tool_cross_field_match"))
+                  diagnostics.push("tool_cross_field_match");
+              }
+            }
             if (!field) {
               valid = false;
               break;
@@ -288,6 +312,7 @@ export async function runGitleaks(
                 version: gitleaksVersion,
                 status: "completed",
                 findings,
+                ...(diagnostics.length ? { diagnostics } : {}),
               }
             : fail("tool_invalid_report");
         }
