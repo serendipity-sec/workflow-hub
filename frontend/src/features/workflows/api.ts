@@ -4,6 +4,9 @@ import { readData } from '../../shared/api/types';
 import type { Page } from '../../shared/api/types';
 import type {
   Comparison,
+  DeletionResult,
+  DownloadAvailability,
+  RestoreResult,
   UpdateType,
   UploadResult,
   VersionMetadata,
@@ -11,19 +14,29 @@ import type {
   WorkflowSummary,
 } from './types';
 
-function pageQuery(cursor: string | null): string {
-  return cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+/** `includeDeleted` adds deleted items that can still be restored. */
+function listQuery(cursor: string | null, includeDeleted: boolean): string {
+  const params = new URLSearchParams();
+  if (cursor) params.set('cursor', cursor);
+  if (includeDeleted) params.set('includeDeleted', 'true');
+  const query = params.toString();
+  return query ? `?${query}` : '';
 }
 
 function workflowPath(workflowId: string): string {
   return `/api/workflows/${encodeURIComponent(workflowId)}`;
 }
 
+function versionPath(workflowId: string, versionId: string): string {
+  return `${workflowPath(workflowId)}/versions/${encodeURIComponent(versionId)}`;
+}
+
 export async function listMyWorkflows(
   cursor: string | null,
+  includeDeleted = false,
 ): Promise<Page<WorkflowSummary>> {
   const response = await authenticatedFetch(
-    `/api/me/workflows${pageQuery(cursor)}`,
+    `/api/me/workflows${listQuery(cursor, includeDeleted)}`,
   );
   return readData(response);
 }
@@ -35,9 +48,70 @@ export async function getWorkflow(workflowId: string): Promise<WorkflowDetail> {
 export async function listVersions(
   workflowId: string,
   cursor: string | null,
+  includeDeleted = false,
 ): Promise<Page<VersionMetadata>> {
   const response = await authenticatedFetch(
-    `${workflowPath(workflowId)}/versions${pageQuery(cursor)}`,
+    `${workflowPath(workflowId)}/versions${listQuery(cursor, includeDeleted)}`,
+  );
+  return readData(response);
+}
+
+/** Allows or stops downloads of one version. The file itself is kept. */
+export async function setDownloadAvailability(
+  workflowId: string,
+  versionId: string,
+  downloadEnabled: boolean,
+): Promise<DownloadAvailability> {
+  const response = await authenticatedFetch(
+    `${versionPath(workflowId, versionId)}/download-availability`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ downloadEnabled }),
+    },
+  );
+  return readData(response);
+}
+
+/** Deleting the only remaining version deletes the whole workflow (`workflowDeleted`). */
+export async function deleteVersion(
+  workflowId: string,
+  versionId: string,
+): Promise<DeletionResult> {
+  const response = await authenticatedFetch(
+    versionPath(workflowId, versionId),
+    { method: 'DELETE' },
+  );
+  return readData(response);
+}
+
+export async function deleteWorkflow(
+  workflowId: string,
+): Promise<DeletionResult> {
+  const response = await authenticatedFetch(workflowPath(workflowId), {
+    method: 'DELETE',
+  });
+  return readData(response);
+}
+
+export async function restoreVersion(
+  workflowId: string,
+  versionId: string,
+): Promise<RestoreResult> {
+  const response = await authenticatedFetch(
+    `${versionPath(workflowId, versionId)}/restore`,
+    { method: 'POST' },
+  );
+  return readData(response);
+}
+
+/** Restores the versions deleted together with the workflow, where still possible. */
+export async function restoreWorkflow(
+  workflowId: string,
+): Promise<RestoreResult> {
+  const response = await authenticatedFetch(
+    `${workflowPath(workflowId)}/restore`,
+    { method: 'POST' },
   );
   return readData(response);
 }
