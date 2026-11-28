@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
-import { canCopy, copyText, describeFileIdentity } from './fileIdentityView';
-import './workflows.css';
+import {
+  canCopy,
+  copyText,
+  describeFileIdentity,
+} from '../lib/fileIdentityView';
+import '../workflows.css';
 
 type Copy = { state: 'idle' | 'copied' | 'failed'; at: number };
 const IDLE: Copy = { state: 'idle', at: 0 };

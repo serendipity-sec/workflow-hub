@@ -2,9 +2,9 @@ import { BrowserRouter, Route, Routes } from 'react-router';
 import { AuthProvider } from '../features/auth/AuthProvider';
 import { RequireAuth } from '../features/auth/RequireAuth';
 import { HomePage } from '../features/home/HomePage';
-import { WorkflowDetailPage } from '../features/workflows/WorkflowDetailPage';
-import { WorkflowListPage } from '../features/workflows/WorkflowListPage';
-import { WorkflowUploadPage } from '../features/workflows/WorkflowUploadPage';
+import { WorkflowDetailPage } from '../features/workflows/pages/WorkflowDetailPage';
+import { WorkflowListPage } from '../features/workflows/pages/WorkflowListPage';
+import { WorkflowUploadPage } from '../features/workflows/pages/WorkflowUploadPage';
 import { Layout } from './Layout';
 import { NotFoundPage } from './NotFoundPage';
 

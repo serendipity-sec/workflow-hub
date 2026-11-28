@@ -1,6 +1,10 @@
-import { ApiError } from '../../shared/api/client';
-import { formatDateTime } from '../../shared/format';
-import type { DeletionResult, RestoreResult, VersionMetadata } from './types';
+import { ApiError } from '../../../shared/api/client';
+import { formatDateTime } from '../../../shared/format';
+import type {
+  DeletionResult,
+  RestoreResult,
+  VersionMetadata,
+} from '../api/types';
 
 /**
  * Deleted items carry `deletedAt`. The server omits it for alive items; a null

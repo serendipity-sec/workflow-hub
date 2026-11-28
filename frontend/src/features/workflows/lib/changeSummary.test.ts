@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { describeChanges, displayPath, hasChanges } from './changeSummary';
-import type { Comparison } from './types';
+import type { Comparison } from '../api/types';
 
 const comparison: Comparison = {
   comparisonId: 'c1',

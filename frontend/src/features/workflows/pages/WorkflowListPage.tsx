@@ -1,27 +1,27 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { usePagedList } from '../../shared/api/usePagedList';
-import { formatDateTime } from '../../shared/format';
-import { Button, ButtonLink } from '../../shared/ui/Button';
-import { Icon } from '../../shared/ui/Icon';
-import { PageHeader } from '../../shared/ui/PageHeader';
+import { usePagedList } from '../../../shared/api/usePagedList';
+import { formatDateTime } from '../../../shared/format';
+import { Button, ButtonLink } from '../../../shared/ui/Button';
+import { Icon } from '../../../shared/ui/Icon';
+import { PageHeader } from '../../../shared/ui/PageHeader';
 import {
   EmptyState,
   ErrorState,
   LoadingState,
-} from '../../shared/ui/PageStates';
-import { Tag } from '../../shared/ui/Tag';
-import { listMyWorkflows, restoreWorkflow } from './api';
+} from '../../../shared/ui/PageStates';
+import { Tag } from '../../../shared/ui/Tag';
+import { listMyWorkflows, restoreWorkflow } from '../api/api';
 import {
   isDeleted,
   isStaleError,
   noticeFrom,
   restoreDeadline,
   restoreNotice,
-} from './deletion';
-import { describeWorkflowError } from './errorMessages';
-import type { WorkflowSummary } from './types';
-import './workflows.css';
+} from '../lib/deletion';
+import { describeWorkflowError } from '../lib/errorMessages';
+import type { WorkflowSummary } from '../api/types';
+import '../workflows.css';
 
 export function WorkflowListPage() {
   const location = useLocation();

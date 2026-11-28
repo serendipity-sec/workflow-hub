@@ -2,6 +2,7 @@
 
 - 루트 AGENTS.md와 API 계약을 먼저 읽는다. 이 폴더는 React + TypeScript + Vite 앱이다.
 - `src/app`은 앱 구성, `src/features/<domain>`은 기능, 기능 간 공통 코드가 실제로 생기면 `src/shared`로 분리한다.
+- `features/workflows`부터 도메인 안을 `api/`(API 호출·타입), `components/`(부품), `pages/`(라우트 화면), `lib/`(순수 로직)로 나누고 테스트는 대상 파일 옆에 둔다. 폴더는 해당 파일이 생길 때 만든다. 다른 도메인은 정리할 때 같은 구성으로 맞춘다.
 - 컴포넌트는 PascalCase, 훅은 use 접두어, 일반 함수는 camelCase를 사용한다. TypeScript strict를 끄거나 any로 회피하지 않는다.
 - `npm ci`, `npm run dev`, `npm run verify`를 사용한다. 포맷 수정은 `npm run format`이다.
 - 변경된 동작에 대한 테스트를 작성한다. API 구현 전에는 계약 기반 mock임을 명확히 표시하고 완료된 기능으로 소개하지 않는다.

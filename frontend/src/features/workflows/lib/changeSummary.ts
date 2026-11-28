@@ -4,7 +4,7 @@ import type {
   Comparison,
   FieldChange,
   Graph,
-} from './types';
+} from '../api/types';
 
 export type ChangeRow = {
   key: string;

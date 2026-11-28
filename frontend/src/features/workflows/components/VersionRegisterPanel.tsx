@@ -1,18 +1,18 @@
 import { useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
-import { ApiError } from '../../shared/api/client';
-import type { LatestVersion } from '../../shared/api/client';
-import { formatDateTime } from '../../shared/format';
-import { Button } from '../../shared/ui/Button';
-import { Card } from '../../shared/ui/Card';
-import { Field } from '../../shared/ui/Field';
-import { Icon } from '../../shared/ui/Icon';
-import { compareVersion, registerVersion } from './api';
-import { describeChanges, hasChanges } from './changeSummary';
-import { describeWorkflowError } from './errorMessages';
-import type { Comparison, UpdateType, VersionMetadata } from './types';
-import { validateUploadFile } from './uploadValidation';
-import './workflows.css';
+import { ApiError } from '../../../shared/api/client';
+import type { LatestVersion } from '../../../shared/api/client';
+import { formatDateTime } from '../../../shared/format';
+import { Button } from '../../../shared/ui/Button';
+import { Card } from '../../../shared/ui/Card';
+import { Field } from '../../../shared/ui/Field';
+import { Icon } from '../../../shared/ui/Icon';
+import { compareVersion, registerVersion } from '../api/api';
+import { describeChanges, hasChanges } from '../lib/changeSummary';
+import { describeWorkflowError } from '../lib/errorMessages';
+import type { Comparison, UpdateType, VersionMetadata } from '../api/types';
+import { validateUploadFile } from '../lib/uploadValidation';
+import '../workflows.css';
 
 type PanelError =
   | { kind: 'message'; text: string }

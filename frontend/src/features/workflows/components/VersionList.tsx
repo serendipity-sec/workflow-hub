@@ -1,22 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { usePagedList } from '../../shared/api/usePagedList';
-import { formatDateTime } from '../../shared/format';
-import { Button } from '../../shared/ui/Button';
-import { Card } from '../../shared/ui/Card';
-import { Icon } from '../../shared/ui/Icon';
+import { usePagedList } from '../../../shared/api/usePagedList';
+import { formatDateTime } from '../../../shared/format';
+import { Button } from '../../../shared/ui/Button';
+import { Card } from '../../../shared/ui/Card';
+import { Icon } from '../../../shared/ui/Icon';
 import {
   EmptyState,
   ErrorState,
   LoadingState,
-} from '../../shared/ui/PageStates';
-import { Tag } from '../../shared/ui/Tag';
+} from '../../../shared/ui/PageStates';
+import { Tag } from '../../../shared/ui/Tag';
 import {
   deleteVersion,
   downloadVersion,
   listVersions,
   restoreVersion,
   setDownloadAvailability,
-} from './api';
+} from '../api/api';
 import {
   allowsWorkflowDelete,
   asksAboutWorkflowAgain,
@@ -29,12 +29,12 @@ import {
   lastVersionRisk,
   restoreDeadline,
   restoreNotice,
-} from './deletion';
-import type { LastVersionRisk } from './deletion';
-import { describeWorkflowError } from './errorMessages';
+} from '../lib/deletion';
+import type { LastVersionRisk } from '../lib/deletion';
+import { describeWorkflowError } from '../lib/errorMessages';
 import { FileIdentity } from './FileIdentity';
-import type { DeletionResult, VersionMetadata } from './types';
-import './workflows.css';
+import type { DeletionResult, VersionMetadata } from '../api/types';
+import '../workflows.css';
 
 type Action = 'download' | 'availability' | 'delete' | 'restore';
 type Busy = { versionId: string; action: Action };
