@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assessmentError } from "../dist/assessment-contract.js";
-import { presentInspection, inspectionSchema } from "../dist/inspection.js";
+import { assessmentError } from "../dist/contracts/assessment-contract.js";
+import {
+  presentInspection,
+  inspectionSchema,
+} from "../dist/service/inspection.js";
 
 test("inspection binds failure, service display and unavailable model to one hash", async () => {
   const report = assessmentError("1".repeat(64), "invalid_input");

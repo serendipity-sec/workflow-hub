@@ -4,18 +4,18 @@ import { test } from "node:test";
 import {
   assessDestination,
   parseEvidence,
-} from "../dist/assessment-evidence.js";
+} from "../dist/assessment/assessment-evidence.js";
 import {
   evaluatePolicy,
   policyEvaluationSchema,
-} from "../dist/assessment-policy.js";
+} from "../dist/assessment/assessment-policy.js";
 import {
   categories,
   reportStatus,
   stableId,
   staticReportSchema,
   staticResultVersions,
-} from "../dist/static-contract.js";
+} from "../dist/contracts/static-contract.js";
 
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const inputSha256 = hash("policy fixture");

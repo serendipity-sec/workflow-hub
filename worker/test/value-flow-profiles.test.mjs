@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createContext } from "../dist/static-context.js";
-import { buildValueFlow } from "../dist/value-flow.js";
-import { analyzeFlow } from "../dist/static-flow.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import { buildValueFlow } from "../dist/workflow/value-flow.js";
+import { analyzeFlow } from "../dist/rules/static-flow.js";
 import {
   analyzeExtendedSinks,
   transferDataClasses,
-} from "../dist/extended-sinks.js";
-import { assessDestination } from "../dist/assessment-policy.js";
-import { ruleResultSchema } from "../dist/static-contract.js";
+} from "../dist/rules/extended-sinks.js";
+import { assessDestination } from "../dist/assessment/assessment-policy.js";
+import { ruleResultSchema } from "../dist/contracts/static-contract.js";
 
 const node = (id, type, typeVersion, parameters = {}) => ({
   id,

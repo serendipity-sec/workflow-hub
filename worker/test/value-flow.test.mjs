@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createContext } from "../dist/static-context.js";
-import { analyzeExtendedSinks } from "../dist/extended-sinks.js";
-import { analyzeAdvancedRisks } from "../dist/advanced-risks.js";
-import { buildValueFlow, valueFlowLimits } from "../dist/value-flow.js";
-import { assessDestination } from "../dist/assessment-policy.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import { analyzeExtendedSinks } from "../dist/rules/extended-sinks.js";
+import { analyzeAdvancedRisks } from "../dist/rules/advanced-risks.js";
+import {
+  buildValueFlow,
+  valueFlowLimits,
+} from "../dist/workflow/value-flow.js";
+import { assessDestination } from "../dist/assessment/assessment-policy.js";
 
 const node = (name, type, version, parameters = {}) => ({
   id: name,
@@ -127,7 +130,10 @@ test("trusted annotations aggregate into whole objects without turning external 
   const whole = run.resolve("={{ $json }}");
   assert.equal(whole.sensitivity, "secret_candidate");
   assert.ok(whole.sensitivityBasis.includes("trusted_schema_annotation"));
-  assert.equal(whole.fields["/body/session"].sensitivity, "secret_candidate");
+  assert.equal(
+    whole.fields["/body"].fields["/session"].sensitivity,
+    "secret_candidate",
+  );
   assert.equal(
     run.resolve("={{ $json.body.label }}").sensitivity,
     "public_literal",

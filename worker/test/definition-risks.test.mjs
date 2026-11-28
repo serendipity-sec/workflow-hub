@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createContext } from "../dist/static-context.js";
-import { buildValueFlow } from "../dist/value-flow.js";
-import { analyzeDefinitionRisks } from "../dist/definition-risks.js";
-import { ruleResultSchema } from "../dist/static-contract.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import { buildValueFlow } from "../dist/workflow/value-flow.js";
+import { analyzeDefinitionRisks } from "../dist/rules/definition-risks.js";
+import { ruleResultSchema } from "../dist/contracts/static-contract.js";
 const node = (id, type, version, parameters = {}) => ({
   id,
   name: id,

@@ -1,8 +1,8 @@
 # 필드별 정적 값 흐름
 
-`src/value-flow.ts`는 워크플로 JSON에서 가능한 값의 출처·민감도·변환·분기 조건을 추적한다. 업로드한 표현식·Code·워크플로를 실행하지 않는다. Acorn은 JavaScript 구문을 파싱하는 데만 사용한다.
+`src/workflow/value-flow.ts`는 워크플로 JSON에서 가능한 값의 출처·민감도·변환·분기 조건을 추적한다. 업로드한 표현식·Code·워크플로를 실행하지 않는다. Acorn은 JavaScript 구문을 파싱하는 데만 사용한다.
 
-0.6의 `src/bounded-code.ts`는 단순 const 프로필이 처리하지 못한 Code를 위한 별도 유한 추상 해석기다. `eval`, VM, `Function`, 제출된 함수·메서드·정규식의 실행을 사용하지 않는다. 지역 상태와 AST의 가능한 출처를 옮기는 작업이며 n8n 실행 재현이 아니다.
+0.6의 `src/workflow/bounded-code.ts`는 단순 const 프로필이 처리하지 못한 Code를 위한 별도 유한 추상 해석기다. `eval`, VM, `Function`, 제출된 함수·메서드·정규식의 실행을 사용하지 않는다. 지역 상태와 AST의 가능한 출처를 옮기는 작업이며 n8n 실행 재현이 아니다.
 
 ## 내부 API와 결과 의미
 

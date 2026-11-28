@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { analyzeAiFlow } from "../dist/ai-flow.js";
-import { createContext } from "../dist/static-context.js";
-import { ruleResultSchema } from "../dist/static-contract.js";
-import { buildValueFlow } from "../dist/value-flow.js";
+import { analyzeAiFlow } from "../dist/rules/ai-flow.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import { ruleResultSchema } from "../dist/contracts/static-contract.js";
+import { buildValueFlow } from "../dist/workflow/value-flow.js";
 
 const prefix = "@n8n/n8n-nodes-langchain.";
 function inspect(example, parameters = {}, type = "toolCode", version = 1.3) {

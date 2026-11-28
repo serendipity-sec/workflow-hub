@@ -7,11 +7,15 @@ import { join } from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
-import { WorkerApiClient } from "../dist/api-client.js";
-import { identityOf, limits, resultVersions } from "../dist/contract.js";
-import { runLocal, runRemoteOnce } from "../dist/runner.js";
-import { runLocalChild } from "../dist/subprocess.js";
-import { sha256 } from "../dist/worker-io.js";
+import { WorkerApiClient } from "../dist/runtime/api-client.js";
+import {
+  identityOf,
+  limits,
+  resultVersions,
+} from "../dist/contracts/contract.js";
+import { runLocal, runRemoteOnce } from "../dist/runtime/runner.js";
+import { runLocalChild } from "../dist/runtime/subprocess.js";
+import { sha256 } from "../dist/runtime/worker-io.js";
 
 const execute = promisify(execFile);
 const task = JSON.parse(await readFile("fixtures/task.json", "utf8"));
@@ -306,8 +310,8 @@ test("injected launcher receives a deadline and its late output is never accepte
 test("a standalone mock runner completes a pending analyzer with a timeout", async (t) => {
   const { origin, requests } = await mock(t);
   const program = `
-    import { WorkerApiClient } from "./dist/api-client.js";
-    import { runRemoteOnce } from "./dist/runner.js";
+    import { WorkerApiClient } from "./dist/runtime/api-client.js";
+    import { runRemoteOnce } from "./dist/runtime/runner.js";
     const origin = ${JSON.stringify(origin)};
     const api = new WorkerApiClient({mode: "mock", apiOrigin: origin, fileOrigin: origin, token: "synthetic"});
     console.log(JSON.stringify(await runRemoteOnce(api, {analyzer: () => new Promise(() => {})})));

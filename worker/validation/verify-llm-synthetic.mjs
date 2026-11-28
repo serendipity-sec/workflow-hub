@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { writeFile, mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { assessBytes } from "../dist/assessment-engine.js";
+import { assessBytes } from "../dist/assessment/assessment-engine.js";
 import {
   createLlmContext,
   reviewWithLlm,
   llmDefaults,
   providerContext,
-} from "../dist/llm-review.js";
+} from "../dist/service/llm-review.js";
 
 // Entirely invented input. This exercises the API adapter, NOT actual scanner
 // tools, real workflow quality, external services or workflow execution.

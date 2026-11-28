@@ -6,13 +6,13 @@ import {
   assessEnvironment,
   dependencyResultsSchema,
   matchAdvisory,
-} from "../dist/assessment-environment.js";
+} from "../dist/assessment/assessment-environment.js";
 import {
   osvDocumentSchema,
   parseEvidence,
-} from "../dist/assessment-evidence.js";
-import { createContext } from "../dist/static-context.js";
-import { ruleResultSchema } from "../dist/static-contract.js";
+} from "../dist/assessment/assessment-evidence.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import { ruleResultSchema } from "../dist/contracts/static-contract.js";
 
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const now = "2026-11-22T00:00:00.000Z";

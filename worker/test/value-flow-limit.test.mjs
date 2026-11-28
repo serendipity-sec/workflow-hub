@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createContext } from "../dist/static-context.js";
-import { buildValueFlow } from "../dist/value-flow.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import { buildValueFlow } from "../dist/workflow/value-flow.js";
 
 function analyze(parameters = {}, raw = {}, extraSource = false, port = 0) {
   const document = {

@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
-import { assessmentReportSchema } from "../dist/assessment-contract.js";
-import { createContext } from "../dist/static-context.js";
-import { buildValueFlow } from "../dist/value-flow.js";
+import { assessmentReportSchema } from "../dist/contracts/assessment-contract.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import { buildValueFlow } from "../dist/workflow/value-flow.js";
 
 assert.ok(process.argv[2], "Supply the frozen public input/report directory");
 assert.match(

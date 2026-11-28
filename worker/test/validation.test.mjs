@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { test } from "node:test";
-import { analyzeWorkflow } from "../dist/analysis.js";
-import { compareAnalysis } from "../dist/compare.js";
-import { resultSchema, versions } from "../dist/contract.js";
+import { analyzeWorkflow } from "../dist/analysis/analysis.js";
+import { compareAnalysis } from "../dist/analysis/compare.js";
+import { resultSchema, versions } from "../dist/contracts/contract.js";
 import { summarizeExternal } from "../validation/baselines.mjs";
 import {
   frozenCorpus,

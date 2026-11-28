@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { parseWorkflow } from "../dist/n8n.js";
+import { parseWorkflow } from "../dist/workflow/n8n.js";
 
 function input() {
   return JSON.parse(

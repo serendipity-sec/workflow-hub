@@ -6,4 +6,4 @@ COPY package.json package-lock.json ./
 COPY dist/ ./dist/
 COPY tools/native-inspection.py ./tools/native-inspection.py
 USER 65532:65532
-ENTRYPOINT ["node", "--max-old-space-size=256", "dist/assessment-entry.js"]
+ENTRYPOINT ["node", "--max-old-space-size=256", "dist/runtime/assessment-entry.js"]

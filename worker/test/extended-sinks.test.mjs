@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
-import { analyzeExtendedSinks } from "../dist/extended-sinks.js";
-import { createContext } from "../dist/static-context.js";
-import { ruleResultSchema } from "../dist/static-contract.js";
-import { parseEvidence } from "../dist/assessment-evidence.js";
-import { buildValueFlow } from "../dist/value-flow.js";
+import { analyzeExtendedSinks } from "../dist/rules/extended-sinks.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import { ruleResultSchema } from "../dist/contracts/static-contract.js";
+import { parseEvidence } from "../dist/assessment/assessment-evidence.js";
+import { buildValueFlow } from "../dist/workflow/value-flow.js";
 
 const node = (id, type, typeVersion, parameters = {}) => ({
   id,

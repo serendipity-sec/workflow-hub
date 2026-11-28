@@ -1,6 +1,6 @@
 # SQL·명령·JavaScript 확장 검사
 
-`src/advanced-risks.ts`는 `value-flow.ts`의 값 모델을 사용해 Set·분기·지원 Merge를 거친 입력이 SQL과 명령·코드 실행 위치에 전달되는지 검사한다. 기존 정밀 SQL 프로필과 검증 기록은 교체하지 않는다. 업로드 SQL·명령·JavaScript를 실행하거나 DB·URL에 접속하지 않는다.
+`src/rules/advanced-risks.ts`는 `value-flow.ts`의 값 모델을 사용해 Set·분기·지원 Merge를 거친 입력이 SQL과 명령·코드 실행 위치에 전달되는지 검사한다. 기존 정밀 SQL 프로필과 검증 기록은 교체하지 않는다. 업로드 SQL·명령·JavaScript를 실행하거나 DB·URL에 접속하지 않는다.
 
 ## 오픈소스의 실제 역할
 

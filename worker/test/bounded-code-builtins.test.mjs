@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createContext } from "../dist/static-context.js";
-import { buildValueFlow } from "../dist/value-flow.js";
-import { transferDataClasses } from "../dist/extended-sinks.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import { buildValueFlow } from "../dist/workflow/value-flow.js";
+import { transferDataClasses } from "../dist/rules/extended-sinks.js";
 
 function analyze(jsCode, field = "/result", annotations = []) {
   const nodes = [

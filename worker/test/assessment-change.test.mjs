@@ -7,11 +7,11 @@ import {
   createRemediationPlans,
   definitionComparisonSchema,
   remediationPlansSchema,
-} from "../dist/assessment-change.js";
-import { parseEvidence } from "../dist/assessment-evidence.js";
-import { createContext } from "../dist/static-context.js";
-import { analyzeSettings } from "../dist/static-settings.js";
-import { analyzeFlow } from "../dist/static-flow.js";
+} from "../dist/assessment/assessment-change.js";
+import { parseEvidence } from "../dist/assessment/assessment-evidence.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import { analyzeSettings } from "../dist/rules/static-settings.js";
+import { analyzeFlow } from "../dist/rules/static-flow.js";
 
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const encode = (value) => Buffer.from(JSON.stringify(value));

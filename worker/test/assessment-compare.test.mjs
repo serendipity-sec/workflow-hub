@@ -1,19 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
-import { assessBytes } from "../dist/assessment-engine.js";
+import { assessBytes } from "../dist/assessment/assessment-engine.js";
 import {
   assessmentReportSchema,
   assessmentError,
   assessmentExtensionRules,
   legacyAssessmentExtensionRules,
-} from "../dist/assessment-contract.js";
+} from "../dist/contracts/assessment-contract.js";
 import {
   compareAssessment,
   assessmentComparisonSchema,
-} from "../dist/assessment-compare.js";
-import { presentFindings } from "../dist/assessment-summary.js";
-import { reportStatus, stableId } from "../dist/static-contract.js";
+} from "../dist/assessment/assessment-compare.js";
+import { presentFindings } from "../dist/assessment/assessment-summary.js";
+import { reportStatus, stableId } from "../dist/contracts/static-contract.js";
 
 const now = "2026-11-22T00:00:00.000Z";
 const hash = (text) => createHash("sha256").update(text).digest("hex");

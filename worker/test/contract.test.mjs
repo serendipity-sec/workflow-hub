@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
-import { resultSchema, taskSchema, versions } from "../dist/contract.js";
+import {
+  resultSchema,
+  taskSchema,
+  versions,
+} from "../dist/contracts/contract.js";
 
 const fixture = (name) => new URL(`../fixtures/${name}`, import.meta.url);
 const json = async (name) => JSON.parse(await readFile(fixture(name), "utf8"));

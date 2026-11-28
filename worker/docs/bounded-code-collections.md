@@ -75,7 +75,7 @@ JSON 예외 프로파일은 try 본문이 **단 하나의 `JSON.parse` 반환 �
 
 ## 선택적 필드와 공통 구조 보존
 
-분기 한쪽에서만 `{result: rows.filter(Boolean)}`를 만드는 경우도 가능한 result 구조를 유지해야 한다. 기존 `code_branch_field_optional` 포장은 필드 맵만 복사해 대표 원소·대안 정보를 잃었다. `src/value-shape.ts`의 공통 `preserveValueShape`로 선택적 필드, 컬렉션 조건 의존성 포장, bounded 결과, 인덱스 선택 포장 네 곳을 통일했다. 이 함수는 구조 정보만 보존하며 상태·존재·상수·검증 조건·출처·값 식별자는 포장 단계가 결정한다.
+분기 한쪽에서만 `{result: rows.filter(Boolean)}`를 만드는 경우도 가능한 result 구조를 유지해야 한다. 기존 `code_branch_field_optional` 포장은 필드 맵만 복사해 대표 원소·대안 정보를 잃었다. `src/workflow/value-shape.ts`의 공통 `preserveValueShape`로 선택적 필드, 컬렉션 조건 의존성 포장, bounded 결과, 인덱스 선택 포장 네 곳을 통일했다. 이 함수는 구조 정보만 보존하며 상태·존재·상수·검증 조건·출처·값 식별자는 포장 단계가 결정한다.
 
 선택적 필드의 후속 선택도 존재 미확인·상수 미확인·검증 조건 없음 상태를 유지한다. 일반 공개 배열이라도 분기에 따라 필드가 없을 수 있다는 사실을 없애지 않는다. 재검토한 객체 spread의 알려진 필드 복사는 새 객체를 구성하는 작업이므로 대표 컬렉션 전체를 복사하지 않으며, JSON/불명 변환은 앞선 구조 단절 규칙을 그대로 유지한다.
 

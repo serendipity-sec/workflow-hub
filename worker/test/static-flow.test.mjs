@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { createContext } from "../dist/static-context.js";
-import { ruleResultSchema } from "../dist/static-contract.js";
-import { analyzeFlow } from "../dist/static-flow.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import { ruleResultSchema } from "../dist/contracts/static-contract.js";
+import { analyzeFlow } from "../dist/rules/static-flow.js";
 
 const prefix = "n8n-nodes-base.";
 const node = (name, type, version, parameters = {}) => ({

@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile, writeFile, mkdir, realpath } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import {
   buildCoverageExplanation,
   causeKinds,
-} from "../dist/coverage-causes.js";
-import { assessmentReportSchema } from "../dist/assessment-contract.js";
+} from "../dist/service/coverage-causes.js";
+import { assessmentReportSchema } from "../dist/contracts/assessment-contract.js";
+import { newOutputPath } from "./output-files.mjs";
 
 const [output, ...directories] = process.argv.slice(2);
 assert.ok(
@@ -14,6 +15,9 @@ assert.ok(
   "Supply output and one or more pairs of frozen before/after directories",
 );
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
+const outputPath = await newOutputPath(output, directories);
+const artifactsDirectory = outputPath + ".artifacts";
+let artifactsCreated = false;
 const samples = [];
 const seen = new Set();
 for (let pair = 0; pair < directories.length; pair += 2) {
@@ -72,11 +76,16 @@ for (let pair = 0; pair < directories.length; pair += 2) {
         "Comparison requires every diagnostic code in the explanation",
       );
       const artifact = Buffer.from(JSON.stringify(explanation, null, 2) + "\n");
-      // Write derived artifacts only into the after directory; frozen baseline stays untouched.
+      if (!artifactsCreated) {
+        await mkdir(artifactsDirectory);
+        artifactsCreated = true;
+      }
+      // Each comparison gets its own derived artifacts; both frozen inputs stay untouched.
       const label = directory === beforeDir ? "before" : "after";
       await writeFile(
-        join(afterDir, `${sample.id}.coverage.${label}.json`),
+        join(artifactsDirectory, `${sample.id}.coverage.${label}.json`),
         artifact,
+        { flag: "wx" },
       );
       rows.push({
         engineVersion: report.engineVersion,
@@ -171,8 +180,9 @@ const receipt = {
   codes,
   samples,
 };
-await mkdir(dirname(resolve(output)), { recursive: true });
-await writeFile(resolve(output), JSON.stringify(receipt, null, 2) + "\n");
+await writeFile(outputPath, JSON.stringify(receipt, null, 2) + "\n", {
+  flag: "wx",
+});
 console.log(
   JSON.stringify({
     outcome: receipt.outcome,

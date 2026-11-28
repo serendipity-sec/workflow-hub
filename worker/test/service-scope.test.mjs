@@ -2,12 +2,15 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import test from "node:test";
-import { assessBytes } from "../dist/assessment-engine.js";
+import { assessBytes } from "../dist/assessment/assessment-engine.js";
 import {
   buildServiceReport,
   serviceReportSchema,
-} from "../dist/service-report.js";
-import { presentInspection, inspectionSchema } from "../dist/inspection.js";
+} from "../dist/service/service-report.js";
+import {
+  presentInspection,
+  inspectionSchema,
+} from "../dist/service/inspection.js";
 
 const node = (name, type, parameters = {}, typeVersion = 1) => ({
   id: name,

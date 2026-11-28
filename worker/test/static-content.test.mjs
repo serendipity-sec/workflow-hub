@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createContext } from "../dist/static-context.js";
-import { ruleResultSchema } from "../dist/static-contract.js";
-import { analyzeContent } from "../dist/static-content.js";
-import { runGitleaks } from "../dist/gitleaks.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import { ruleResultSchema } from "../dist/contracts/static-contract.js";
+import { analyzeContent } from "../dist/rules/static-content.js";
+import { runGitleaks } from "../dist/runtime/gitleaks.js";
 
 const cleanTool = {
   tool: "gitleaks",

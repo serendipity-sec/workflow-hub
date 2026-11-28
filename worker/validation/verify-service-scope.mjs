@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join, dirname, resolve } from "node:path";
-import { assessmentReportSchema } from "../dist/assessment-contract.js";
-import { presentInspection } from "../dist/inspection.js";
-import { buildCoverageExplanation } from "../dist/coverage-causes.js";
+import { assessmentReportSchema } from "../dist/contracts/assessment-contract.js";
+import { presentInspection } from "../dist/service/inspection.js";
+import { buildCoverageExplanation } from "../dist/service/coverage-causes.js";
 
 const [target, ...directories] = process.argv.slice(2);
 assert.ok(

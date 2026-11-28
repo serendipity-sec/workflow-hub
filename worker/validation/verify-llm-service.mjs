@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { resolve, join, dirname } from "node:path";
-import { presentInspection, inspectionSchema } from "../dist/inspection.js";
-import { llmDefaults } from "../dist/llm-review.js";
-import { buildCoverageExplanation } from "../dist/coverage-causes.js";
+import {
+  presentInspection,
+  inspectionSchema,
+} from "../dist/service/inspection.js";
+import { llmDefaults } from "../dist/service/llm-review.js";
+import { buildCoverageExplanation } from "../dist/service/coverage-causes.js";
 
 assert.ok(
   process.argv[2] && process.argv[3],

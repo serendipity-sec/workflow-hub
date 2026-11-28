@@ -3,14 +3,17 @@ import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
-import { runAssessment, sandboxArguments } from "../dist/assessment-runner.js";
-import { assessmentReportSchema } from "../dist/assessment-contract.js";
-import { createContext } from "../dist/static-context.js";
+import {
+  runAssessment,
+  sandboxArguments,
+} from "../dist/runtime/assessment-runner.js";
+import { assessmentReportSchema } from "../dist/contracts/assessment-contract.js";
+import { createContext } from "../dist/workflow/static-context.js";
 import {
   applyRemediation,
   compareDefinitions,
-} from "../dist/assessment-change.js";
-import { compareStatic } from "../dist/static-compare.js";
+} from "../dist/assessment/assessment-change.js";
+import { compareStatic } from "../dist/analysis/static-compare.js";
 
 const docker = process.env.WORKER_DOCKER_PATH;
 const image = process.env.WORKER_ASSESSMENT_IMAGE;
@@ -98,7 +101,7 @@ const read = (file) => fs.readFileSync(file,'utf8').trim();
 let rootWriteDenied = false;
 try { fs.writeFileSync('/opt/worker/isolation-probe','test'); } catch(e) { rootWriteDenied = ['EROFS','EACCES'].includes(e.code); }
 const networkFailure = await new Promise(resolve => { const socket = net.connect({host:'198.51.100.1',port:9}); socket.setTimeout(1200,()=>{socket.destroy();resolve('timeout')}); socket.on('error',e=>resolve(e.code)); socket.on('connect',()=>{socket.destroy();resolve('connected')}); });
-const artifactPaths = [...fs.readdirSync('/opt/worker/dist').filter(name=>name.endsWith('.js')).map(name=>'dist/'+name),'tools/native-inspection.py','package-lock.json'];
+const artifactPaths = [...fs.readdirSync('/opt/worker/dist',{recursive:true}).filter(name=>name.endsWith('.js')).map(name=>'dist/'+name),'tools/native-inspection.py','package-lock.json'];
 const artifactHashes = Object.fromEntries(artifactPaths.map(path=>[path,crypto.createHash('sha256').update(fs.readFileSync('/opt/worker/'+path)).digest('hex')]));
 console.log(JSON.stringify({uid:process.getuid(),interfaces:fs.readdirSync('/sys/class/net').sort(),rootWriteDenied,networkFailure,memory:read('/sys/fs/cgroup/memory.max'),pids:read('/sys/fs/cgroup/pids.max'),cpu:read('/sys/fs/cgroup/cpu.max'),noNewPrivileges:/NoNewPrivs:\\s+1/.test(read('/proc/self/status')),noCapabilities:/CapEff:\\s+0+/.test(read('/proc/self/status')),artifactHashes}));
 `,
@@ -121,7 +124,8 @@ assert.equal(probe.cpu, "100000 100000");
 assert.equal(probe.noNewPrivileges, true);
 assert.equal(probe.noCapabilities, true);
 const expectedArtifactPaths = [
-  ...(await readdir("dist"))
+  ...(await readdir("dist", { recursive: true }))
+    .map((name) => name.replaceAll("\\", "/"))
     .filter((name) => name.endsWith(".js"))
     .map((name) => `dist/${name}`),
   "tools/native-inspection.py",
@@ -566,13 +570,13 @@ for (const [path, digest] of Object.entries(probe.artifactHashes))
     `Artifact changed during verification: ${path}`,
   );
 for (const file of [
-  "dist/assessment-runner.js",
-  "dist/assessment-engine.js",
-  "dist/assessment-entry.js",
-  "dist/assessment-change.js",
-  "dist/value-flow.js",
-  "dist/advanced-risks.js",
-  "dist/extended-sinks.js",
+  "dist/runtime/assessment-runner.js",
+  "dist/assessment/assessment-engine.js",
+  "dist/runtime/assessment-entry.js",
+  "dist/assessment/assessment-change.js",
+  "dist/workflow/value-flow.js",
+  "dist/rules/advanced-risks.js",
+  "dist/rules/extended-sinks.js",
   "tools/native-inspection.py",
   "package-lock.json",
   "Dockerfile.assessment",

@@ -20,7 +20,7 @@
 
 ## 작업과 결과
 
-유효성 기준은 [코드 스키마](../src/contract.ts)입니다. `Task`는 contractVersion, taskId, attemptId, workflowVersionId, inputSha256, UTC leaseExpiresAt, file을 받습니다. 로컬 file은 경로를 사용합니다. 팀 file은 제어부에서 설정한 정확한 HTTPS 파일 origin의 단기 URL을 사용합니다. URL은 리디렉션을 따르지 않고 파일 요청에는 API 자격 증명을 첨부하지 않습니다. 실제 읽은 원본 바이트 SHA-256을 일치시킨 뒤 분석기에 전달합니다.
+유효성 기준은 [코드 스키마](../src/contracts/contract.ts)입니다. `Task`는 contractVersion, taskId, attemptId, workflowVersionId, inputSha256, UTC leaseExpiresAt, file을 받습니다. 로컬 file은 경로를 사용합니다. 팀 file은 제어부에서 설정한 정확한 HTTPS 파일 origin의 단기 URL을 사용합니다. URL은 리디렉션을 따르지 않고 파일 요청에는 API 자격 증명을 첨부하지 않습니다. 실제 읽은 원본 바이트 SHA-256을 일치시킨 뒤 분석기에 전달합니다.
 
 결과는 동일한 식별자와 원본 해시를 반복하며 계약·엔진·규칙·어댑터 버전을 함께 담습니다. `analyzed`에는 범위와 근거가, `unsupported`에는 영향 노드와 진단이, `error`에는 정해진 오류 코드와 가능할 때 원본 위치가 들어갑니다. 근거는 source, sink, 제어 경로, 표현식 종류, IF 관련성, 분석 전제와 수정 위치입니다. 근거의 JSON Pointer는 제출한 파일의 위치입니다. 노드 표시 이름·SQL·표현식·값·파일 URL을 결과나 로그에 덤프하지 않습니다. `analyzed`에 findings가 없으면 해당 규칙과 분석한 필드에서 경고가 없음을 뜻합니다.
 

@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
-import { assessBytes } from "../dist/assessment-engine.js";
-import { assessmentReportSchema } from "../dist/assessment-contract.js";
-import { presentFindings } from "../dist/assessment-summary.js";
+import { assessBytes } from "../dist/assessment/assessment-engine.js";
+import { assessmentReportSchema } from "../dist/contracts/assessment-contract.js";
+import { presentFindings } from "../dist/assessment/assessment-summary.js";
 import {
   buildServiceReport,
   serviceReportSchema,
   serviceReportLimits,
-} from "../dist/service-report.js";
+} from "../dist/service/service-report.js";
 
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const bytes = (value) => Buffer.from(JSON.stringify(value));

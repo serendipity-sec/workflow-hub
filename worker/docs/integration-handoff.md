@@ -6,7 +6,7 @@
 
 신규 서비스 진입점은 `node dist/cli.js inspect <workflow.json> [evidence.json] [--llm]`이다. 기존 `assess`·`scan`·초기 SQL 명령과 과거 검증 이력은 호환/재현을 위해 보존한다. 신규 서비스가 초기 SQL 전용 `mock-once`를 10개 항목 통합 검사로 사용하면 안 된다.
 
-프로그램 진입점은 `src/inspection.ts`의 `inspectFile`, 이미 검사한 결과 표시에는 `presentInspection`이다. 결과는 `inspectionSchema`로 검증한다.
+프로그램 진입점은 `src/service/inspection.ts`의 `inspectFile`, 이미 검사한 결과 표시에는 `presentInspection`이다. 결과는 `inspectionSchema`로 검증한다.
 
 0.9.0·0.10.0은 서비스 묶음·설명을 1.1.0으로 제공하고(`0.10.0`은 `serviceScope`에 `sinkReachableGapCount`·`isolatedGapCount` 도달성 집계를 추가), 과거 0.8.0 및 이전 보고서는 1.0.0 표시를 재현한다. `coverage <assessment.json> [inspection.json]`의 [원인 분류 결과](coverage-causes.md)는 환경·정의 누락·검사기 확장·혼합 원인·지원 범위를 구분하며 원래 판정을 바꾸지 않는다. 1.1.0 화면 분류도 같은 원인 등록부를 사용한다. [0.10.0 성능·범위 기록](performance-and-scope-0.10.0.md)을 함께 참고한다.
 

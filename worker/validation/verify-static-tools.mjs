@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
-import { runGitleaks } from "../dist/gitleaks.js";
-import { createContext } from "../dist/static-context.js";
-import { analyzeContent } from "../dist/static-content.js";
-import { ruleResultSchema } from "../dist/static-contract.js";
+import { runGitleaks } from "../dist/runtime/gitleaks.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import { analyzeContent } from "../dist/rules/static-content.js";
+import { ruleResultSchema } from "../dist/contracts/static-contract.js";
 
 const executable = process.env.WORKER_GITLEAKS_PATH;
 assert.ok(

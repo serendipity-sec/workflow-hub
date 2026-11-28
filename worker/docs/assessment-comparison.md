@@ -1,6 +1,6 @@
 # 전체 assessment 비교
 
-`src/assessment-compare.ts`는 두 `assess` 보고서의 base 규칙과 확장 18개 규칙에서 **이미 보고된 모든 finding**을 비교한다. 이전 엔진의 확장 13개 규칙은 해당 버전의 보고서로 읽는다. 원본 워크플로·표현식·SQL·Code를 실행하거나 파일을 수정하지 않는다. 기존 `compare-static`의 v2 계약과 저장된 결과는 유지한다.
+`src/assessment/assessment-compare.ts`는 두 `assess` 보고서의 base 규칙과 확장 18개 규칙에서 **이미 보고된 모든 finding**을 비교한다. 이전 엔진의 확장 13개 규칙은 해당 버전의 보고서로 읽는다. 원본 워크플로·표현식·SQL·Code를 실행하거나 파일을 수정하지 않는다. 기존 `compare-static`의 v2 계약과 저장된 결과는 유지한다.
 
 이번 기능은 [실제 공개 템플릿 검증](public-service-validation.md)에서 확인한 전체 assessment 비교 공백을 보완한다. 아래 단위 테스트는 합성 입력과 명시적인 도구 결과 fixture를 사용한다. 실제 공개 템플릿 정확도, 정상 업무 보존, 실제 n8n 실행 또는 팀 API 연동을 검증한 것으로 해석하지 않는다.
 

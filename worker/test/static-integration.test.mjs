@@ -3,11 +3,14 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { categories, staticReportSchema } from "../dist/static-contract.js";
-import { analyzeStatic } from "../dist/static-engine.js";
-import { compareStatic } from "../dist/static-compare.js";
-import { runStaticFile } from "../dist/static-runner.js";
-import { sha256 } from "../dist/worker-io.js";
+import {
+  categories,
+  staticReportSchema,
+} from "../dist/contracts/static-contract.js";
+import { analyzeStatic } from "../dist/analysis/static-engine.js";
+import { compareStatic } from "../dist/analysis/static-compare.js";
+import { runStaticFile } from "../dist/runtime/static-runner.js";
+import { sha256 } from "../dist/runtime/worker-io.js";
 
 const cleanTool = {
   tool: "gitleaks",

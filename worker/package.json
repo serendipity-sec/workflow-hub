@@ -11,7 +11,7 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "build": "tsc",
+    "build": "node scripts/clean-dist.mjs && tsc",
     "test": "npm run build && node --test",
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm test"
   },

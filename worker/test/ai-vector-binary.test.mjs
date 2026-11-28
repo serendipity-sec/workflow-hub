@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
-import { analyzeAiFlow, coveredAiEdge } from "../dist/ai-flow.js";
-import { binaryInputProvenance } from "../dist/binary-provenance.js";
-import { createContext } from "../dist/static-context.js";
-import { buildValueFlow } from "../dist/value-flow.js";
-import { parseEvidence } from "../dist/assessment-evidence.js";
-import { ruleResultSchema } from "../dist/static-contract.js";
+import { analyzeAiFlow, coveredAiEdge } from "../dist/rules/ai-flow.js";
+import { binaryInputProvenance } from "../dist/workflow/binary-provenance.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import { buildValueFlow } from "../dist/workflow/value-flow.js";
+import { parseEvidence } from "../dist/assessment/assessment-evidence.js";
+import { ruleResultSchema } from "../dist/contracts/static-contract.js";
 
 const ai = "@n8n/n8n-nodes-langchain.";
 const base = "n8n-nodes-base.";

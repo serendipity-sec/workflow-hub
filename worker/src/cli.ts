@@ -1,31 +1,38 @@
-import { WorkerApiClient } from "./api-client.js";
-import { runLocal, runRemoteOnce } from "./runner.js";
-import { runStaticFile } from "./static-runner.js";
-import { compareStatic } from "./static-compare.js";
-import { compareAssessment } from "./assessment-compare.js";
-import { limits } from "./contract.js";
+import { WorkerApiClient } from "./runtime/api-client.js";
+import { runLocal, runRemoteOnce } from "./runtime/runner.js";
+import { runStaticFile } from "./runtime/static-runner.js";
+import { compareStatic } from "./analysis/static-compare.js";
+import { compareAssessment } from "./assessment/assessment-compare.js";
+import { limits } from "./contracts/contract.js";
+import { staticLimits } from "./contracts/static-contract.js";
 import { writeFile } from "node:fs/promises";
-import { runAssessment, runAssessmentFile } from "./assessment-runner.js";
+import {
+  runAssessment,
+  runAssessmentFile,
+} from "./runtime/assessment-runner.js";
 import {
   assessmentLimits,
   assessmentReportSchema,
-} from "./assessment-contract.js";
-import { compareDefinitions, applyRemediation } from "./assessment-change.js";
-import { parseEvidenceBytes } from "./assessment-evidence.js";
-import { sha256 } from "./worker-io.js";
+} from "./contracts/assessment-contract.js";
+import {
+  compareDefinitions,
+  applyRemediation,
+} from "./assessment/assessment-change.js";
+import { parseEvidenceBytes } from "./assessment/assessment-evidence.js";
+import { sha256 } from "./runtime/worker-io.js";
 import {
   inspectFile,
   inspectionSchema,
   presentInspection,
-} from "./inspection.js";
-import { buildCoverageExplanation } from "./coverage-causes.js";
-import { buildServiceReport } from "./service-report.js";
+} from "./service/inspection.js";
+import { buildCoverageExplanation } from "./service/coverage-causes.js";
+import { buildServiceReport } from "./service/service-report.js";
 import {
   parseTask,
   readLocalFile,
   taskBytes,
   WorkerFailure,
-} from "./worker-io.js";
+} from "./runtime/worker-io.js";
 
 async function main(args: string[], signal: AbortSignal): Promise<void> {
   const assessmentOptions = {
@@ -225,10 +232,10 @@ async function main(args: string[], signal: AbortSignal): Promise<void> {
   }
   if (args[0] === "compare-static" && args.length === 3 && args[1] && args[2]) {
     const before = JSON.parse(
-      (await readLocalFile(args[1], limits.resultBytes)).toString("utf8"),
+      (await readLocalFile(args[1], staticLimits.resultBytes)).toString("utf8"),
     );
     const after = JSON.parse(
-      (await readLocalFile(args[2], limits.resultBytes)).toString("utf8"),
+      (await readLocalFile(args[2], staticLimits.resultBytes)).toString("utf8"),
     );
     const comparison = compareStatic(before, after);
     process.stdout.write(JSON.stringify(comparison) + "\n");

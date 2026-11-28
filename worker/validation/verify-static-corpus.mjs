@@ -3,13 +3,13 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { analyzeStatic } from "../dist/static-engine.js";
-import { createContext } from "../dist/static-context.js";
+import { analyzeStatic } from "../dist/analysis/static-engine.js";
+import { createContext } from "../dist/workflow/static-context.js";
 import {
   categories,
   staticReportSchema,
   staticResultVersions,
-} from "../dist/static-contract.js";
+} from "../dist/contracts/static-contract.js";
 
 // All expected facts below are declared before any scan. They are selected
 // pattern/capability labels, not labels of real vulnerabilities or safe files.

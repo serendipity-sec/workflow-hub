@@ -2,8 +2,12 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { limits } from "../dist/contract.js";
-import { parseReference, parseWorkflow, WorkflowError } from "../dist/n8n.js";
+import { limits } from "../dist/contracts/contract.js";
+import {
+  parseReference,
+  parseWorkflow,
+  WorkflowError,
+} from "../dist/workflow/n8n.js";
 
 const fixture = (id) =>
   readFileSync(new URL(`../fixtures/workflows/${id}.json`, import.meta.url));

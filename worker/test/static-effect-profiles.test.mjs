@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createContext } from "../dist/static-context.js";
-import { analyzeFlow } from "../dist/static-flow.js";
-import { ruleResultSchema } from "../dist/static-contract.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import { analyzeFlow } from "../dist/rules/static-flow.js";
+import { ruleResultSchema } from "../dist/contracts/static-contract.js";
 
 const node = (name, type, typeVersion, parameters = {}, raw = {}) => ({
   id: name,

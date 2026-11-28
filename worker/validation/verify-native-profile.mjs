@@ -3,10 +3,13 @@ import { execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
-import { createContext } from "../dist/static-context.js";
-import { runAssessment, sandboxArguments } from "../dist/assessment-runner.js";
-import { nativeModeResultSchema } from "../dist/native-inspection.js";
-import { assessmentReportSchema } from "../dist/assessment-contract.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import {
+  runAssessment,
+  sandboxArguments,
+} from "../dist/runtime/assessment-runner.js";
+import { nativeModeResultSchema } from "../dist/runtime/native-inspection.js";
+import { assessmentReportSchema } from "../dist/contracts/assessment-contract.js";
 
 // Entirely synthetic controls. They check an explicitly declared NLP scope,
 // not general precision/recall or whether the fictional names identify people.
@@ -151,6 +154,7 @@ check(
     (item) =>
       item.pointer === longCodePointer &&
       item.code === "nlp_email_candidate" &&
+      item.start === longProgram.length - email.length &&
       item.end === longProgram.length,
   ),
   "format at long-field tail",
@@ -212,8 +216,8 @@ const longTextAssertions = assertions - baselineAssertions;
 // values only. This is trusted test code, never uploaded workflow execution.
 const limitControl = `
 import { createHash } from 'node:crypto';
-import { runNativeInspection, analyzeNativeInspection } from './dist/native-inspection.js';
-import { createContext } from './dist/static-context.js';
+import { runNativeInspection, analyzeNativeInspection } from './dist/runtime/native-inspection.js';
+import { createContext } from './dist/workflow/static-context.js';
 const template = createContext(Buffer.from(JSON.stringify({nodes:[{id:'fixture',name:'fixture',type:'n8n-nodes-base.code',typeVersion:2,parameters:{}}],connections:{}})));
 const cases = {};
 for (const [name, values] of Object.entries({single:[' '.repeat(262145)+'synthetic@example.com'],aggregate:[' '.repeat(140000)+'synthetic@example.com',' '.repeat(140000)+'synthetic@example.com']})) {

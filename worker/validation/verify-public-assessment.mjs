@@ -1,21 +1,17 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import {
-  readFile,
-  writeFile,
-  readdir,
-  mkdir,
-  realpath,
-} from "node:fs/promises";
+import { readFile, writeFile, readdir, realpath } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
-import { runAssessment } from "../dist/assessment-runner.js";
-import { assessmentReportSchema } from "../dist/assessment-contract.js";
+import { runAssessment } from "../dist/runtime/assessment-runner.js";
+import { assessmentReportSchema } from "../dist/contracts/assessment-contract.js";
+import { newOutputPath } from "./output-files.mjs";
 
 assert.ok(
   process.argv[2],
   "Usage: node validation/verify-public-assessment.mjs <download-dir> [summary-path]",
 );
 const directory = await realpath(resolve(process.argv[2]));
+
 const dockerExecutable = process.env.WORKER_DOCKER_PATH;
 const image = process.env.WORKER_ASSESSMENT_IMAGE;
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -36,10 +32,17 @@ assert.equal(
   new Set(manifest.samples.map((sample) => sample.id)).size,
   manifest.samples.length,
 );
+const outputPath = await newOutputPath(
+  process.argv[3] ?? "evidence-local/public-assessment-results.json",
+  [directory],
+);
 assert.ok(dockerExecutable && isAbsolute(dockerExecutable));
 assert.match(image ?? "", /^sha256:[a-f0-9]{64}$/);
 const artifactHashes = {};
-for (const name of (await readdir(new URL("../dist/", import.meta.url)))
+for (const name of (
+  await readdir(new URL("../dist/", import.meta.url), { recursive: true })
+)
+  .map((name) => name.replaceAll("\\", "/"))
   .filter((name) => name.endsWith(".js"))
   .sort())
   artifactHashes[`dist/${name}`] = hash(
@@ -95,15 +98,17 @@ for (const sample of manifest.samples) {
   );
   assert.equal(report.inputSha256, sample.sha256);
   assert.equal(report.execution, "not_run");
+  const reportBytes = Buffer.from(JSON.stringify(report, null, 2) + "\n");
   await writeFile(
     join(directory, `${sample.id}.assessment.json`),
-    JSON.stringify(report, null, 2) + "\n",
-    { mode: 0o600 },
+    reportBytes,
+    { mode: 0o600, flag: "wx" },
   );
   const entry = {
     id: sample.id,
     sourceUrl: sample.source,
     inputSha256: sample.sha256,
+    assessmentSha256: hash(reportBytes),
     sourceBytes: bytes.length,
     acquisition: sample.acquisition,
     responseSha256: sample.responseSha256 ?? null,
@@ -257,9 +262,7 @@ const output = {
   },
   results,
 };
-const outputPath = resolve(
-  process.argv[3] ?? "evidence-local/public-assessment-results.json",
-);
-await mkdir(dirname(outputPath), { recursive: true });
-await writeFile(outputPath, JSON.stringify(output, null, 2) + "\n");
+await writeFile(outputPath, JSON.stringify(output, null, 2) + "\n", {
+  flag: "wx",
+});
 process.stdout.write(JSON.stringify(output.summary) + "\n");

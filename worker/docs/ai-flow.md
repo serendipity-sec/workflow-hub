@@ -1,6 +1,6 @@
 # Bounded static AI connection and data contracts
 
-`src/ai-flow.ts` provides three rules at profile `1.2.0`:
+`src/rules/ai-flow.ts` provides three rules at profile `1.2.0`:
 
 - `N8N_AI_CONNECTION_CONTRACTS` (`dependencies`) records reviewed node definitions, typed connection compatibility, tool capabilities, required inputs and approval declarations.
 - `N8N_AI_PROMPT_DATA` (`egress`) records possible prompt/context transfers to attached models, retaining public components, declared internal components, secret candidates, personal-data candidates and unknown components together.

@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
-import { assessBytes } from "../dist/assessment-engine.js";
-import { assessmentReportSchema } from "../dist/assessment-contract.js";
+import { assessBytes } from "../dist/assessment/assessment-engine.js";
+import { assessmentReportSchema } from "../dist/contracts/assessment-contract.js";
 import {
   buildCoverageExplanation,
   classifyCoverageCause,
-} from "../dist/coverage-causes.js";
-import { reviewWithLlm, llmDefaults } from "../dist/llm-review.js";
+} from "../dist/service/coverage-causes.js";
+import { reviewWithLlm, llmDefaults } from "../dist/service/llm-review.js";
 
 const node = (name, type, typeVersion = 1, parameters = {}) => ({
   name,

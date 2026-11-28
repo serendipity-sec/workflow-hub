@@ -2,12 +2,15 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { resolve, join, dirname } from "node:path";
-import { presentInspection, inspectionSchema } from "../dist/inspection.js";
+import {
+  presentInspection,
+  inspectionSchema,
+} from "../dist/service/inspection.js";
 import {
   createLlmContext,
   providerContext,
   llmDefaults,
-} from "../dist/llm-review.js";
+} from "../dist/service/llm-review.js";
 
 assert.ok(
   process.argv[2] && process.argv[3],

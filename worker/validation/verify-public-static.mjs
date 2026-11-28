@@ -8,15 +8,15 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
-import { limits } from "../dist/contract.js";
-import { runGitleaks, gitleaksVersion } from "../dist/gitleaks.js";
+import { limits } from "../dist/contracts/contract.js";
+import { runGitleaks, gitleaksVersion } from "../dist/runtime/gitleaks.js";
 import {
   categories,
   staticReportSchema,
   staticResultVersions,
-} from "../dist/static-contract.js";
-import { runStaticFile } from "../dist/static-runner.js";
-import { readLocalFile } from "../dist/worker-io.js";
+} from "../dist/contracts/static-contract.js";
+import { runStaticFile } from "../dist/runtime/static-runner.js";
+import { readLocalFile } from "../dist/runtime/worker-io.js";
 
 const executable = process.env.WORKER_GITLEAKS_PATH;
 assert.ok(
@@ -32,7 +32,8 @@ const hash = (value) => createHash("sha256").update(value).digest("hex");
 async function runtimeHashes() {
   const runtimeDirectory = new URL("../dist/", import.meta.url);
   const hashes = {};
-  for (const name of (await readdir(runtimeDirectory))
+  for (const name of (await readdir(runtimeDirectory, { recursive: true }))
+    .map((name) => name.replaceAll("\\", "/"))
     .filter((name) => name.endsWith(".js"))
     .sort())
     hashes[`dist/${name}`] = hash(

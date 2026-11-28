@@ -1,8 +1,8 @@
 # 통합 정적 보안 검사
 
-#14의 `assess`는 #7의 10개 검사 범주를 기존 정적 검사와 확장 검사로 함께 수행한다. 현재 워커 패키지·엔진은 `0.7.0`, 통합 결과 계약은 `assessmentVersion: 1.0.0`이다. 결과 안의 `base`는 검증 이력을 보존한 정적 계약 `2.0.0`이다. 실제 팀 API는 포함하지 않는다.
+#14의 `assess`는 #7의 10개 검사 범주를 기존 정적 검사와 확장 검사로 함께 수행한다. 현재 워커 패키지·엔진은 `0.10.0`, 통합 결과 계약은 `assessmentVersion: 1.0.0`이다. 결과 안의 `base`는 검증 이력을 보존한 정적 계약 `2.0.0`이다. 실제 팀 API는 포함하지 않는다.
 
-[현재 0.6.0의 정적 흐름 확장](static-expansion.md), [0.5.0의 partial 원인·보완 결과](public-partial-followup.md), [이전 0.4.0 검증](worker-completion.md#040-검증-결과--2026-11-22), [0.3.0 검증 기록](assessment-validation.md)을 구분해서 확인한다. 0.6.0은 기본 10개 범주와 확장 규칙 18개를 모두 요구하며 이전 엔진의 규칙 13개 보고서는 별도로 읽는다. 새 엔진에서 규칙을 빠뜨리면 보고서 검증이 실패한다.
+[0.6.0의 정적 흐름 확장](static-expansion.md), [0.5.0의 partial 원인·보완 결과](public-partial-followup.md), [이전 0.4.0 검증](worker-completion.md#040-검증-결과--2026-11-22), [0.3.0 검증 기록](assessment-validation.md)을 구분해서 확인한다. 0.6.0은 기본 10개 범주와 확장 규칙 18개를 모두 요구하며 이전 엔진의 규칙 13개 보고서는 별도로 읽는다. 새 엔진에서 규칙을 빠뜨리면 보고서 검증이 실패한다.
 
 ## 검사 순서와 지원 범위
 
@@ -51,15 +51,15 @@ Docker Linux 데몬과 Node.js 24가 필요하다. 의존성·모델 다운로�
 cd worker
 npm ci
 npm run build
-docker build -f Dockerfile.assessment-runtime -t workflow-worker-assessment-runtime:0.7.0 .
-docker build -f Dockerfile.assessment -t workflow-worker-assessment:0.7.0 .
+docker build -f Dockerfile.assessment-runtime -t workflow-worker-assessment-runtime:0.10.0 .
+docker build -f Dockerfile.assessment -t workflow-worker-assessment:0.10.0 .
 $env:WORKER_DOCKER_PATH = (Get-Command docker).Source
-$env:WORKER_ASSESSMENT_IMAGE = docker image inspect --format '{{.Id}}' workflow-worker-assessment:0.7.0
+$env:WORKER_ASSESSMENT_IMAGE = docker image inspect --format '{{.Id}}' workflow-worker-assessment:0.10.0
 node dist/cli.js assess .\workflow.json
 node dist/cli.js assess .\workflow.json .\evidence.json
 ```
 
-Linux에서는 `WORKER_DOCKER_PATH="$(command -v docker)"`와 `WORKER_ASSESSMENT_IMAGE="$(docker image inspect --format '{{.Id}}' workflow-worker-assessment:0.7.0)"`를 export한다. 운영자는 신뢰하는 실행 파일·이미지를 지정해야 한다. 업로드 JSON은 이 설정을 바꿀 수 없다.
+Linux에서는 `WORKER_DOCKER_PATH="$(command -v docker)"`와 `WORKER_ASSESSMENT_IMAGE="$(docker image inspect --format '{{.Id}}' workflow-worker-assessment:0.10.0)"`를 export한다. 운영자는 신뢰하는 실행 파일·이미지를 지정해야 한다. 업로드 JSON은 이 설정을 바꿀 수 없다.
 
 - 입력 workflow 256 KiB, 외부 근거 1 MiB, 깊이/노드/연결 한도는 기존 파서와 동일하다.
 - 네트워크 없음, 읽기 전용 root, UID 65532, capability 없음, 권한 상승 금지, 메모리 1 GiB, PID 96, CPU 1, 임시 tmpfs 64 MiB를 강제한다.

@@ -1,25 +1,28 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
-import { assessBytes } from "../dist/assessment-engine.js";
-import { assessmentReportSchema } from "../dist/assessment-contract.js";
-import { runGitleaks } from "../dist/gitleaks.js";
-import { analyzeNativeInspection } from "../dist/native-inspection.js";
+import { assessBytes } from "../dist/assessment/assessment-engine.js";
+import { assessmentReportSchema } from "../dist/contracts/assessment-contract.js";
+import { runGitleaks } from "../dist/runtime/gitleaks.js";
+import { analyzeNativeInspection } from "../dist/runtime/native-inspection.js";
 import {
   buildServiceReport,
   serviceReportSchema,
-} from "../dist/service-report.js";
-import { presentInspection, inspectionSchema } from "../dist/inspection.js";
-import { analyzeContent } from "../dist/static-content.js";
-import { createContext } from "../dist/static-context.js";
+} from "../dist/service/service-report.js";
+import {
+  presentInspection,
+  inspectionSchema,
+} from "../dist/service/inspection.js";
+import { analyzeContent } from "../dist/rules/static-content.js";
+import { createContext } from "../dist/workflow/static-context.js";
 import {
   ruleResultSchema,
   staticReportSchema,
-} from "../dist/static-contract.js";
-import { analyzeStatic } from "../dist/static-engine.js";
-import { analyzeFlow } from "../dist/static-flow.js";
-import { analyzeSettings } from "../dist/static-settings.js";
-import { buildValueFlow } from "../dist/value-flow.js";
+} from "../dist/contracts/static-contract.js";
+import { analyzeStatic } from "../dist/analysis/static-engine.js";
+import { analyzeFlow } from "../dist/rules/static-flow.js";
+import { analyzeSettings } from "../dist/rules/static-settings.js";
+import { buildValueFlow } from "../dist/workflow/value-flow.js";
 
 const node = (name, type, typeVersion = 1, parameters = {}, raw = {}) => ({
   id: name,

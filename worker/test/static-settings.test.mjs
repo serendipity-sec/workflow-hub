@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createContext } from "../dist/static-context.js";
-import { ruleResultSchema } from "../dist/static-contract.js";
-import { analyzeSettings, inspectJavaScript } from "../dist/static-settings.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import { ruleResultSchema } from "../dist/contracts/static-contract.js";
+import {
+  analyzeSettings,
+  inspectJavaScript,
+} from "../dist/rules/static-settings.js";
 
 const node = (kind, parameters = {}, extra = {}) => ({
   id: `${kind}-id`,

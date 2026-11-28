@@ -2,146 +2,169 @@ import { ButtonLink } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
 import { Icon } from '../../shared/ui/Icon';
 import type { IconName } from '../../shared/ui/Icon';
+import { Tag } from '../../shared/ui/Tag';
 import { VersionTimeline } from './VersionTimeline';
 import './home.css';
 
-type Step = { title: string; description: string; available: boolean };
+type Feature = {
+  id: string;
+  icon: IconName;
+  title: string;
+  body: string;
+};
 
-// Keep `available` honest: only what the running service really provides.
-const STEPS: Step[] = [
+// Keep this honest: only what the running service really provides, plus the
+// security check clearly marked as not available yet.
+const FEATURES: Feature[] = [
   {
-    title: '등록',
-    description: 'n8n에서 내보낸 JSON을 올리면 v1로 저장됩니다.',
-    available: true,
+    id: 'versions',
+    icon: 'layers',
+    title: '버전 관리',
+    body: '수정본을 올리면 노드와 연결의 변경점을 보여 주고, 작은 수정(v1.1)이나 큰 수정(v2)으로 등록합니다.',
   },
   {
-    title: '버전 이력과 다운로드',
-    description: '버전마다 등록 당시의 원본을 그대로 받습니다.',
-    available: true,
+    id: 'download',
+    icon: 'download',
+    title: '원본 다운로드',
+    body: '버전마다 등록 당시의 파일을 그대로 받습니다. 버전별로 다운로드를 중지할 수도 있습니다.',
   },
   {
-    title: '변경점 비교와 새 버전',
-    description: '수정본을 비교하고 v1.1이나 v2로 등록합니다.',
-    available: true,
+    id: 'restore',
+    icon: 'refresh',
+    title: '삭제와 복구',
+    body: '삭제한 버전과 워크플로는 목록에서 빠지고, 복구 기한 안에는 되살릴 수 있습니다.',
   },
   {
-    title: '보안 검사와 수정 안내',
-    description: '위험 근거를 확인하고 고친 파일을 다시 검사합니다.',
-    available: false,
+    id: 'original',
+    icon: 'lock',
+    title: '원본 보관',
+    body: '등록한 파일은 바뀌지 않고, SHA-256과 크기로 같은 파일인지 확인할 수 있습니다. 올린 워크플로는 실행하지 않습니다.',
   },
 ];
 
-const NOTES: { icon: IconName; title: string; body: string }[] = [
+const STEPS: { title: string; body: string }[] = [
   {
-    icon: 'layers',
-    title: '버전 번호는 서버가 매깁니다',
-    body: 'v1, 작은 수정은 v1.1, 큰 수정은 v2로 올라갑니다.',
+    title: 'JSON 내보내기',
+    body: 'n8n 편집기에서 워크플로를 JSON 파일로 내보냅니다.',
   },
   {
-    icon: 'file',
-    title: '원본을 고치지 않습니다',
-    body: '등록한 버전의 파일은 바뀌지 않습니다.',
+    title: '올려서 v1로 등록',
+    body: 'Google 계정으로 로그인한 뒤 파일을 올리면 v1로 저장됩니다.',
   },
   {
-    icon: 'lock',
-    title: '올린 파일은 실행하지 않습니다',
-    body: '워크플로와 Code 노드는 파일로만 보관합니다.',
+    title: '수정하고 새 버전으로',
+    body: '고친 파일을 비교한 뒤 v1.1이나 v2로 등록하면 이전 버전은 그대로 남습니다.',
+  },
+  {
+    title: '원하는 버전 받기',
+    body: '버전 목록에서 필요한 버전의 원본을 내려받습니다.',
   },
 ];
 
 export function HomePage() {
-  const available = STEPS.filter((step) => step.available).length;
-
   return (
     <div className="home">
-      <header className="home-head enter">
-        <p className="eyebrow">WORKFLOW HUB</p>
-        <h1>
-          <span>Workflow</span> <span>Hub</span>
-        </h1>
-        <p className="home-lead">
-          n8n 워크플로를 버전별로 보관하고, 원본 그대로 내려받으세요. 수정할
-          때마다 새 버전으로 남기면 이전 버전도 언제든 같은 파일로 받을 수
-          있습니다.
-        </p>
-      </header>
-
-      <div className="bento enter enter-late">
-        <Card className="bento-flow" aria-labelledby="flow-heading">
-          <h2 id="flow-heading">서비스 흐름</h2>
-          <ol className="flow">
-            {STEPS.map((step, index) => (
-              <li
-                key={step.title}
-                className="flow-item"
-                style={{ '--i': index } as React.CSSProperties}
-              >
-                <span
-                  className={step.available ? 'flow-pill is-on' : 'flow-pill'}
-                >
-                  <span className="flow-num">{index + 1}</span>
-                  {step.title}
-                  <span className="flow-state">
-                    {step.available ? '제공 중' : '준비 중'}
-                  </span>
-                </span>
-                <p className="muted">{step.description}</p>
-              </li>
-            ))}
-          </ol>
-        </Card>
-
-        <Card className="bento-stat">
-          <p className="stat-label">제공 중인 단계</p>
-          <p className="stat-value">
-            {available}
-            <span>/{STEPS.length}</span>
+      <section className="hero" aria-labelledby="hero-heading">
+        <div className="hero-copy enter">
+          <h1 id="hero-heading">
+            n8n 워크플로를 <em>버전별로 보관</em>하고, 원본 그대로 받으세요
+          </h1>
+          <p className="hero-lead">
+            수정할 때마다 새 버전으로 남기면 이전 버전도 언제든 같은 파일로 받을
+            수 있습니다.
           </p>
-          <div
-            className="stat-bar"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={STEPS.length}
-            aria-valuenow={available}
-            aria-label="제공 중인 단계"
-          >
-            <span style={{ width: `${(available / STEPS.length) * 100}%` }} />
+          <div className="hero-actions">
+            <ButtonLink to="/workflows/new">
+              워크플로 등록하기
+              <Icon name="arrow-right" size={16} />
+            </ButtonLink>
+            <ButtonLink to="/workflows" variant="secondary">
+              내 워크플로 보기
+            </ButtonLink>
           </div>
-          <p className="muted">나머지는 준비 중입니다.</p>
-        </Card>
+        </div>
+        <VersionTimeline className="hero-visual enter enter-late" />
+      </section>
 
-        <VersionTimeline className="bento-version" />
-
-        <Card className="bento-notes" aria-labelledby="notes-heading">
-          <h2 id="notes-heading">보관 방식</h2>
-          <ul className="notes">
-            {NOTES.map((note) => (
-              <li key={note.title}>
-                <span className="notes-icon">
-                  <Icon name={note.icon} size={18} />
-                </span>
-                <div>
-                  <strong>{note.title}</strong>
-                  <p className="muted">{note.body}</p>
+      <section className="section" aria-labelledby="features-heading">
+        <h2 id="features-heading" className="section-title">
+          워크플로 관리에 필요한 기능
+        </h2>
+        <div className="bento">
+          {FEATURES.map((feature) => (
+            <Card
+              key={feature.id}
+              className={`feature feature-${feature.id}`}
+              aria-labelledby={`feature-${feature.id}`}
+            >
+              <Icon name={feature.icon} size={22} />
+              <h3 id={`feature-${feature.id}`}>{feature.title}</h3>
+              <p className="muted">{feature.body}</p>
+              {feature.id === 'versions' && (
+                <div className="chain" aria-hidden="true">
+                  <span>v1</span>
+                  <i />
+                  <span>v1.1</span>
+                  <i />
+                  <span className="is-last">v2</span>
                 </div>
-              </li>
-            ))}
-          </ul>
-        </Card>
+              )}
+              {feature.id === 'original' && (
+                <code className="hash" aria-hidden="true">
+                  SHA-256 · 파일 크기
+                </code>
+              )}
+            </Card>
+          ))}
+          <Card
+            tone="pending"
+            className="feature feature-pending"
+            aria-labelledby="feature-security"
+          >
+            <Icon name="shield" size={22} />
+            <div>
+              <h3 id="feature-security">
+                보안 검사 <Tag tone="outline">준비 중</Tag>
+              </h3>
+              <p className="muted">
+                아직 제공하지 않는 기능입니다. 검사 결과가 없다는 것은
+                안전하다는 뜻이 아닙니다.
+              </p>
+            </div>
+          </Card>
+        </div>
+      </section>
 
-        <Card tone="dark" className="bento-start">
-          <h2>첫 워크플로를 등록해 보세요</h2>
-          <p className="muted">
-            n8n 편집기에서 내보낸 JSON 파일 하나면 충분합니다.
-          </p>
-          <div className="start-actions">
-            <ButtonLink to="/workflows/new">워크플로 등록하기</ButtonLink>
-            <ButtonLink to="/workflows" variant="ghost" className="start-link">
+      <section className="section split" aria-labelledby="steps-heading">
+        <h2 id="steps-heading" className="section-title">
+          사용 방법
+        </h2>
+        <ol className="steps">
+          {STEPS.map((step, index) => (
+            <li key={step.title}>
+              <span className="step-num">{index + 1}</span>
+              <h3>{step.title}</h3>
+              <p className="muted">{step.body}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="section">
+        <Card tone="dark" className="cta" aria-labelledby="cta-heading">
+          <h2 id="cta-heading">첫 워크플로를 등록해 보세요</h2>
+          <p>n8n 편집기에서 내보낸 JSON 파일 하나면 충분합니다.</p>
+          <div className="cta-actions">
+            <ButtonLink to="/workflows/new">
+              워크플로 등록하기
+              <Icon name="arrow-right" size={16} />
+            </ButtonLink>
+            <ButtonLink to="/workflows" variant="ghost">
               내 워크플로 보기
             </ButtonLink>
           </div>
         </Card>
-      </div>
+      </section>
     </div>
   );
 }

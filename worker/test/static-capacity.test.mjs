@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { limits } from "../dist/contract.js";
-import { analyzeStatic } from "../dist/static-engine.js";
-import { runStaticChild } from "../dist/static-runner.js";
+import { limits } from "../dist/contracts/contract.js";
+import { analyzeStatic } from "../dist/analysis/static-engine.js";
+import { runStaticChild } from "../dist/runtime/static-runner.js";
 import {
   staticLimits,
   staticReportSchema,
   ruleResultSchema,
-} from "../dist/static-contract.js";
+} from "../dist/contracts/static-contract.js";
 
 const input = Buffer.from(
   JSON.stringify({

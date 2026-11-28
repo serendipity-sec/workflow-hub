@@ -5,10 +5,10 @@ import {
   applyRemediation,
   createRemediationPlans,
   remediationPlansSchema,
-} from "../dist/assessment-change.js";
-import { inspectSqlOperation } from "../dist/advanced-risks.js";
-import { createContext } from "../dist/static-context.js";
-import { analyzeFlow } from "../dist/static-flow.js";
+} from "../dist/assessment/assessment-change.js";
+import { inspectSqlOperation } from "../dist/rules/advanced-risks.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import { analyzeFlow } from "../dist/rules/static-flow.js";
 
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const fixture = (query, overrides = {}) => ({

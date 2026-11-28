@@ -1,15 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
-import { assessBytes } from "../dist/assessment-engine.js";
-import { assessmentReportSchema } from "../dist/assessment-contract.js";
+import { assessBytes } from "../dist/assessment/assessment-engine.js";
+import { assessmentReportSchema } from "../dist/contracts/assessment-contract.js";
 import {
   planSubworkflows,
   evidenceForInput,
-} from "../dist/assessment-subworkflows.js";
-import { parseEvidence } from "../dist/assessment-evidence.js";
-import { createContext } from "../dist/static-context.js";
-import { runAssessment, sandboxArguments } from "../dist/assessment-runner.js";
+} from "../dist/assessment/assessment-subworkflows.js";
+import { parseEvidence } from "../dist/assessment/assessment-evidence.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import {
+  runAssessment,
+  sandboxArguments,
+} from "../dist/runtime/assessment-runner.js";
 
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const bytes = (value) => Buffer.from(JSON.stringify(value));

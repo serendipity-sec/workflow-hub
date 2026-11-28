@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
-import { limits } from "../dist/contract.js";
-import { assessmentLimits } from "../dist/assessment-contract.js";
-import { parseWorkflow } from "../dist/n8n.js";
-import { createContext } from "../dist/static-context.js";
-import { staticLocationSchema } from "../dist/static-contract.js";
+import { limits } from "../dist/contracts/contract.js";
+import { assessmentLimits } from "../dist/contracts/assessment-contract.js";
+import { parseWorkflow } from "../dist/workflow/n8n.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import { staticLocationSchema } from "../dist/contracts/static-contract.js";
 import {
   summarizeFunction,
   functionSummarySchema,
-} from "../dist/assessment-summary.js";
+} from "../dist/assessment/assessment-summary.js";
 
 const encode = (value) => Buffer.from(JSON.stringify(value));
 const hash = (value) => createHash("sha256").update(value).digest("hex");

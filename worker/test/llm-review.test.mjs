@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assessBytes } from "../dist/assessment-engine.js";
-import { assessmentError } from "../dist/assessment-contract.js";
+import { assessBytes } from "../dist/assessment/assessment-engine.js";
+import { assessmentError } from "../dist/contracts/assessment-contract.js";
 import {
   createLlmContext,
   llmDefaults,
   reviewWithLlm,
   llmReviewSchema,
   providerContext,
-} from "../dist/llm-review.js";
+} from "../dist/service/llm-review.js";
 
 const model = llmDefaults.model;
 const tools = async () => ({

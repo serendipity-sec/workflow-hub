@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import sqlParser from "node-sql-parser";
-import { createContext } from "../dist/static-context.js";
-import { buildValueFlow } from "../dist/value-flow.js";
-import { ruleResultSchema } from "../dist/static-contract.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import { buildValueFlow } from "../dist/workflow/value-flow.js";
+import { ruleResultSchema } from "../dist/contracts/static-contract.js";
 import {
   analyzeAdvancedRisks,
   inspectSqlOperation,
-} from "../dist/advanced-risks.js";
+} from "../dist/rules/advanced-risks.js";
 
 const node = (name, type, typeVersion, parameters = {}) => ({
   id: name,

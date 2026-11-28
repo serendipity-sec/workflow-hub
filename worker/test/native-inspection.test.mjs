@@ -5,9 +5,9 @@ import {
   nativeInspectionResultSchema,
   nativeNlpScope,
   runNativeInspection,
-} from "../dist/native-inspection.js";
-import { createContext } from "../dist/static-context.js";
-import { ruleResultSchema } from "../dist/static-contract.js";
+} from "../dist/runtime/native-inspection.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import { ruleResultSchema } from "../dist/contracts/static-contract.js";
 
 const context = () =>
   createContext(

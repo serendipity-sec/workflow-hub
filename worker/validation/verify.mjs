@@ -5,13 +5,27 @@ import { resolve } from "node:path";
 import { runExternal, summarizeExternal } from "./baselines.mjs";
 import { frozenCorpus, metrics, readJson, root } from "./corpus.mjs";
 
-const corpus = frozenCorpus();
+const historical = frozenCorpus();
+const current = readJson(
+  new URL("../fixtures/cases-0.1.2.json", import.meta.url),
+);
+const corpus =
+  process.argv[2] === "worker"
+    ? {
+        ...historical,
+        cases: historical.cases.map((entry) => ({
+          ...entry,
+          ...current.cases.find(({ id }) => id === entry.id),
+        })),
+      }
+    : historical;
 const [mode, first, second] = process.argv.slice(2);
 
 async function runWorker(directory) {
   const { compareAnalysis, compareResults } =
-    await import("../dist/compare.js");
-  const { resultSchema, versions } = await import("../dist/contract.js");
+    await import("../dist/analysis/compare.js");
+  const { resultSchema, versions } =
+    await import("../dist/contracts/contract.js");
   const results = new Map();
   const observations = {};
   mkdirSync(directory, { recursive: true });

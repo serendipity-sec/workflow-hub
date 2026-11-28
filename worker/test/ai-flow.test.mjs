@@ -6,11 +6,11 @@ import {
   aiPromptInputs,
   coveredAiEdge,
   isReviewedAiNode,
-} from "../dist/ai-flow.js";
-import { parseEvidence } from "../dist/assessment-evidence.js";
-import { createContext } from "../dist/static-context.js";
-import { ruleResultSchema } from "../dist/static-contract.js";
-import { buildValueFlow } from "../dist/value-flow.js";
+} from "../dist/rules/ai-flow.js";
+import { parseEvidence } from "../dist/assessment/assessment-evidence.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import { ruleResultSchema } from "../dist/contracts/static-contract.js";
+import { buildValueFlow } from "../dist/workflow/value-flow.js";
 
 const prefix = "@n8n/n8n-nodes-langchain.";
 const node = (name, type, typeVersion, parameters = {}) => ({

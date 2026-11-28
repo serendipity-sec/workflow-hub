@@ -54,7 +54,7 @@ ci: add build checks
 루트 포맷 수정은 `npm run format`입니다. 프론트, 백엔드, 워커는 각각의 포매터를 사용합니다.
 프론트 검사 명령은 `frontend/AGENTS.md`, 백엔드는 `backend/AGENTS.md`, 워커는 `worker/AGENTS.md`를 따릅니다.
 루트에서 워커 의존성을 `npm --prefix worker ci`로 설치하고 `npm --prefix worker run verify`로 검사합니다.
-CI의 필수 검사는 `repository`, `frontend`, `backend`, `secrets`이며, `worker` 작업은 `worker/**` 또는 CI 정의 변경 시 실행합니다(머지 조건은 GitHub에 설정된 필수 상태 검사를 따릅니다).
+CI의 필수 검사는 `repository`, `frontend`, `backend`, `secrets`이며 모두 통과해야 머지할 수 있습니다. `worker` 작업은 `worker/**` 또는 CI 정의 변경 시 추가로 실행합니다(머지 조건은 GitHub에 설정된 필수 상태 검사를 따릅니다).
 
 - PR의 `opened`, `synchronize`, `reopened`, `ready_for_review` 이벤트에서 CI를 실행합니다. 이때 `repository`(포맷·PR 제목)와 `secrets`(Gitleaks)는 변경 경로와 관계없이 실행합니다.
 - 변경 경로를 확인한 PR에서는 `frontend`를 `frontend/**` 또는 `.node-version`, `backend`를 `backend/**`, `worker`를 `worker/**` 변경 시 실행합니다. CI 정의를 바꾸거나 경로를 확인하지 못하면 모든 영역을 검사합니다.

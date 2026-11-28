@@ -2,7 +2,7 @@
 
 `analyzeExtendedSinks(context, valueFlow, evidence?)`는 `egress`와 `output`에 규칙을 추가한다. 원본 JSON과 표현식은 실행하지 않는다. 전송의 존재, 지원 경로의 데이터 출처, 운영자가 제공한 정책과의 불일치를 구분한다. 전송 또는 개인정보 후보가 있다는 이유만으로 악의나 실제 유출을 확정하지 않는다.
 
-현재 확장 전송·출력 규칙의 `profileVersion`은 1.3.0이다.
+현재 확장 전송·출력 규칙의 `profileVersion`은 1.5.0이다.
 
 Telegram의 `replyKeyboard`·`inlineKeyboard` 생략은 기본 빈 객체로 처리해 필수 필드 누락으로 표시하지 않는다. 알려진 rows/row/buttons 구조의 text·추가 필드 스칼라·web_app.url을 개별 표현식으로 검사한다. 최대 128행·행당 128버튼·총 256필드를 제한하며, 지원 밖 객체·제한 초과는 진단과 데이터 등급 unknown을 유지한다. 변환·옵션의 미확인 범위인 `message_reply_markup_unverified`도 유지한다. `chatId`·활성 본문 등 실제 필수 입력의 누락은 별도로 남긴다.
 

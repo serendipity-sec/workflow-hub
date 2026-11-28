@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { limits } from "../dist/contract.js";
-import { WorkflowError } from "../dist/n8n.js";
-import { createContext, safeLocation } from "../dist/static-context.js";
+import { limits } from "../dist/contracts/contract.js";
+import { WorkflowError } from "../dist/workflow/n8n.js";
+import {
+  createContext,
+  safeLocation,
+} from "../dist/workflow/static-context.js";
 import {
   categories,
   locationFor,
@@ -11,7 +14,7 @@ import {
   stableId,
   staticReportSchema,
   staticResultVersions,
-} from "../dist/static-contract.js";
+} from "../dist/contracts/static-contract.js";
 
 const encode = (value) => Buffer.from(JSON.stringify(value));
 const node = (id = "source", extra = {}) => ({

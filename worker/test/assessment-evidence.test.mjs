@@ -8,7 +8,7 @@ import {
   evidenceSummarySchema,
   parseEvidence,
   parseEvidenceBytes,
-} from "../dist/assessment-evidence.js";
+} from "../dist/assessment/assessment-evidence.js";
 
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const inputSha256 = hash("synthetic workflow");

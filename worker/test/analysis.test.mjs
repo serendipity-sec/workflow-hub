@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { analyzeWorkflow } from "../dist/analysis.js";
-import { compareAnalysis, compareResults } from "../dist/compare.js";
-import { limits, resultSchema, versions } from "../dist/contract.js";
+import { analyzeWorkflow } from "../dist/analysis/analysis.js";
+import { compareAnalysis, compareResults } from "../dist/analysis/compare.js";
+import { limits, resultSchema, versions } from "../dist/contracts/contract.js";
 
 const fixtures = new URL("../fixtures/", import.meta.url);
 const load = (name) => readFile(new URL(name, fixtures));

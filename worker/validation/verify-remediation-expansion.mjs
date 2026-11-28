@@ -15,9 +15,9 @@ import { fileURLToPath } from "node:url";
 import {
   applyRemediation,
   createRemediationPlans,
-} from "../dist/assessment-change.js";
-import { createContext } from "../dist/static-context.js";
-import { analyzeFlow } from "../dist/static-flow.js";
+} from "../dist/assessment/assessment-change.js";
+import { createContext } from "../dist/workflow/static-context.js";
+import { analyzeFlow } from "../dist/rules/static-flow.js";
 
 // This is deliberately not a general workflow execution harness. Only these
 // immutable, repository-authored synthetic bytes may reach n8n or PostgreSQL.
@@ -131,9 +131,9 @@ const fixtures = [
   };
 });
 const controllerFiles = [
-  "dist/assessment-change.js",
-  "dist/static-context.js",
-  "dist/static-flow.js",
+  "dist/assessment/assessment-change.js",
+  "dist/workflow/static-context.js",
+  "dist/rules/static-flow.js",
   "validation/verify-remediation-expansion.mjs",
 ];
 const artifacts = Object.fromEntries(

@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
-import { createContext } from "../dist/static-context.js";
+import { createContext } from "../dist/workflow/static-context.js";
 import {
   analyzeNativeInspection,
   runNativeInspection,
-} from "../dist/native-inspection.js";
-import { ruleResultSchema } from "../dist/static-contract.js";
+} from "../dist/runtime/native-inspection.js";
+import { ruleResultSchema } from "../dist/contracts/static-contract.js";
 
 const executable = process.env.WORKER_PYTHON_PATH;
 assert.ok(
@@ -167,7 +167,9 @@ const report = {
     await readFile(new URL("../tools/native-inspection.py", import.meta.url)),
   ),
   controllerSha256: hash(
-    await readFile(new URL("../dist/native-inspection.js", import.meta.url)),
+    await readFile(
+      new URL("../dist/runtime/native-inspection.js", import.meta.url),
+    ),
   ),
   pythonExecutableSha256: hash(await readFile(executable)),
   inputSha256: hash(bytes),

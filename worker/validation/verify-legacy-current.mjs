@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { analyzeWorkflow } from "../dist/analysis.js";
-import { versions } from "../dist/contract.js";
+import { analyzeWorkflow } from "../dist/analysis/analysis.js";
+import { versions } from "../dist/contracts/contract.js";
 import { frozenCorpus, metrics, sha256 } from "./corpus.mjs";
 
 const historical = frozenCorpus();

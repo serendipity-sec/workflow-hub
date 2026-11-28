@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join, resolve, dirname } from "node:path";
-import { runAssessment } from "../dist/assessment-runner.js";
-import { compareDefinitions } from "../dist/assessment-change.js";
-import { compareStatic } from "../dist/static-compare.js";
-import { compareAssessment } from "../dist/assessment-compare.js";
-import { assessmentReportSchema } from "../dist/assessment-contract.js";
+import { runAssessment } from "../dist/runtime/assessment-runner.js";
+import { compareDefinitions } from "../dist/assessment/assessment-change.js";
+import { compareStatic } from "../dist/analysis/static-compare.js";
+import { compareAssessment } from "../dist/assessment/assessment-compare.js";
+import { assessmentReportSchema } from "../dist/contracts/assessment-contract.js";
 
 assert.ok(
   process.argv[2],
@@ -18,9 +18,8 @@ const options = {
   dockerExecutable: process.env.WORKER_DOCKER_PATH,
   image: process.env.WORKER_ASSESSMENT_IMAGE,
 };
-const manifest = JSON.parse(
-  await readFile(join(directory, "downloads.json"), "utf8"),
-);
+const manifestBytes = await readFile(join(directory, "downloads.json"));
+const manifest = JSON.parse(manifestBytes.toString("utf8"));
 const publicReceipt = JSON.parse(
   await readFile(
     process.env.WORKER_PUBLIC_ASSESSMENT_RECEIPT ??
@@ -32,6 +31,11 @@ assert.equal(
   options.image,
   publicReceipt.image,
   "Comparison must use the same measured image as the original reports",
+);
+assert.equal(
+  hash(manifestBytes),
+  publicReceipt.manifestSha256,
+  "Acquisition manifest must match the measured public receipt",
 );
 for (const artifact of publicReceipt.artifacts)
   assert.equal(
@@ -58,10 +62,21 @@ async function variant(id, label, edit, check) {
   const inputPath = join(directory, `${id}.workflow.json`);
   const beforeBytes = await readFile(inputPath);
   assert.equal(hash(beforeBytes), sample.sha256);
+  const assessmentBytes = await readFile(
+    join(directory, `${id}.assessment.json`),
+  );
+  const measured = publicReceipt.results.find((entry) => entry.id === id);
+  assert.ok(
+    measured?.assessmentSha256,
+    "Recollect a receipt that binds detailed report bytes",
+  );
+  assert.equal(
+    hash(assessmentBytes),
+    measured.assessmentSha256,
+    "Baseline report receipt mismatch",
+  );
   const before = assessmentReportSchema.parse(
-    JSON.parse(
-      await readFile(join(directory, `${id}.assessment.json`), "utf8"),
-    ),
+    JSON.parse(assessmentBytes.toString("utf8")),
   );
   assert.equal(before.inputSha256, sample.sha256);
   assert.notEqual(before.status, "error");
@@ -106,11 +121,12 @@ async function variant(id, label, edit, check) {
   const extra = check(before, after, declarations, findingComparison);
   await writeFile(join(directory, `${id}.${label}.workflow.json`), afterBytes, {
     mode: 0o600,
+    flag: "wx",
   });
   await writeFile(
     join(directory, `${id}.${label}.assessment.json`),
     JSON.stringify(after, null, 2) + "\n",
-    { mode: 0o600 },
+    { mode: 0o600, flag: "wx" },
   );
   assert.equal(hash(await readFile(inputPath)), sample.sha256);
   const comparisonCounts = (items) =>
