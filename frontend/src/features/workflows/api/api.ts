@@ -1,7 +1,7 @@
-import { authenticatedFetch } from '../auth/api';
-import { saveResponseAsFile } from '../../shared/api/download';
-import { readData } from '../../shared/api/types';
-import type { Page } from '../../shared/api/types';
+import { authenticatedFetch } from '../../auth/api';
+import { saveResponseAsFile } from '../../../shared/api/download';
+import { readData } from '../../../shared/api/types';
+import type { Page } from '../../../shared/api/types';
 import type {
   Comparison,
   DeletionResult,

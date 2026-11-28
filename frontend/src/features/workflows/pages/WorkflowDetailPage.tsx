@@ -1,22 +1,22 @@
 import { useCallback, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { useRequest } from '../../shared/api/useRequest';
-import { formatDateTime } from '../../shared/format';
-import { Button, ButtonLink } from '../../shared/ui/Button';
-import { Card } from '../../shared/ui/Card';
-import { Icon } from '../../shared/ui/Icon';
-import { PageHeader } from '../../shared/ui/PageHeader';
-import { ErrorState, LoadingState } from '../../shared/ui/PageStates';
-import { Tag } from '../../shared/ui/Tag';
-import { SecurityCheckPanel } from '../security/SecurityCheckPanel';
-import { deleteWorkflow, getWorkflow } from './api';
-import { deletionNotice, isStaleError } from './deletion';
-import { describeWorkflowError } from './errorMessages';
-import { FileIdentity } from './FileIdentity';
-import { noticeOnPanelBusy } from './pageNotice';
-import { VersionList } from './VersionList';
-import { VersionRegisterPanel } from './VersionRegisterPanel';
-import './workflows.css';
+import { useRequest } from '../../../shared/api/useRequest';
+import { formatDateTime } from '../../../shared/format';
+import { Button, ButtonLink } from '../../../shared/ui/Button';
+import { Card } from '../../../shared/ui/Card';
+import { Icon } from '../../../shared/ui/Icon';
+import { PageHeader } from '../../../shared/ui/PageHeader';
+import { ErrorState, LoadingState } from '../../../shared/ui/PageStates';
+import { Tag } from '../../../shared/ui/Tag';
+import { SecurityCheckPanel } from '../../security/SecurityCheckPanel';
+import { deleteWorkflow, getWorkflow } from '../api/api';
+import { deletionNotice, isStaleError } from '../lib/deletion';
+import { describeWorkflowError } from '../lib/errorMessages';
+import { FileIdentity } from '../components/FileIdentity';
+import { noticeOnPanelBusy } from '../lib/pageNotice';
+import { VersionList } from '../components/VersionList';
+import { VersionRegisterPanel } from '../components/VersionRegisterPanel';
+import '../workflows.css';
 
 /** Route entry. The key remounts the content when the URL points to another workflow. */
 export function WorkflowDetailPage() {

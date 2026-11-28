@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const authenticatedFetch =
   vi.fn<(path: string, init?: RequestInit) => Promise<Response>>();
-vi.mock('../auth/api', () => ({
+vi.mock('../../auth/api', () => ({
   authenticatedFetch: (path: string, init?: RequestInit) =>
     authenticatedFetch(path, init),
 }));

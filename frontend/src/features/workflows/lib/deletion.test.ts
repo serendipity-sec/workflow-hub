@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ApiError } from '../../shared/api/client';
-import { formatDateTime } from '../../shared/format';
+import { ApiError } from '../../../shared/api/client';
+import { formatDateTime } from '../../../shared/format';
 import {
   allowsWorkflowDelete,
   asksAboutWorkflowAgain,
@@ -14,7 +14,7 @@ import {
   restoreDeadline,
   restoreNotice,
 } from './deletion';
-import type { VersionMetadata } from './types';
+import type { VersionMetadata } from '../api/types';
 
 const RESTORE_UNTIL = '2026-11-29T04:15:30Z';
 

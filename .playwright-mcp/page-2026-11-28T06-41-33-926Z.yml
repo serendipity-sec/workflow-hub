@@ -1,0 +1,266 @@
+- generic [active] [ref=e1]:
+  - banner:
+    - navigation "Primary navigation" [ref=e2]:
+      - generic [ref=e3]:
+        - generic [ref=e4]:
+          - link "Mobbin" [ref=e5] [cursor=pointer]:
+            - /url: /
+            - img "Mobbin" [ref=e6]
+          - generic [ref=e8]:
+            - link "MCP" [ref=e9] [cursor=pointer]:
+              - /url: /mcp
+            - link "Customers" [ref=e10] [cursor=pointer]:
+              - /url: /customers
+            - link "Pricing" [ref=e11] [cursor=pointer]:
+              - /url: /pricing
+        - generic [ref=e13]:
+          - link "Visit Mobbin on YouTube" [ref=e14] [cursor=pointer]:
+            - /url: https://www.youtube.com/@mobbindesign
+          - link "Follow Mobbin on X" [ref=e18] [cursor=pointer]:
+            - /url: https://x.com/mobbin
+          - link "Log in" [ref=e23] [cursor=pointer]:
+            - /url: /login
+  - generic [ref=e24]:
+    - main [ref=e25]:
+      - generic [ref=e27]:
+        - generic [ref=e28]:
+          - heading [level=1] [ref=e29]:
+            - generic [ref=e30]:
+              - text: Where
+              - button "Show next icon" [ref=e32] [cursor=pointer]
+              - text: teams
+            - generic [ref=e49]:
+              - text: and agents
+              - button "Show next icon" [ref=e51] [cursor=pointer]
+              - text: find
+            - generic [ref=e67]:
+              - text: designs
+              - button "Show next icon" [ref=e69] [cursor=pointer]
+              - text: that work.
+          - paragraph [ref=e86]: The design reference library for apps and sites. Over 600,000 shipped screens, new every week.
+        - generic [ref=e88]:
+          - link "Join for free" [ref=e89] [cursor=pointer]:
+            - /url: /signup
+          - link "See plans" [ref=e92] [cursor=pointer]:
+            - /url: /pricing
+      - paragraph [ref=e104]: Trusted by teams and agents at
+      - separator [ref=e126]
+      - generic [ref=e127]:
+        - generic [ref=e129]:
+          - paragraph [ref=e130]:
+            - text: Design research took hours.
+            - generic [ref=e131]: Now, it's one search.
+          - paragraph [ref=e132]:
+            - text: Every designer has that folder.
+            - generic [ref=e133]: Hundreds of screenshots saved for later,
+            - generic [ref=e134]: yet somehow never the right one.
+        - generic [ref=e135]:
+          - generic [ref=e137]:
+            - generic [aria-hidden] [ref=e138]:
+              - generic [ref=e139]: Joyful
+              - text: onboarding|
+            - generic [ref=e142]: Joyful onboarding
+          - generic [ref=e145]:
+            - generic [ref=e147]:
+              - img "Visitors screenshot" [ref=e150]
+              - img "Visitors app icon" [ref=e152]
+            - generic [ref=e178]:
+              - img "Outsiders screenshot" [ref=e181]
+              - img "Outsiders app icon" [ref=e183]
+            - generic [ref=e209]:
+              - img "fal screenshot" [ref=e212]
+              - img "fal app icon" [ref=e214]
+            - generic [ref=e240]:
+              - img "Duolingo screenshot" [ref=e243]
+              - img "Duolingo app icon" [ref=e245]
+            - generic [ref=e271]:
+              - img "Midday screenshot" [ref=e274]
+              - img "Midday app icon" [ref=e276]
+            - generic [ref=e302]:
+              - img "Phantom screenshot" [ref=e305]
+              - img "Phantom app icon" [ref=e307]
+            - generic [ref=e333]:
+              - img "Dropbox screenshot" [ref=e336]
+              - img "Dropbox app icon" [ref=e338]
+            - generic [ref=e364]:
+              - img "Opal screenshot" [ref=e367]
+              - img "Opal app icon" [ref=e369]
+      - generic [ref=e645]:
+        - heading "One library for all your needs." [level=2] [ref=e646]:
+          - generic [ref=e647]: One library
+          - generic [ref=e648]: for all your needs.
+        - generic [ref=e649]:
+          - paragraph [ref=e652]: Apps
+          - paragraph [ref=e671]: Sites
+          - paragraph [ref=e680]: Screens
+          - paragraph [ref=e688]: Flows
+          - paragraph [ref=e722]: Animations
+          - generic [ref=e729]:
+            - paragraph [ref=e730]: UI Elements
+            - 'img "Animated example of a tab bar UI element: Tray, Scan, Star, Chevrons tabs and a Search button" [ref=e736]'
+      - region "Give your AI agents access to Mobbin." [ref=e744]:
+        - generic [ref=e745]:
+          - generic [ref=e746]:
+            - generic [ref=e747]:
+              - heading "Give your AI agents access to Mobbin." [level=2] [ref=e748]:
+                - generic [ref=e749]: Give your AI agents
+                - generic [ref=e750]: access to Mobbin.
+              - generic [ref=e751]:
+                - link "Connect MCP" [ref=e752] [cursor=pointer]:
+                  - /url: /mcp
+                - paragraph [ref=e753]: Available on Pro & Team plans
+            - group "Compatible AI tools" [ref=e754]:
+              - img "Cursor" [ref=e755]:
+                - generic [aria-hidden]: Cursor
+              - img "ChatGPT" [ref=e759]:
+                - generic [aria-hidden]: ChatGPT
+              - img "Claude" [ref=e763]:
+                - generic [aria-hidden]: Claude
+              - img "Figma" [ref=e767]:
+                - generic [aria-hidden]: Figma
+              - img "Grok" [ref=e771]:
+                - generic [aria-hidden]: Grok
+          - img "An AI agent curates apps and gathers Mobbin insights for a fitness app paywall request, then responds that it found five apps and shows their paywall screens." [ref=e777]:
+            - paragraph [ref=e781]:
+              - text: Show me how top apps design
+              - strong [ref=e782]: paywalls
+              - text: that make upgrading feel worth it
+            - generic [aria-hidden] [ref=e783]:
+              - generic [ref=e788]:
+                - generic [ref=e789]:
+                  - text: Curating apps
+                  - generic [ref=e790]: ...
+                - generic [ref=e791]:
+                  - text: Gathering insights
+                  - generic [ref=e792]: ...
+              - paragraph [ref=e793]: Found 5 apps
+      - generic [ref=e801]:
+        - generic [ref=e802]:
+          - generic [ref=e803]:
+            - heading "Trusted by teams that build world-class apps." [level=2] [ref=e804]
+            - link "Read stories" [ref=e805] [cursor=pointer]:
+              - /url: /customers
+          - generic [ref=e810]:
+            - link "Read the Cursor customer story" [ref=e811] [cursor=pointer]:
+              - /url: /customers/cursor
+              - generic [ref=e822]:
+                - paragraph [ref=e823]: How Cursor offloads the 20% to Mobbin, so the team can build the 80%
+                - generic [aria-hidden] [ref=e824]:
+                  - text: SaaS/Devtools
+                  - generic [aria-hidden] [ref=e825]: ·
+                  - text: Read story
+            - link "Read the Sanctum customer story" [ref=e828] [cursor=pointer]:
+              - /url: /customers/sanctum
+              - generic [ref=e841]:
+                - paragraph [ref=e842]: How Sanctum's solo designer became a "1.5x designer team" without hiring
+                - generic [aria-hidden] [ref=e843]:
+                  - text: Fintech
+                  - generic [aria-hidden] [ref=e844]: ·
+                  - text: Read story
+            - link "Read the OKX customer story" [ref=e847] [cursor=pointer]:
+              - /url: /customers/okx
+              - generic [ref=e860]:
+                - paragraph [ref=e861]: How OKX's designers study apps that aren't available in their market
+                - generic [aria-hidden] [ref=e862]:
+                  - text: Fintech
+                  - generic [aria-hidden] [ref=e863]: ·
+                  - text: Read story
+        - generic [ref=e866]:
+          - blockquote [ref=e867]:
+            - generic [aria-hidden] [ref=e868]: “
+            - paragraph [ref=e869]: We want to spend 80% of our time designing new features. For the rest, we look to Mobbin since it's easier to stick with what works.
+          - generic [ref=e875]:
+            - generic [ref=e876]: John Bai
+            - generic [ref=e877]: Designer at SpacexAI
+      - generic [ref=e893]:
+        - generic [ref=e894]:
+          - paragraph [ref=e895]:
+            - generic [ref=e896]: Designing in fintech?
+            - text: Finance+ goes deeper.
+          - paragraph [ref=e897]: Over 60 investment, banking, and crypto apps, including flows behind KYC walls and geo-locks. Available on Team & Enterprise plans.
+        - link "Explore Finance+" [ref=e898] [cursor=pointer]:
+          - /url: /finance
+      - generic [ref=e915]:
+        - generic [ref=e916]:
+          - heading "Find what works. Design what's next." [level=2] [ref=e917]: Find what works.Design what's next.
+          - paragraph [ref=e919]: Mobbin started in 2018 as Jiho's Dropbox folder of screenshots. It's still that folder at heart, just over 600,000 screens bigger.
+        - generic [ref=e920]:
+          - link "Join for free" [ref=e921] [cursor=pointer]:
+            - /url: /signup
+          - link "See plans" [ref=e924] [cursor=pointer]:
+            - /url: /pricing
+    - contentinfo [ref=e930]:
+      - generic [ref=e931]:
+        - img "Mobbin" [ref=e933]
+        - generic [ref=e940]:
+          - paragraph [ref=e941]: Products
+          - list [ref=e942]:
+            - listitem [ref=e943]:
+              - link "Pricing" [ref=e944] [cursor=pointer]:
+                - /url: /pricing
+            - listitem [ref=e945]:
+              - link "Finance+ New" [ref=e946] [cursor=pointer]:
+                - /url: /finance
+                - text: Finance+
+                - generic [ref=e947]: New
+            - listitem [ref=e948]:
+              - link "MCP New" [ref=e949] [cursor=pointer]:
+                - /url: /mcp
+                - text: MCP
+                - generic [ref=e950]: New
+            - listitem [ref=e951]:
+              - link "Changelog" [ref=e952] [cursor=pointer]:
+                - /url: /changelog
+        - generic [ref=e953]:
+          - paragraph [ref=e954]: Resources
+          - list [ref=e955]:
+            - listitem [ref=e956]:
+              - link "Blog" [ref=e957] [cursor=pointer]:
+                - /url: /blog
+            - listitem [ref=e958]:
+              - link "Explore" [ref=e959] [cursor=pointer]:
+                - /url: /explore
+            - listitem [ref=e960]:
+              - link "Colors" [ref=e961] [cursor=pointer]:
+                - /url: /colors
+            - listitem [ref=e962]:
+              - link "Glossary" [ref=e963] [cursor=pointer]:
+                - /url: /glossary
+            - listitem [ref=e964]:
+              - link "Merch" [ref=e965] [cursor=pointer]:
+                - /url: https://merch.mobbin.com
+        - generic [ref=e966]:
+          - paragraph [ref=e967]: Company
+          - list [ref=e968]:
+            - listitem [ref=e969]:
+              - link "Contact us" [ref=e970] [cursor=pointer]:
+                - /url: mailto:support@mobbin.com
+            - listitem [ref=e971]:
+              - link "Careers" [ref=e972] [cursor=pointer]:
+                - /url: https://careers.mobbin.com
+            - listitem [ref=e973]:
+              - link "Help center" [ref=e974] [cursor=pointer]:
+                - /url: https://help.mobbin.com
+        - paragraph [ref=e975]: © Mobbin 2018–2026.
+        - generic [ref=e976]:
+          - generic [ref=e977]:
+            - link "Privacy" [ref=e978] [cursor=pointer]:
+              - /url: /privacy
+            - link "Terms" [ref=e979] [cursor=pointer]:
+              - /url: /terms
+            - link "Copyright" [ref=e980] [cursor=pointer]:
+              - /url: /copyright
+          - generic [ref=e982]:
+            - link "YouTube" [ref=e983] [cursor=pointer]:
+              - /url: https://www.youtube.com/@mobbindesign
+            - link "X (Twitter)" [ref=e987] [cursor=pointer]:
+              - /url: https://x.com/mobbin
+            - link "LinkedIn" [ref=e991] [cursor=pointer]:
+              - /url: https://linkedin.com/company/mobbin
+      - generic [ref=e997]:
+        - button "Drop app icons from the letter M" [ref=e998] [cursor=pointer]
+        - button "Drop app icons from the letter o" [ref=e1003] [cursor=pointer]
+        - button "Drop app icons from the letter b" [ref=e1008] [cursor=pointer]
+        - button "Drop app icons from the letter b" [ref=e1013] [cursor=pointer]
+        - button "Drop app icons from the letter i" [ref=e1018] [cursor=pointer]
+        - button "Drop app icons from the letter n" [ref=e1023] [cursor=pointer]

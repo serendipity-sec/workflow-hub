@@ -1,4 +1,4 @@
-import { ApiError } from '../../shared/api/client';
+import { ApiError } from '../../../shared/api/client';
 
 const MESSAGES_BY_CODE: Record<string, string> = {
   UNAUTHORIZED: '로그인이 필요하거나 만료되었습니다. 다시 로그인해 주세요.',

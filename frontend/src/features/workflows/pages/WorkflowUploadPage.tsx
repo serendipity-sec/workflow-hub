@@ -1,20 +1,20 @@
 import { useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { useNavigate } from 'react-router';
-import { ApiError } from '../../shared/api/client';
-import { Button } from '../../shared/ui/Button';
-import { Card } from '../../shared/ui/Card';
-import { Field } from '../../shared/ui/Field';
-import { Icon } from '../../shared/ui/Icon';
-import { PageHeader } from '../../shared/ui/PageHeader';
-import { uploadWorkflow } from './api';
-import { describeWorkflowError } from './errorMessages';
+import { ApiError } from '../../../shared/api/client';
+import { Button } from '../../../shared/ui/Button';
+import { Card } from '../../../shared/ui/Card';
+import { Field } from '../../../shared/ui/Field';
+import { Icon } from '../../../shared/ui/Icon';
+import { PageHeader } from '../../../shared/ui/PageHeader';
+import { uploadWorkflow } from '../api/api';
+import { describeWorkflowError } from '../lib/errorMessages';
 import {
   UPLOAD_NOTICE,
   validateTitle,
   validateUploadFile,
-} from './uploadValidation';
-import './workflows.css';
+} from '../lib/uploadValidation';
+import '../workflows.css';
 
 export function WorkflowUploadPage() {
   const navigate = useNavigate();
