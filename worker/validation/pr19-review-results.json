@@ -1,0 +1,100 @@
+{
+  "date": "2026-11-28",
+  "scope": "PR 19 review follow-up; local synthetic and definition-only checks",
+  "sourceTreeSha256": "476ca5a3b84600093b601ef6ccb228e34c5b1dc4bd8d4b5901e649a4f7a993d9",
+  "image": "sha256:766ab75878a2501a65590efdd06dae34248a7d38763edddc98bb0f7db31b4d1e",
+  "checks": {
+    "rootTooling": {
+      "passed": 6,
+      "failed": 0
+    },
+    "workerTests": {
+      "passed": 623,
+      "failed": 0,
+      "skipped": 0
+    },
+    "staticCorpus": {
+      "passed": 27,
+      "factCases": 23,
+      "fp": 0,
+      "fn": 0
+    },
+    "legacyCurrent": {
+      "passed": 12
+    },
+    "staticTools": {
+      "passed": 7
+    },
+    "dockerIsolation": {
+      "passed": 9
+    },
+    "nativeProfile": {
+      "passed": 44
+    },
+    "publicDefinitions": {
+      "samples": 25,
+      "partial": 25,
+      "errors": 0,
+      "toolInvocations": 75,
+      "toolErrors": 0
+    },
+    "controlledRevisionPairs": {
+      "passed": 3,
+      "behaviorPreservation": "not_verified"
+    },
+    "focusedRegressionTests": {
+      "passed": 22,
+      "failed": 0
+    },
+    "nativeStderrBudget": {
+      "pythonVersion": "3.12.10",
+      "singleMode": "native_output_limit",
+      "defaultModes": "native_output_limit"
+    }
+  },
+  "workflowExecution": "not_run",
+  "actualTeamApiIntegration": "not_run",
+  "externalLlmCalls": 0,
+  "historicalReceiptsModified": false,
+  "receipts": [
+    {
+      "path": "evidence-local/pr19-assessment-runtime.json",
+      "sha256": "c3235f6a3304b49b6fe75f92d955946f260e68df17e25b652c270b274ba3a361"
+    },
+    {
+      "path": "evidence-local/pr19-native-profile.json",
+      "sha256": "dc358da599a689e28b80dea77efdae69574f7ff223fe56f0a5090f74046c6b57"
+    },
+    {
+      "path": "evidence-local/pr19-final-public-15.json",
+      "sha256": "8dccdb9b91398f225452934445b5ffcd140bd9dedb99b7f29968917aae0a78a5"
+    },
+    {
+      "path": "evidence-local/pr19-final-public-10.json",
+      "sha256": "5f8d4e52685b869616ce0c8fa4131ade09bf7cd64c87bb4608f8e5bc818b61c1"
+    },
+    {
+      "path": "evidence-local/pr19-final-service-paths.json",
+      "sha256": "307d8a87fcb1d4863364d56e32b2b13da6f01fe7e94eabb3db5a2782215240f6"
+    },
+    {
+      "path": "evidence-local/pr19-static-corpus.json",
+      "sha256": "ed9f505b131b2fb5df0b112db8777446918a2550e5c1a59dedbb1ddbc4e69630"
+    },
+    {
+      "path": "evidence-local/pr19-legacy-current.json",
+      "sha256": "fde14e477624fabe81024a2186d6a412450b4875ff7d5a03712e3d4cf04906ec"
+    },
+    {
+      "path": "evidence-local/pr19-static-tools.json",
+      "sha256": "148310572e1021bd3e0395f9448e618f993e87bf4248c763360965c6e88bacb3"
+    }
+  ],
+  "codexReview": {
+    "fullReviewP2": 5,
+    "resolved": 5,
+    "followupUnresolvedP1P2": 0,
+    "scope": "five fixes and their immediate callers after the full PR audit",
+    "readOnlyTemporaryFileTests": "2 blocked; passed in primary working environment"
+  }
+}

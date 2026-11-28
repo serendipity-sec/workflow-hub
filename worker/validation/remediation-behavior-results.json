@@ -1,0 +1,202 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-11-22T10:48:57.243Z",
+  "outcome": "passed",
+  "scope": "frozen_repository_synthetic_fixture_only",
+  "workflowExecution": "frozen_synthetic_original_and_generated_patch",
+  "uploadedWorkflowExecution": "not_run",
+  "teamApiIntegration": "not_tested",
+  "generalBehaviorPreservation": "not_claimed",
+  "command": "node validation/verify-remediation-behavior.mjs",
+  "artifacts": {
+    "dist/assessment-change.js": "30969ebfbf0af13b814d6e74a6fd17849eb33aefbc547b34a8ba85b95375221e",
+    "dist/static-context.js": "ae7fbeaca1144baedaed05c64889d0bdca27f490ee7499449861909e5ccc96ce",
+    "dist/static-flow.js": "3970d92d26e6b43bbf332fb473d0fe15015aae4613ec30631cc57d02fe746161",
+    "validation/verify-remediation-behavior.mjs": "4b9412aa464c0954758fa199c0a346f5199ada8c029b0f5d8d2eae82739e2efb"
+  },
+  "remediation": {
+    "kind": "bind_postgres_lookup_value",
+    "planId": "41d8d679baa823d771cc6e66ed589488359e83b3fc5f2fa454bf7b30a16d75b2",
+    "originalSha256": "fc5b6f72454ccd175bb629fffe445273c9e7a440ab0128ea65f4d675fc4d64b8",
+    "generatedSha256": "59bdcfb7cd7c4cbc5a77d557352d8b60ec17ee15fdb6de94e96af3148cbf6ba6",
+    "originalBytes": 997,
+    "generatedBytes": 1092,
+    "onlyRecognizedBindingChanged": true,
+    "generatedBytesStaticallyRechecked": true,
+    "interpolationFindingPresentAfterPatch": false,
+    "importedDefinitions": [
+      {
+        "role": "original",
+        "definitionSha256": "fc5b6f72454ccd175bb629fffe445273c9e7a440ab0128ea65f4d675fc4d64b8",
+        "preparedSha256": "edcc04a6b19ffcba3ebf68f929e008ec826dcf4a8b86cc1d5860349d0c363f70",
+        "preparation": "fixed_synthetic_workflow_id_and_generated_credential_reference"
+      },
+      {
+        "role": "generated",
+        "definitionSha256": "59bdcfb7cd7c4cbc5a77d557352d8b60ec17ee15fdb6de94e96af3148cbf6ba6",
+        "preparedSha256": "6dfc261eecf9c0fd91eaeb95e161469b943cfb475fbe7323f17021642a41fefd",
+        "preparation": "fixed_synthetic_workflow_id_and_generated_credential_reference"
+      }
+    ]
+  },
+  "images": {
+    "postgres": "postgres@sha256:b6972e1115a4ff8eba5d7f7d19184926d1e16d7d1136ae1e1a7ebf286da0f015",
+    "n8n": "docker.n8n.io/n8nio/n8n@sha256:fabce3e9678a07d2dde83bd8f5124017f3ec457d0a3fc6b63bb4cec465d63861"
+  },
+  "versions": {
+    "node": "v24.14.0",
+    "postgres": "18.7",
+    "n8n": "2.48.7"
+  },
+  "databaseChecks": [
+    {
+      "case": "normal_7",
+      "originalRows": 1,
+      "generatedRows": 1,
+      "equal": true,
+      "outputs": "masked"
+    },
+    {
+      "case": "normal_9",
+      "originalRows": 1,
+      "generatedRows": 1,
+      "equal": true,
+      "outputs": "masked"
+    },
+    {
+      "case": "normal_13",
+      "originalRows": 0,
+      "generatedRows": 0,
+      "equal": true,
+      "outputs": "masked"
+    },
+    {
+      "case": "read_only_boolean_expression",
+      "originalRows": 2,
+      "originalPredicateBroadened": true,
+      "generatedRejected": true,
+      "generatedRows": 0,
+      "sqlstate": "22P02",
+      "outputs": "masked"
+    }
+  ],
+  "workflowChecks": [
+    {
+      "role": "original",
+      "case": "normal_7",
+      "httpStatus": 200,
+      "matchesExpected": true,
+      "result": "one_expected_item",
+      "body": "masked"
+    },
+    {
+      "role": "original",
+      "case": "normal_9",
+      "httpStatus": 200,
+      "matchesExpected": true,
+      "result": "one_expected_item",
+      "body": "masked"
+    },
+    {
+      "role": "original",
+      "case": "normal_13",
+      "httpStatus": 500,
+      "matchesExpected": true,
+      "result": "no_item_response",
+      "body": "masked"
+    },
+    {
+      "role": "generated",
+      "case": "normal_7",
+      "httpStatus": 200,
+      "matchesExpected": true,
+      "result": "one_expected_item",
+      "body": "masked"
+    },
+    {
+      "role": "generated",
+      "case": "normal_9",
+      "httpStatus": 200,
+      "matchesExpected": true,
+      "result": "one_expected_item",
+      "body": "masked"
+    },
+    {
+      "role": "generated",
+      "case": "normal_13",
+      "httpStatus": 500,
+      "matchesExpected": true,
+      "result": "no_item_response",
+      "body": "masked"
+    },
+    {
+      "role": "original",
+      "case": "read_only_boolean_expression",
+      "httpStatus": 200,
+      "result": "returned_first_item_of_broadened_query",
+      "body": "masked"
+    },
+    {
+      "role": "generated",
+      "case": "read_only_boolean_expression",
+      "httpStatus": 500,
+      "result": "rejected_without_result_item",
+      "body": "masked"
+    }
+  ],
+  "publication": [
+    {
+      "role": "original",
+      "publishedNodesAndConnectionsMatchPreparedBytes": true
+    },
+    {
+      "role": "generated",
+      "publishedNodesAndConnectionsMatchPreparedBytes": true
+    }
+  ],
+  "diagnostics": [
+    "fixed_cases_are_not_general_workflow_equivalence",
+    "no_item_http_500_behavior_intentionally_preserved",
+    "original_webhook_returns_first_item_so_database_check_proves_broadened_predicate"
+  ],
+  "databaseAccess": {
+    "readOnly": true,
+    "select": true,
+    "writes": false,
+    "syntheticDataOnly": true
+  },
+  "isolation": {
+    "databaseNetwork": "none",
+    "n8nSharesDatabaseNamespace": true,
+    "loopbackOnly": true,
+    "publishedPorts": 0,
+    "databaseStorage": "tmpfs",
+    "persistentDatabaseVolumes": 0,
+    "fixtureMounts": "read_only",
+    "n8nReadOnlyRoot": true
+  },
+  "postconditions": {
+    "databaseContentUnchanged": true,
+    "originalFixtureUnchanged": true,
+    "validationArtifactsUnchanged": true,
+    "normalCasesPreserved": 3,
+    "attackRejectedAfterPatch": true
+  },
+  "cleanup": {
+    "containers": [
+      {
+        "role": "n8n",
+        "ownershipVerified": true,
+        "removalExit": 0,
+        "absent": true
+      },
+      {
+        "role": "postgres",
+        "ownershipVerified": true,
+        "removalExit": 0,
+        "absent": true
+      }
+    ],
+    "temporaryFilesRemoved": true
+  }
+}

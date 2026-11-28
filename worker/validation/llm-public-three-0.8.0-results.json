@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "1.0.0",
+  "outcome": "passed",
+  "model": "z-ai/glm-5.3-flash",
+  "provider": "openrouter",
+  "maxPriceUsdPerMillionTokens": {
+    "prompt": 0.04,
+    "completion": 0.08,
+    "request": 0
+  },
+  "workflowExecution": "not_run",
+  "actualTeamApiIntegration": "not_run",
+  "modelAuthority": "explanation_only",
+  "staticVerdictsUnchanged": true,
+  "sourceContentSent": false,
+  "modelSelectionReviewed": "separate_manual_review_required",
+  "renderedText": "deterministic_original_evidence",
+  "totalReportedCostUsd": 0.0005385597,
+  "samples": [
+    {
+      "id": 18521,
+      "inputSha256": "f5586df6760b5fb2c5accdb22c402316eeedfe3a0caf92b6139da78a2c63b157",
+      "assessmentSha256": "3ed7d975822593bcc3a18751f122eba2dc3431086dc61b24a7665f82a5c5c59a",
+      "inspectionSha256": "c667b1091f5cad8a8d8731aeb6de894feec99c0460cedfa00d874a5acb06769b",
+      "inspectionArtifact": "18521.inspection.json",
+      "coverageArtifact": "18521.coverage.llm.json",
+      "coverageArtifactSha256": "4e2ef6616a66aca1afd2f4bc3c23aa369df0686764a5cd138df949ce47700a7c",
+      "selectedDiagnosticActions": 3,
+      "llmResolvedAnalysisGap": false,
+      "engineVersion": "0.8.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "counts": {
+        "findings": 18,
+        "observations": 41,
+        "analysisGaps": 91,
+        "environmentChecks": 34,
+        "scopeNotes": 7
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "llmStatus": "generated",
+      "llmCode": null,
+      "llmContextSha256": "cb77f083341350cd56960ada8607479be3d615c63af42e501c38ca8d52df20e7",
+      "availableReferences": 35,
+      "selectedReferences": 8,
+      "omittedReferences": 115,
+      "usage": {
+        "promptTokens": 4424,
+        "completionTokens": 31,
+        "costUsd": 0.000178948
+      }
+    },
+    {
+      "id": 11007,
+      "inputSha256": "a5b90072022086d7a8529309a0da2968481e902fc6260e4be6646489c0676580",
+      "assessmentSha256": "04e596aaca365440033df8febea0e1eefd976d0f583b4bff76cf91736bb48a1b",
+      "inspectionSha256": "038909f2319a51181db0e561a0e1e084ca749b48a13929d646680722d5e85254",
+      "inspectionArtifact": "11007.inspection.json",
+      "coverageArtifact": "11007.coverage.llm.json",
+      "coverageArtifactSha256": "6fa5e6ac10d7c990b56a6eb2a8df8f309e8969e97581941cd32569ab818a8151",
+      "selectedDiagnosticActions": 3,
+      "llmResolvedAnalysisGap": false,
+      "engineVersion": "0.8.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "counts": {
+        "findings": 31,
+        "observations": 45,
+        "analysisGaps": 121,
+        "environmentChecks": 15,
+        "scopeNotes": 4
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "llmStatus": "generated",
+      "llmCode": null,
+      "llmContextSha256": "4e15a4bb19c5132e3f5285515300b46809e15b192f61be716c8c35c464b0a44d",
+      "availableReferences": 35,
+      "selectedReferences": 8,
+      "omittedReferences": 136,
+      "usage": {
+        "promptTokens": 4396,
+        "completionTokens": 31,
+        "costUsd": 0.0001778308
+      }
+    },
+    {
+      "id": 5819,
+      "inputSha256": "819722b716c1c3d0b8ef15e82a7189f409f600c6801ac07ea7cfdfc254d6bc37",
+      "assessmentSha256": "0bd9ad24bed35806151fedf7cf70b978e8daf8054400564d345b6c3884e164f2",
+      "inspectionSha256": "e27466a283e987e49fdb3cba3bce67e52318ccb8d35e72830976f4d329563cf6",
+      "inspectionArtifact": "5819.inspection.json",
+      "coverageArtifact": "5819.coverage.llm.json",
+      "coverageArtifactSha256": "2e809bebb0baafba027135210bfd91d691b819270082b31a8a7b5d4e719c5172",
+      "selectedDiagnosticActions": 5,
+      "llmResolvedAnalysisGap": false,
+      "engineVersion": "0.8.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "counts": {
+        "findings": 15,
+        "observations": 29,
+        "analysisGaps": 87,
+        "environmentChecks": 18,
+        "scopeNotes": 6
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "llmStatus": "generated",
+      "llmCode": null,
+      "llmContextSha256": "2a46f27c850fb193a64ffe541128414fc6f20b0c1909d468bee0478feab5ec94",
+      "availableReferences": 36,
+      "selectedReferences": 8,
+      "omittedReferences": 90,
+      "usage": {
+        "promptTokens": 4495,
+        "completionTokens": 31,
+        "costUsd": 0.0001817809
+      }
+    }
+  ]
+}

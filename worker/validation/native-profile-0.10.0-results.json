@@ -1,0 +1,259 @@
+{
+  "outcome": "passed",
+  "fixtureType": "synthetic_only",
+  "inputSha256": "b332c4c8d6bf70eb7c2aa896cee1099b16692c2b8b0ffe0c75050406cad60292",
+  "image": "sha256:fb0131d3b3fb53708c9cab724213f6bd89e14d95252ec2e8ea28fe242169a0a5",
+  "engineVersion": "0.10.0",
+  "workflowExecution": "not_run",
+  "versions": {
+    "python": "3.11.2",
+    "presidio": "2.2.366",
+    "spacy": "3.8.18",
+    "model": "en_core_web_sm@3.8.0"
+  },
+  "assertions": 44,
+  "assertionGroups": {
+    "baseline": 18,
+    "longTextAndScopes": 11,
+    "nativeBudget": 15
+  },
+  "inputBytes": 67827,
+  "totalFieldCharacters": 67613,
+  "longFieldCharacters": {
+    "program": 33422,
+    "prose": 33434
+  },
+  "contextSensitiveShortNameObserved": false,
+  "limitations": [
+    "english_model_context_sensitive",
+    "no_general_recall_claim",
+    "named_entities_in_code_not_analyzed",
+    "format_candidates_in_code_retained"
+  ],
+  "matches": [
+    {
+      "pointer": "/nodes/0/parameters/jsCode",
+      "code": "nlp_email_candidate",
+      "start": 46,
+      "end": 67
+    },
+    {
+      "pointer": "/nodes/0/parameters/command",
+      "code": "nlp_email_candidate",
+      "start": 26,
+      "end": 47
+    },
+    {
+      "pointer": "/nodes/0/parameters/jsonBody",
+      "code": "nlp_location_candidate",
+      "start": 0,
+      "end": 37
+    },
+    {
+      "pointer": "/nodes/0/parameters/jsonBody",
+      "code": "nlp_person_candidate",
+      "start": 0,
+      "end": 37
+    },
+    {
+      "pointer": "/nodes/1/name",
+      "code": "nlp_email_candidate",
+      "start": 0,
+      "end": 21
+    },
+    {
+      "pointer": "/nodes/1/parameters/jsCode",
+      "code": "nlp_email_candidate",
+      "start": 16380,
+      "end": 16401
+    },
+    {
+      "pointer": "/nodes/1/parameters/jsCode",
+      "code": "nlp_email_candidate",
+      "start": 33401,
+      "end": 33422
+    },
+    {
+      "pointer": "/notes/person",
+      "code": "nlp_person_candidate",
+      "start": 0,
+      "end": 10
+    },
+    {
+      "pointer": "/notes/person",
+      "code": "nlp_location_candidate",
+      "start": 20,
+      "end": 26
+    },
+    {
+      "pointer": "/notes/shortPerson",
+      "code": "nlp_person_candidate",
+      "start": 0,
+      "end": 2
+    },
+    {
+      "pointer": "/notes/shortPerson",
+      "code": "nlp_location_candidate",
+      "start": 12,
+      "end": 18
+    },
+    {
+      "pointer": "/notes/tiny",
+      "code": "nlp_person_candidate",
+      "start": 0,
+      "end": 2
+    },
+    {
+      "pointer": "/notes/bracketed",
+      "code": "nlp_person_candidate",
+      "start": 1,
+      "end": 11
+    },
+    {
+      "pointer": "/notes/bracketed",
+      "code": "nlp_location_candidate",
+      "start": 21,
+      "end": 27
+    },
+    {
+      "pointer": "/notes/template",
+      "code": "nlp_person_candidate",
+      "start": 6,
+      "end": 16
+    },
+    {
+      "pointer": "/notes/contextSensitive",
+      "code": "nlp_location_candidate",
+      "start": 12,
+      "end": 18
+    },
+    {
+      "pointer": "/notes/longText",
+      "code": "nlp_person_candidate",
+      "start": 16380,
+      "end": 16390
+    },
+    {
+      "pointer": "/notes/longText",
+      "code": "nlp_location_candidate",
+      "start": 16400,
+      "end": 16406
+    },
+    {
+      "pointer": "/notes/longText",
+      "code": "nlp_person_candidate",
+      "start": 33407,
+      "end": 33417
+    },
+    {
+      "pointer": "/notes/longText",
+      "code": "nlp_location_candidate",
+      "start": 33427,
+      "end": 33433
+    },
+    {
+      "pointer": "/pinData/source/0/json/name",
+      "code": "nlp_person_candidate",
+      "start": 0,
+      "end": 10
+    },
+    {
+      "pointer": "/pinData/source/0/json/shortName",
+      "code": "nlp_person_candidate",
+      "start": 0,
+      "end": 2
+    },
+    {
+      "pointer": "/pinData/source/0/json/email",
+      "code": "nlp_email_candidate",
+      "start": 0,
+      "end": 21
+    }
+  ],
+  "diagnostics": [
+    "nlp_english_model_profile",
+    "nlp_metadata_formats_only",
+    "nlp_program_formats_only",
+    "nlp_json_string_values_only",
+    "nlp_chunked_text_profile",
+    "nlp_technical_entity_filtered",
+    "nlp_template_literal_text_only",
+    "nlp_chunked_text_profile"
+  ],
+  "nativeBudgetControls": {
+    "boundary": "same_immutable_image_sandbox_fixed_synthetic_helper_calls",
+    "image": "sha256:fb0131d3b3fb53708c9cab724213f6bd89e14d95252ec2e8ea28fe242169a0a5",
+    "cleanupVerified": true,
+    "controlScriptSha256": "1069f881b098e2225ac5923d79c0b0fc90836cd14efe0b139e9a9f8b27f4d39e",
+    "cases": {
+      "single": {
+        "inputSha256": "96b5935bc64976be64818635187028df5ba9fa55358b3fb160b85b7ff8da2caf",
+        "fieldCharacters": [262166],
+        "totalCharacters": 262166,
+        "mode": {
+          "mode": "nlp",
+          "status": "completed",
+          "findings": [],
+          "diagnostics": [
+            {
+              "fieldIndex": null,
+              "code": "nlp_english_model_profile"
+            },
+            {
+              "fieldIndex": null,
+              "code": "native_input_scope_limit"
+            }
+          ],
+          "versions": {
+            "python": "3.11.2",
+            "presidio": "2.2.366",
+            "spacy": "3.8.18",
+            "model": "en_core_web_sm@3.8.0"
+          }
+        },
+        "coverage": "partial"
+      },
+      "aggregate": {
+        "inputSha256": "d2fa7f2eb2315109d0daad41ef56b817815f87c7d4447e440b05556faabe390d",
+        "fieldCharacters": [140021, 140021],
+        "totalCharacters": 280042,
+        "mode": {
+          "mode": "nlp",
+          "status": "completed",
+          "findings": [
+            {
+              "fieldIndex": 0,
+              "code": "nlp_email_candidate",
+              "start": 140000,
+              "end": 140021,
+              "line": null
+            }
+          ],
+          "diagnostics": [
+            {
+              "fieldIndex": null,
+              "code": "nlp_english_model_profile"
+            },
+            {
+              "fieldIndex": 0,
+              "code": "nlp_chunked_text_profile"
+            },
+            {
+              "fieldIndex": null,
+              "code": "native_input_scope_limit"
+            }
+          ],
+          "versions": {
+            "python": "3.11.2",
+            "presidio": "2.2.366",
+            "spacy": "3.8.18",
+            "model": "en_core_web_sm@3.8.0"
+          }
+        },
+        "coverage": "partial"
+      }
+    }
+  },
+  "verificationScriptSha256": "2c5e7dd3d3ce46154339fb7df6ab19eda25003435e0c565df165a5fe23058fae",
+  "rawAssessmentSha256": "51d327ab063ded86fbda9ab4b2ffaf9ea74256fbbc4a2549cc177f69af4a0ced"
+}

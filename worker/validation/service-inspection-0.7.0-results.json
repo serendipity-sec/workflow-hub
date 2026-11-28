@@ -1,0 +1,202 @@
+{
+  "schemaVersion": "1.0.0",
+  "engineVersion": "0.7.0",
+  "outcome": "validated_with_remaining_analysis_limits",
+  "workflowExecution": "public_and_uploaded_workflows_not_run",
+  "actualTeamApiIntegration": "not_run",
+  "image": "sha256:c2ab4f1c171d9e43d445e2b52b2f368af52858c562eabd745032556a81c26afe",
+  "sources": {
+    "src/value-flow.ts": "0d0c459831037fd17f885ffa021a461ff638d9a74c63e3c49aceb1aec66ddfc3",
+    "src/extended-sinks.ts": "89fe44011fdf8e5ec5c127ddde1935cee93553cf9c97624864ac7acfa2acdf61",
+    "src/llm-review.ts": "a0c7a14cc618e482ecf61828e8f4250dcc69290e3d57f0c6dcf4ca422cc187db",
+    "src/inspection.ts": "7945ee65d4c30c8df5f35616d41470187e78b5f107b5e2d08558e8d8b40e7e05",
+    "src/service-report.ts": "5d8701e442fa6ce3a91dd42337c592efaf4b3941ddf2c7c548677c83a0facf46"
+  },
+  "checks": {
+    "workerTests": 475,
+    "failed": 0,
+    "skipped": 0,
+    "rootToolingTests": 6,
+    "format": true,
+    "lint": true,
+    "typecheck": true,
+    "build": true,
+    "codexReview": "prior_findings_resolved",
+    "astraReview": {
+      "profiles": 22,
+      "policy": 9,
+      "assembly": 31,
+      "remainingDefects": 0
+    },
+    "runtime": {
+      "assessmentCases": 8,
+      "analyzedFiles": 9,
+      "isolationChecks": 9,
+      "failureChecks": 4
+    },
+    "nativeAssertions": 44,
+    "publicRegressionAssertions": [
+      "idless_official_template_accepted",
+      "postgres_2_4_input_path_detected",
+      "postgres_string_parameter_channel_observed",
+      "postgres_string_mapping_stays_unverified",
+      "complex_sql_casts_parse",
+      "complex_sql_binding_observed",
+      "constant_command_control_exists",
+      "constant_command_has_no_dynamic_candidate",
+      "external_command_input_candidate_retained",
+      "summary_14_title_is_public",
+      "summary_27_title_is_public",
+      "whole_subject_is_public",
+      "constant_subject_has_no_personal_transfer_candidate",
+      "actual_message_personal_candidate_retained",
+      "populated_summary_mapping_supported",
+      "if_2_3_pass_through_supported",
+      "reviewed_sticky_notes_not_unreviewed_capabilities",
+      "6216_connector_control_exists",
+      "6216_known_send_profile_supported",
+      "11007_connector_control_exists",
+      "11007_known_send_profile_supported",
+      "binary_attachment_content_stays_unavailable",
+      "optional_telegram_keyboard_not_required_input",
+      "long_program_scanned_in_bounded_chunks",
+      "long_program_not_skipped_at_old_field_limit",
+      "20541_spurious_budget_exhaustion_removed",
+      "14034_spurious_budget_exhaustion_removed",
+      "3314_spurious_budget_exhaustion_removed",
+      "11007_spurious_budget_exhaustion_removed",
+      "runtime_context_still_explicit",
+      "notion_transfer_fields_inspected",
+      "gemini_transfer_fields_inspected",
+      "docs_update_transfer_fields_inspected",
+      "whatsapp_transfer_fields_inspected",
+      "docs_create_title_is_public_after_mapping_fix",
+      "docs_create_profile_keeps_access_and_policy_gaps",
+      "ner_structural_metadata_false_positives_removed",
+      "informational_observations_have_no_correction_plans",
+      "2490_table_operation_capability_observed",
+      "2490_table_runtime_and_policy_gaps_retained",
+      "18521_table_operation_capability_observed",
+      "18521_table_runtime_and_policy_gaps_retained",
+      "sheets_runtime_headers_not_assumed",
+      "7622_reversed_ai_connection_not_auto_repaired",
+      "7643_reversed_ai_connection_not_auto_repaired",
+      "reviewed_ai_prompt_model_transfer_has_explicit_execution_gap",
+      "structured_postgres_default_insert_is_observed",
+      "known_builtin_capability_inventory_covers_fixed_samples",
+      "dynamic_sql_structure_stays_explicit",
+      "read_response_fields_not_promoted_to_known_personal_data",
+      "local_or_remote_file_content_stays_unavailable",
+      "openai_responses_fixed_public_control_exists",
+      "openai_responses_default_profile_is_supported",
+      "openai_endpoint_still_requires_credential_context"
+    ],
+    "staticCorpusCases": 27,
+    "legacyCases": 12,
+    "cliInspectSmoke": "passed_synthetic_input_no_llm",
+    "secretScan": {
+      "tool": "gitleaks@8.30.1",
+      "staged": "passed",
+      "exactSyntheticDigestAllowlist": {
+        "files": 2,
+        "lines": 33
+      }
+    }
+  },
+  "public": {
+    "samples": 25,
+    "statuses": {
+      "analyzed": 0,
+      "partial": 25,
+      "unsupported": 0,
+      "error": 0
+    },
+    "reportedToolResults": 75,
+    "reportedToolErrors": 0,
+    "generalAccuracy": "not_measured",
+    "priorImageGitleaksFailures": 1,
+    "priorImageSingleRecheckToolErrors": 0
+  },
+  "llm": {
+    "provider": "openrouter",
+    "model": "z-ai/glm-5.3-flash",
+    "livePublicCalls": 25,
+    "generated": 25,
+    "reportedCostUsd": 0.0045401516,
+    "authority": "existing_reference_selection_only",
+    "text": "deterministic_original_evidence",
+    "testedOn": "prior_core_image_bound_to_each_assessment_hash",
+    "finalCoreContextComparison": {
+      "matching": 24,
+      "changed": 1,
+      "additionalCalls": 0,
+      "changedContextsNotReused": true
+    }
+  },
+  "remaining": [
+    "universal_complete_static_analysis_not_claimed",
+    "complex_code_array_subworkflow_and_ai_flow_gaps",
+    "runtime_permissions_packages_network_and_policy_require_evidence",
+    "korean_context_pii_not_expanded",
+    "general_automatic_fix_behavior_not_proven",
+    "actual_team_api_and_frontend_e2e_not_run"
+  ],
+  "receipts": [
+    {
+      "path": "validation/assessment-runtime-0.7.0-results.json",
+      "sha256": "fd6e13b9a7207179b05cfd2e31190788aa22bd5f8ffeed05e945a29684c94ae1"
+    },
+    {
+      "path": "validation/native-profile-0.7.0-results.json",
+      "sha256": "e0e83ac5f8cf4808f4bac62a16b2f1048b20c6ed0c24108151c440243a43ea37"
+    },
+    {
+      "path": "validation/public-assessment-0.7.0-results.json",
+      "sha256": "a40cd84633bc34f804189b8851ebe85edb9acd0501cd2ce14dbb6d922aae7ad6"
+    },
+    {
+      "path": "validation/public-additional-0.7.0-results.json",
+      "sha256": "8757e6668f005079c59b41fefcc2e42863cc0eb761c6b5a29eebc4a109094f77"
+    },
+    {
+      "path": "validation/public-regressions-0.7.0-results.json",
+      "sha256": "8143acaadc953d779087e398a983e046c9b6dc496840d540f0f015aee5dd6973"
+    },
+    {
+      "path": "validation/public-service-path-0.7.0-results.json",
+      "sha256": "8cc1a0f5dd57a04f1ad655ad1f69f46eaba5f7ddba2494224dac92b665362777"
+    },
+    {
+      "path": "validation/static-corpus-0.7.0-results.json",
+      "sha256": "d7d80722e5780292bfb77ae28ae25e963e4dd9d8b0c52ed440abcbfd4fa6e2a5"
+    },
+    {
+      "path": "validation/public-coverage-0.7.0-results.json",
+      "sha256": "d7c93e4b176338e2128d7de868e1dfadced59b13c9ca703fd9a9d9485a2e8414"
+    },
+    {
+      "path": "validation/inspection-0.7.0-results.json",
+      "sha256": "f7055ead41b4f9e653aa03c24bdf04a99cb6712e0ffb4c8d18e47b5919250b9d"
+    },
+    {
+      "path": "validation/llm-public-15-0.7.0-results.json",
+      "sha256": "872bed90da986e058fbc232747f13bac382ffe691e9c0a11d447648f40bdd598"
+    },
+    {
+      "path": "validation/llm-public-10-0.7.0-results.json",
+      "sha256": "f8e6a5c36bafe709c30920343590db109f8e3647b9e28c38acc4d99d8d359fa5"
+    },
+    {
+      "path": "validation/llm-synthetic-0.7.0-results.json",
+      "sha256": "d3f4a18bc385857977e9d77d1982968849a818f120e91476978079a555071944"
+    },
+    {
+      "path": "validation/remediation-expansion-0.7.0-results.json",
+      "sha256": "01949191d6b05d656afa6b1d6059f33511518182fa213eedebec2ce4e04bb19a"
+    },
+    {
+      "path": "validation/public-recheck-2490-0.7.0-results.json",
+      "sha256": "defeb4593fee88ec30a390c2524a2a8b9c4f4b9723d9d7d15575015086a19b0d"
+    }
+  ]
+}

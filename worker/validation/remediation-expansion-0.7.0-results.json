@@ -1,0 +1,293 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-11-23T00:35:33.656Z",
+  "outcome": "passed",
+  "scope": "frozen_repository_synthetic_fixture_only",
+  "workflowExecution": "frozen_synthetic_original_and_generated_patch",
+  "uploadedWorkflowExecution": "not_run",
+  "teamApiIntegration": "not_tested",
+  "generalBehaviorPreservation": "not_claimed",
+  "command": "node validation/verify-remediation-expansion.mjs",
+  "artifacts": {
+    "dist/assessment-change.js": "0377a05e6abf5ca30b453c7a1fd781fd1251e7012dc585c146a922f57edc157d",
+    "dist/static-context.js": "ae7fbeaca1144baedaed05c64889d0bdca27f490ee7499449861909e5ccc96ce",
+    "dist/static-flow.js": "a1f76e84db6fa203ea6c960aae0369485df3ff73e2682ca56251757f11cae179",
+    "validation/verify-remediation-expansion.mjs": "92a17a3bf5d69217dfc48701a7e35a5b0d234e77c616ebddcd4747b3fe92b27b"
+  },
+  "remediation": {
+    "kind": "bind_postgres_lookup_values",
+    "planId": "037341c25e217f61cdbabe6102df5239b76588f2a90acde1865036d41a8b6844",
+    "originalSha256": "cbb23ba383be959889dd414d6f46486456f400ba9425aafac284125aa6b73a3d",
+    "generatedSha256": "28312ceda1c7176c23131d69a8bcc85f7a77fde5f96cc6e22a4a6fce88ee6f26",
+    "originalBytes": 679,
+    "generatedBytes": 1127,
+    "onlyRecognizedBindingChanged": true,
+    "generatedBytesStaticallyRechecked": true,
+    "interpolationFindingPresentAfterPatch": false,
+    "importedDefinitions": [
+      {
+        "role": "original",
+        "definitionSha256": "cbb23ba383be959889dd414d6f46486456f400ba9425aafac284125aa6b73a3d",
+        "preparedSha256": "21b03ec1808089616a35efdaaa60cd6bf9a80265a293ecd808c0a19c3072862a",
+        "preparation": "fixed_synthetic_workflow_id_and_generated_credential_reference"
+      },
+      {
+        "role": "generated",
+        "definitionSha256": "28312ceda1c7176c23131d69a8bcc85f7a77fde5f96cc6e22a4a6fce88ee6f26",
+        "preparedSha256": "492dfa9aeaf5047b016a57578b5f41161e3345922ea40975d4ff3d316ac3591e",
+        "preparation": "fixed_synthetic_workflow_id_and_generated_credential_reference"
+      }
+    ]
+  },
+  "images": {
+    "postgres": "postgres@sha256:b6972e1115a4ff8eba5d7f7d19184926d1e16d7d1136ae1e1a7ebf286da0f015",
+    "n8n": "docker.n8n.io/n8nio/n8n@sha256:fabce3e9678a07d2dde83bd8f5124017f3ec457d0a3fc6b63bb4cec465d63861"
+  },
+  "versions": {
+    "node": "v24.14.0",
+    "postgres": "18.7",
+    "n8n": "2.48.7"
+  },
+  "databaseChecks": [
+    {
+      "case": "tenant_a",
+      "originalRows": 1,
+      "generatedRows": 1,
+      "equal": true,
+      "outputs": "masked"
+    },
+    {
+      "case": "tenant_b_same_id",
+      "originalRows": 1,
+      "generatedRows": 1,
+      "equal": true,
+      "outputs": "masked"
+    },
+    {
+      "case": "different_id",
+      "originalRows": 1,
+      "generatedRows": 1,
+      "equal": true,
+      "outputs": "masked"
+    },
+    {
+      "case": "absent_id",
+      "originalRows": 0,
+      "generatedRows": 0,
+      "equal": true,
+      "outputs": "masked"
+    },
+    {
+      "case": "absent_tenant",
+      "originalRows": 0,
+      "generatedRows": 0,
+      "equal": true,
+      "outputs": "masked"
+    },
+    {
+      "case": "comma_is_one_value",
+      "originalRows": 1,
+      "generatedRows": 1,
+      "equal": true,
+      "outputs": "masked"
+    },
+    {
+      "case": "apostrophe_is_one_value",
+      "originalRejected": true,
+      "originalSqlstate": "42601",
+      "generatedRows": 1,
+      "boundValueMatchedExactly": true,
+      "outputs": "masked"
+    }
+  ],
+  "workflowChecks": [
+    {
+      "role": "original",
+      "case": "tenant_a",
+      "httpStatus": 200,
+      "matchesExpected": true,
+      "result": "one_expected_item",
+      "body": "masked"
+    },
+    {
+      "role": "original",
+      "case": "tenant_b_same_id",
+      "httpStatus": 200,
+      "matchesExpected": true,
+      "result": "one_expected_item",
+      "body": "masked"
+    },
+    {
+      "role": "original",
+      "case": "different_id",
+      "httpStatus": 200,
+      "matchesExpected": true,
+      "result": "one_expected_item",
+      "body": "masked"
+    },
+    {
+      "role": "original",
+      "case": "absent_id",
+      "httpStatus": 500,
+      "matchesExpected": true,
+      "result": "no_item_response",
+      "body": "masked"
+    },
+    {
+      "role": "original",
+      "case": "absent_tenant",
+      "httpStatus": 500,
+      "matchesExpected": true,
+      "result": "no_item_response",
+      "body": "masked"
+    },
+    {
+      "role": "original",
+      "case": "comma_is_one_value",
+      "httpStatus": 200,
+      "matchesExpected": true,
+      "result": "one_expected_item",
+      "body": "masked"
+    },
+    {
+      "role": "generated",
+      "case": "tenant_a",
+      "httpStatus": 200,
+      "matchesExpected": true,
+      "result": "one_expected_item",
+      "body": "masked"
+    },
+    {
+      "role": "generated",
+      "case": "tenant_b_same_id",
+      "httpStatus": 200,
+      "matchesExpected": true,
+      "result": "one_expected_item",
+      "body": "masked"
+    },
+    {
+      "role": "generated",
+      "case": "different_id",
+      "httpStatus": 200,
+      "matchesExpected": true,
+      "result": "one_expected_item",
+      "body": "masked"
+    },
+    {
+      "role": "generated",
+      "case": "absent_id",
+      "httpStatus": 500,
+      "matchesExpected": true,
+      "result": "no_item_response",
+      "body": "masked"
+    },
+    {
+      "role": "generated",
+      "case": "absent_tenant",
+      "httpStatus": 500,
+      "matchesExpected": true,
+      "result": "no_item_response",
+      "body": "masked"
+    },
+    {
+      "role": "generated",
+      "case": "comma_is_one_value",
+      "httpStatus": 200,
+      "matchesExpected": true,
+      "result": "one_expected_item",
+      "body": "masked"
+    },
+    {
+      "role": "original",
+      "case": "apostrophe_is_one_value",
+      "httpStatus": 500,
+      "result": "original_literal_syntax_rejected",
+      "body": "masked"
+    },
+    {
+      "role": "generated",
+      "case": "apostrophe_is_one_value",
+      "httpStatus": 200,
+      "result": "bound_value_matched_exactly",
+      "body": "masked"
+    }
+  ],
+  "publication": [
+    {
+      "role": "original",
+      "publishedNodesAndConnectionsMatchPreparedBytes": true
+    },
+    {
+      "role": "generated",
+      "publishedNodesAndConnectionsMatchPreparedBytes": true
+    }
+  ],
+  "diagnostics": [
+    "fixed_cases_are_not_general_workflow_equivalence",
+    "no_item_http_500_behavior_intentionally_preserved",
+    "fixed_tenant_and_id_cases_verify_both_predicates_and_parameter_order",
+    "apostrophe_data_case_is_not_general_security_proof"
+  ],
+  "databaseAccess": {
+    "readOnly": true,
+    "select": true,
+    "writes": false,
+    "syntheticDataOnly": true
+  },
+  "isolation": {
+    "databaseNetwork": "none",
+    "n8nSharesDatabaseNamespace": true,
+    "loopbackOnly": true,
+    "publishedPorts": 0,
+    "databaseStorage": "tmpfs",
+    "persistentDatabaseVolumes": 0,
+    "fixtureMounts": "read_only",
+    "n8nReadOnlyRoot": true
+  },
+  "postconditions": {
+    "databaseContentUnchanged": true,
+    "originalFixtureUnchanged": true,
+    "validationArtifactsUnchanged": true,
+    "normalCasesPreserved": 6,
+    "quotedValueBoundWithoutSqlSyntaxInterpretation": true
+  },
+  "cleanup": {
+    "containers": [
+      {
+        "role": "n8n",
+        "ownershipVerified": true,
+        "removalExit": 0,
+        "absent": true
+      },
+      {
+        "role": "postgres",
+        "ownershipVerified": true,
+        "removalExit": 0,
+        "absent": true
+      }
+    ],
+    "temporaryFilesRemoved": true
+  },
+  "postReviewStaticVerification": {
+    "recordedAt": "2026-11-23T00:39:26.545Z",
+    "change": "exclude_prototype_chain_member_names",
+    "currentRemediationSourceSha256": "6c19b63ecfcd12fa0e4a8f362a4f4aa1f644f46b52175f67e6a9f655854e87ef",
+    "currentRemediationArtifactSha256": "b929da8e17d61a9fe51719cdbc3ea0e385b7a1e7b3ca60a80b6bc83480fc89ed",
+    "originalBytesMatchExecutedFixture": true,
+    "generatedBytesMatchExecutedFixture": true,
+    "planIdUnchanged": true,
+    "workflowExecutionRepeated": false,
+    "tests": "three_additional_rejection_cases_in_passing_16_test_suite"
+  },
+  "priorAttempt": {
+    "generatedAt": "2026-11-23T00:32:02.926Z",
+    "outcome": "error",
+    "failedStage": "n8n_normal_cases",
+    "databaseChecksCompleted": 7,
+    "workflowChecksCompleted": 0,
+    "cleanupVerified": true,
+    "cause": "not_established",
+    "rerunChange": "add_local_response_and_error_diagnostics_only",
+    "localReceiptSha256": "9c6cff9ec753294858a10432df1f356854c51751ec70a166051857aa707b13f2"
+  }
+}

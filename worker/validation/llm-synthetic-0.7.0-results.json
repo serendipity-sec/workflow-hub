@@ -1,0 +1,186 @@
+{
+  "schemaVersion": "1.0.0",
+  "scope": "live_api_synthetic_explanation_only",
+  "source": "invented_synthetic_fixture_only",
+  "nativeTools": "mocked_for_adapter_test",
+  "workflowExecution": "not_run",
+  "actualTeamApiIntegration": "not_run",
+  "actualWorkflowDataSent": false,
+  "maxPriceUsdPerMillionTokens": {
+    "prompt": 0.04,
+    "completion": 0.08,
+    "request": 0
+  },
+  "result": {
+    "schemaVersion": "1.0.0",
+    "authority": "explanation_only",
+    "affectsVerdict": false,
+    "requiresHumanReview": true,
+    "workflowExecution": "not_run",
+    "inputSha256": "5bfa3377df9a04cfce8c45b6e874f9783b824f709e411db4431834815a19aa4b",
+    "contextSha256": "a93bf02e8facd7ea26370da785c88f5aac99f0a124a4ddd428bf929e97955c1c",
+    "model": "z-ai/glm-5.3-flash",
+    "context": {
+      "inputSha256": "5bfa3377df9a04cfce8c45b6e874f9783b824f709e411db4431834815a19aa4b",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "execution": "not_run",
+      "decision": "inconclusive",
+      "functions": [
+        {
+          "kind": "webhook",
+          "count": 1
+        },
+        {
+          "kind": "http",
+          "count": 1
+        }
+      ],
+      "references": [
+        {
+          "id": "r1",
+          "analysisKey": "89913f4502bcdbdb784a68dbcf2fdbb4c85450c6dfc7c6502fa33310921cfaf7",
+          "fileSha256": "5bfa3377df9a04cfce8c45b6e874f9783b824f709e411db4431834815a19aa4b",
+          "evidenceIds": [
+            "14774a9a59a24cfcf61bfe57c5694217c40da96a717b5e3925d9265003b17e38"
+          ],
+          "category": "request_auth",
+          "kind": "finding",
+          "description": "요청자 검증 검토 요청자 검증에서 검토가 필요한 설정을 확인했습니다. 실제 운영의 영향은 사용 조건과 함께 확인해야 합니다. 요청자를 확인하는 인증과 권한 검사를 구성하고 허용·거부 사례를 확인하세요.",
+          "severity": "medium",
+          "claim": "configuration",
+          "nodeIndex": 0
+        },
+        {
+          "id": "r2",
+          "analysisKey": "89913f4502bcdbdb784a68dbcf2fdbb4c85450c6dfc7c6502fa33310921cfaf7",
+          "fileSha256": "5bfa3377df9a04cfce8c45b6e874f9783b824f709e411db4431834815a19aa4b",
+          "evidenceIds": [
+            "c8c3ff79953a48df1486ac39202651a360c2028a1aa33bdb5150f6a22c11c095"
+          ],
+          "category": "egress",
+          "kind": "environment_check",
+          "description": "실제 통신 대상 확인 최종 목적지·DNS·리다이렉트·네트워크 접근은 실행 환경에 따라 달라집니다. 허용 도메인과 내부망 접근 제한을 운영 환경에서 확인하세요.",
+          "severity": null,
+          "claim": null,
+          "nodeIndex": 1
+        },
+        {
+          "id": "r3",
+          "analysisKey": "89913f4502bcdbdb784a68dbcf2fdbb4c85450c6dfc7c6502fa33310921cfaf7",
+          "fileSha256": "5bfa3377df9a04cfce8c45b6e874f9783b824f709e411db4431834815a19aa4b",
+          "evidenceIds": [
+            "d915f6f65082d1136e2ef8413be5025d32626ae8f82b4a76e5ca112af715d929"
+          ],
+          "category": "ssrf",
+          "kind": "environment_check",
+          "description": "실제 통신 대상 확인 최종 목적지·DNS·리다이렉트·네트워크 접근은 실행 환경에 따라 달라집니다. 허용 도메인과 내부망 접근 제한을 운영 환경에서 확인하세요.",
+          "severity": null,
+          "claim": null,
+          "nodeIndex": 1
+        },
+        {
+          "id": "r4",
+          "analysisKey": "89913f4502bcdbdb784a68dbcf2fdbb4c85450c6dfc7c6502fa33310921cfaf7",
+          "fileSha256": "5bfa3377df9a04cfce8c45b6e874f9783b824f709e411db4431834815a19aa4b",
+          "evidenceIds": [
+            "34f7ff35a13e9b5e53d7b9ec9ab080e8d7bb11cab17446717ef9a274a8fdf9ee"
+          ],
+          "category": "dependencies",
+          "kind": "environment_check",
+          "description": "실제 실행 권한 확인 JSON 설정만으로 실제 DB·파일·SSH·도구 권한과 실행 영향을 확인할 수 없습니다. 운영자가 실행 계정의 최소 권한과 접근 범위를 확인하세요. 비밀키를 제출할 필요는 없습니다.",
+          "severity": null,
+          "claim": null,
+          "nodeIndex": null
+        },
+        {
+          "id": "r5",
+          "analysisKey": "89913f4502bcdbdb784a68dbcf2fdbb4c85450c6dfc7c6502fa33310921cfaf7",
+          "fileSha256": "5bfa3377df9a04cfce8c45b6e874f9783b824f709e411db4431834815a19aa4b",
+          "evidenceIds": [
+            "5b26e5e8d4ac169693cd5a68a1fcc716846a5f297c8997bd494390c3ab95ebb0"
+          ],
+          "category": "egress",
+          "kind": "environment_check",
+          "description": "실제 입력·응답 데이터 확인 외부 서비스 응답, 시트 헤더, 모델 출력과 실제 도구 선택은 JSON 정의에 포함되지 않습니다. 실제 사용 전에 데이터 구조와 전송 범위를 확인하고 필요하면 익명화한 구조 정보로 다시 검토하세요.",
+          "severity": null,
+          "claim": null,
+          "nodeIndex": 1
+        },
+        {
+          "id": "r6",
+          "analysisKey": "89913f4502bcdbdb784a68dbcf2fdbb4c85450c6dfc7c6502fa33310921cfaf7",
+          "fileSha256": "5bfa3377df9a04cfce8c45b6e874f9783b824f709e411db4431834815a19aa4b",
+          "evidenceIds": [
+            "426e388a7346cc8c136823b9b48815a20e78e18cd21bc40cb2d281f2e7c314b9"
+          ],
+          "category": "egress",
+          "kind": "environment_check",
+          "description": "수신자와 데이터 사용 정책 확인 전송·응답 설정은 보이지만 수신자의 권한과 해당 데이터 사용의 허용 여부는 확인되지 않았습니다. 수신 대상, 외부 AI 사용, 데이터 보존·공유 범위가 업무 정책에 맞는지 확인하세요.",
+          "severity": null,
+          "claim": null,
+          "nodeIndex": 1
+        }
+      ],
+      "omittedReferences": 0,
+      "instructions": "explain_observed_categories_only_no_new_findings_no_safety_verdict"
+    },
+    "status": "generated",
+    "method": "model_selection_with_deterministic_text",
+    "selection": {
+      "focusReferenceIds": ["r1", "r2", "r3", "r4", "r5", "r6"]
+    },
+    "advice": {
+      "summary": "정의에 웹 요청, HTTP 요청 기능이 있습니다. 미확인 분석 범위와 사용 조건을 함께 확인해야 합니다. 실제 워크플로는 실행하지 않았습니다.",
+      "items": [
+        {
+          "referenceIds": ["r1"],
+          "explanation": "요청자 검증 검토 요청자 검증에서 검토가 필요한 설정을 확인했습니다. 실제 운영의 영향은 사용 조건과 함께 확인해야 합니다. 요청자를 확인하는 인증과 권한 검사를 구성하고 허용·거부 사례를 확인하세요.",
+          "nextSteps": [
+            "원래 검사 결과에서 해당 근거의 위치와 수정 조건을 확인하세요."
+          ]
+        },
+        {
+          "referenceIds": ["r2"],
+          "explanation": "실제 통신 대상 확인 최종 목적지·DNS·리다이렉트·네트워크 접근은 실행 환경에 따라 달라집니다. 허용 도메인과 내부망 접근 제한을 운영 환경에서 확인하세요.",
+          "nextSteps": [
+            "원래 검사 결과에서 해당 근거의 위치와 수정 조건을 확인하세요."
+          ]
+        },
+        {
+          "referenceIds": ["r3"],
+          "explanation": "실제 통신 대상 확인 최종 목적지·DNS·리다이렉트·네트워크 접근은 실행 환경에 따라 달라집니다. 허용 도메인과 내부망 접근 제한을 운영 환경에서 확인하세요.",
+          "nextSteps": [
+            "원래 검사 결과에서 해당 근거의 위치와 수정 조건을 확인하세요."
+          ]
+        },
+        {
+          "referenceIds": ["r4"],
+          "explanation": "실제 실행 권한 확인 JSON 설정만으로 실제 DB·파일·SSH·도구 권한과 실행 영향을 확인할 수 없습니다. 운영자가 실행 계정의 최소 권한과 접근 범위를 확인하세요. 비밀키를 제출할 필요는 없습니다.",
+          "nextSteps": [
+            "원래 검사 결과에서 해당 근거의 위치와 수정 조건을 확인하세요."
+          ]
+        },
+        {
+          "referenceIds": ["r5"],
+          "explanation": "실제 입력·응답 데이터 확인 외부 서비스 응답, 시트 헤더, 모델 출력과 실제 도구 선택은 JSON 정의에 포함되지 않습니다. 실제 사용 전에 데이터 구조와 전송 범위를 확인하고 필요하면 익명화한 구조 정보로 다시 검토하세요.",
+          "nextSteps": [
+            "원래 검사 결과에서 해당 근거의 위치와 수정 조건을 확인하세요."
+          ]
+        },
+        {
+          "referenceIds": ["r6"],
+          "explanation": "수신자와 데이터 사용 정책 확인 전송·응답 설정은 보이지만 수신자의 권한과 해당 데이터 사용의 허용 여부는 확인되지 않았습니다. 수신 대상, 외부 AI 사용, 데이터 보존·공유 범위가 업무 정책에 맞는지 확인하세요.",
+          "nextSteps": [
+            "원래 검사 결과에서 해당 근거의 위치와 수정 조건을 확인하세요."
+          ]
+        }
+      ]
+    },
+    "usage": {
+      "promptTokens": 830,
+      "completionTokens": 25,
+      "costUsd": 0.000035077
+    }
+  }
+}

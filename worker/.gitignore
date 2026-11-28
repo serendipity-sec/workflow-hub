@@ -1,0 +1,6 @@
+node_modules/
+dist/
+evidence-local/
+validation/*.assessment.raw.json
+.env
+.env.*

@@ -1,0 +1,54 @@
+{
+  "files": 1,
+  "findings": [
+    {
+      "ruleId": "missing-input-validation",
+      "severity": "high",
+      "title": "Missing Input Validation",
+      "message": "Trigger \"Webhook\" feeds into \"Postgres\" (n8n-nodes-base.postgres) without input validation",
+      "location": {
+        "workflow": "/fixtures/subworkflow-missing.json",
+        "nodeId": "node-postgres",
+        "nodeName": "Postgres",
+        "nodeType": "n8n-nodes-base.postgres"
+      },
+      "remediation": "Add an IF, Switch, or Filter node to validate input before it reaches sensitive nodes.",
+      "owaspCategory": "A03:2025 Missing Input Validation"
+    },
+    {
+      "ruleId": "webhook-no-auth",
+      "severity": "high",
+      "title": "Unauthenticated Webhook",
+      "message": "Webhook \"Webhook\" has no authentication configured — anyone with the URL can trigger it",
+      "location": {
+        "workflow": "/fixtures/subworkflow-missing.json",
+        "nodeId": "node-webhook",
+        "nodeName": "Webhook",
+        "nodeType": "n8n-nodes-base.webhook"
+      },
+      "remediation": "Set the webhook's authentication to Header Auth, Basic Auth, or JWT to restrict access.",
+      "owaspCategory": "A03:2025 Missing Input Validation"
+    },
+    {
+      "ruleId": "sub-workflow-escalation",
+      "severity": "high",
+      "title": "Sub-Workflow Privilege Escalation",
+      "message": "Trigger \"Webhook\" flows to sub-workflow node \"Child\" without validation — sub-workflow may have elevated credentials",
+      "location": {
+        "workflow": "/fixtures/subworkflow-missing.json",
+        "nodeId": "node-subworkflow",
+        "nodeName": "Child",
+        "nodeType": "n8n-nodes-base.executeWorkflow"
+      },
+      "remediation": "Add validation between the trigger and sub-workflow node. Ensure the sub-workflow uses least-privilege credentials.",
+      "owaspCategory": "A01:2025 Excessive Agency"
+    }
+  ],
+  "summary": {
+    "critical": 0,
+    "high": 3,
+    "medium": 0,
+    "low": 0,
+    "info": 0
+  }
+}

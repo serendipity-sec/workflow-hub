@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "1.0.0",
+  "outcome": "passed",
+  "engineVersion": "0.4.0",
+  "scope": "post_ci_lease_deadline_boundary_fix",
+  "precedingCommit": "0b185a3d798e66e52f3560fc54da62cc3227cdb0",
+  "originalCi": {
+    "url": "https://github.com/serendipity-sec/workflow-hub/actions/runs/45029187110",
+    "conclusion": "failure",
+    "code": "api_timeout_instead_of_lease_expired"
+  },
+  "regression": {
+    "priorImplementation": "failed_missing_expected_rejection",
+    "fixedImplementation": "passed",
+    "scenarios": ["stalled_download", "stalled_submission"],
+    "clock": "Date.now_frozen_relative_timers_active",
+    "no_additional_requests": true
+  },
+  "unitTests": {
+    "passed": 262,
+    "failed": 0
+  },
+  "review": {
+    "codexRunnerTests": 16,
+    "unresolvedFindings": 0,
+    "independentReview": "worker_architecture_read_only"
+  },
+  "runtime": {
+    "image": "sha256:01f9c3708d4655d574272faf3b298413616dd449ec4669a43d65abfd35093585",
+    "receiptSha256": "aad40c59bf28ba90a7cf3be0ac61f88db608603e80bf2e55d1caa384bebd9f53",
+    "assessments": 5,
+    "files": 6,
+    "isolationChecks": 9,
+    "failureChecks": [
+      "evidence_input_mismatch",
+      "cancelled",
+      "cancelled",
+      "assessment_timeout"
+    ],
+    "cleanup": "no_new_containers"
+  },
+  "artifactVerification": {
+    "matchedCurrentBuild": 37,
+    "unchangedFromPreviousEvidence": 35,
+    "changed": [
+      {
+        "path": "dist/api-client.js",
+        "before": "9437cf41dd1c6150d7f07f0da7da5a7cb8032ed4ee49056d0fa0db57083a4bf9",
+        "after": "bd8d36f7e35fba4c05780a1295b07a92f5b7246b76d8194091ca60c92ba7c6ab"
+      },
+      {
+        "path": "dist/runner.js",
+        "before": "41083f829a0ca94b723851908b7ec5c7a7a88641f8f7ff18c2eefba9f047be32",
+        "after": "c57e47f86c2bb5f7774b99cdf0327f67d51140097af9d1922bb396f1d3a6cc04"
+      }
+    ],
+    "previousSourceArtifactsUnchanged": 13
+  },
+  "retainedEvidence": {
+    "path": "validation/worker-completion-0.4.0-results.json",
+    "image": "sha256:5ff8aa6989f172f8c2a5f97e8db51a228463f4a4f2bddd8381fbfbb431df9c30",
+    "publicAndNativeModelCasesRerunForThisFix": false,
+    "analysisArtifactsUnchanged": true
+  },
+  "limitations": [
+    "real_team_api_not_tested",
+    "all_clock_adjustments_not_solved",
+    "no_workflow_execution",
+    "previous_public_and_model_limits_preserved"
+  ]
+}

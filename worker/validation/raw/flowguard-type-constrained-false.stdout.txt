@@ -1,0 +1,26 @@
+{
+  "files": 1,
+  "findings": [
+    {
+      "ruleId": "webhook-no-auth",
+      "severity": "high",
+      "title": "Unauthenticated Webhook",
+      "message": "Webhook \"Webhook\" has no authentication configured — anyone with the URL can trigger it",
+      "location": {
+        "workflow": "/fixtures/type-constrained-false.json",
+        "nodeId": "node-webhook",
+        "nodeName": "Webhook",
+        "nodeType": "n8n-nodes-base.webhook"
+      },
+      "remediation": "Set the webhook's authentication to Header Auth, Basic Auth, or JWT to restrict access.",
+      "owaspCategory": "A03:2025 Missing Input Validation"
+    }
+  ],
+  "summary": {
+    "critical": 0,
+    "high": 1,
+    "medium": 0,
+    "low": 0,
+    "info": 0
+  }
+}

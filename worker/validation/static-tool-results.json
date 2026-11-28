@@ -1,0 +1,84 @@
+{
+  "generatedAt": "2026-11-22T09:44:12.656Z",
+  "nodeVersion": "v24.14.0",
+  "gitleaksVersion": "8.30.1",
+  "gitleaksBinarySha256": "17157e2ee8b76fc8b1d8bee607a250e34b8a8023c8bc81822d4b5ee4d78fcb7c",
+  "validatorVersion": "13.15.35",
+  "scope": "synthetic_static_content_only",
+  "command": "WORKER_GITLEAKS_PATH=<trusted path> node validation/verify-static-tools.mjs [report path]",
+  "toolArguments": [
+    "stdin",
+    "--config",
+    "<trusted temporary default config>",
+    "--gitleaks-ignore-path",
+    "<empty temporary ignore file>",
+    "--redact=100",
+    "--report-format=json",
+    "--report-path=-",
+    "--exit-code=2",
+    "--ignore-gitleaks-allow",
+    "--max-decode-depth=0",
+    "--no-banner",
+    "--no-color",
+    "--log-level=fatal",
+    "--timeout",
+    "5"
+  ],
+  "environmentConfigOverrideIgnored": true,
+  "results": [
+    {
+      "case": "clean",
+      "inputSha256": "4c8d03a9aa9f7c0b7fcad8dcd033f5e60ec588e7a856ee3deb384260f7fdb030",
+      "status": "completed",
+      "findingCount": 0,
+      "fieldIndices": [],
+      "redacted": true
+    },
+    {
+      "case": "key_and_multiline",
+      "inputSha256": "3e765d801f70803ec1b1ea1ce26ecd715a6789a058355768cd845ae306c352b5",
+      "status": "completed",
+      "findingCount": 2,
+      "fieldIndices": [7, 8],
+      "redacted": true
+    },
+    {
+      "case": "inline_allow_ignored",
+      "inputSha256": "09b188e3d91e74a17306bedbab85efa04a290c0e3479690a1a96e1a91f0432ef",
+      "status": "completed",
+      "findingCount": 1,
+      "fieldIndices": [2],
+      "redacted": true
+    },
+    {
+      "case": "output_limit",
+      "status": "error",
+      "reason": "tool_output_limit",
+      "findingCount": 0
+    },
+    {
+      "case": "missing_tool",
+      "status": "error",
+      "reason": "tool_unavailable",
+      "findingCount": 0
+    },
+    {
+      "case": "cancelled",
+      "status": "error",
+      "reason": "tool_cancelled",
+      "findingCount": 0
+    },
+    {
+      "case": "content_integration",
+      "inputSha256": "a25ce2d265efd254816ecb08b076265dcb8ebae7832290838416a699bb1cb5ad",
+      "status": "completed",
+      "literalCredentialDetected": true,
+      "piiCodes": [
+        "email_candidate",
+        "korean_mobile_candidate",
+        "payment_card_candidate"
+      ],
+      "redacted": true
+    }
+  ]
+}

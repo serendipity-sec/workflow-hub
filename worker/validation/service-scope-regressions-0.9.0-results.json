@@ -1,0 +1,225 @@
+{
+  "outcome": "passed",
+  "engineVersion": "0.9.0",
+  "image": "sha256:656841169282828902dfbb709350aace09bf8076e18bbed58211d85b2763a66a",
+  "scope": "fixed_public_service_scope_and_new_static_path_regressions",
+  "workflowExecution": "not_run",
+  "actualTeamApiIntegration": "not_run",
+  "generalAccuracy": "not_measured",
+  "assertions": [
+    "16081_initial_service_scope_and_precautions",
+    "16081_all_diagnostic_causes_classified",
+    "16081_critical_candidates_and_gaps_require_review",
+    "20541_initial_service_scope_and_precautions",
+    "20541_all_diagnostic_causes_classified",
+    "20541_critical_candidates_and_gaps_require_review",
+    "20459_initial_service_scope_and_precautions",
+    "20459_all_diagnostic_causes_classified",
+    "20459_critical_candidates_and_gaps_require_review",
+    "14034_initial_service_scope_and_precautions",
+    "14034_all_diagnostic_causes_classified",
+    "14034_critical_candidates_and_gaps_require_review",
+    "2490_initial_service_scope_and_precautions",
+    "2490_all_diagnostic_causes_classified",
+    "2490_critical_candidates_and_gaps_require_review",
+    "7643_initial_service_scope_and_precautions",
+    "7643_all_diagnostic_causes_classified",
+    "7643_critical_candidates_and_gaps_require_review",
+    "18521_initial_service_scope_and_precautions",
+    "18521_all_diagnostic_causes_classified",
+    "18521_critical_candidates_and_gaps_require_review",
+    "15403_initial_service_scope_and_precautions",
+    "15403_all_diagnostic_causes_classified",
+    "15403_critical_candidates_and_gaps_require_review",
+    "10111_initial_service_scope_and_precautions",
+    "10111_all_diagnostic_causes_classified",
+    "10111_critical_candidates_and_gaps_require_review",
+    "10476_initial_service_scope_and_precautions",
+    "10476_all_diagnostic_causes_classified",
+    "10476_critical_candidates_and_gaps_require_review",
+    "6216_initial_service_scope_and_precautions",
+    "6216_all_diagnostic_causes_classified",
+    "6216_critical_candidates_and_gaps_require_review",
+    "3314_initial_service_scope_and_precautions",
+    "3314_all_diagnostic_causes_classified",
+    "3314_critical_candidates_and_gaps_require_review",
+    "11007_initial_service_scope_and_precautions",
+    "11007_all_diagnostic_causes_classified",
+    "11007_critical_candidates_and_gaps_require_review",
+    "9638_initial_service_scope_and_precautions",
+    "9638_all_diagnostic_causes_classified",
+    "9638_critical_candidates_and_gaps_require_review",
+    "7622_initial_service_scope_and_precautions",
+    "7622_all_diagnostic_causes_classified",
+    "7622_critical_candidates_and_gaps_require_review",
+    "11807_initial_service_scope_and_precautions",
+    "11807_all_diagnostic_causes_classified",
+    "11807_critical_candidates_and_gaps_require_review",
+    "4751_initial_service_scope_and_precautions",
+    "4751_all_diagnostic_causes_classified",
+    "4751_critical_candidates_and_gaps_require_review",
+    "8965_initial_service_scope_and_precautions",
+    "8965_all_diagnostic_causes_classified",
+    "8965_critical_candidates_and_gaps_require_review",
+    "17039_initial_service_scope_and_precautions",
+    "17039_all_diagnostic_causes_classified",
+    "17039_critical_candidates_and_gaps_require_review",
+    "10077_initial_service_scope_and_precautions",
+    "10077_all_diagnostic_causes_classified",
+    "10077_critical_candidates_and_gaps_require_review",
+    "9908_initial_service_scope_and_precautions",
+    "9908_all_diagnostic_causes_classified",
+    "9908_critical_candidates_and_gaps_require_review",
+    "11709_initial_service_scope_and_precautions",
+    "11709_all_diagnostic_causes_classified",
+    "11709_critical_candidates_and_gaps_require_review",
+    "6270_initial_service_scope_and_precautions",
+    "6270_all_diagnostic_causes_classified",
+    "6270_critical_candidates_and_gaps_require_review",
+    "8573_initial_service_scope_and_precautions",
+    "8573_all_diagnostic_causes_classified",
+    "8573_critical_candidates_and_gaps_require_review",
+    "5819_initial_service_scope_and_precautions",
+    "5819_all_diagnostic_causes_classified",
+    "5819_critical_candidates_and_gaps_require_review",
+    "10077_document_embedding_path_is_inspected",
+    "10077_document_storage_path_is_inspected",
+    "10077_actual_vector_data_and_access_remain_unverified",
+    "11807_document_embedding_path_is_inspected",
+    "11807_document_storage_path_is_inspected",
+    "11807_actual_vector_data_and_access_remain_unverified",
+    "7622_reversed_required_model_edges_stay_unresolved",
+    "7643_reversed_required_model_edges_stay_unresolved",
+    "10077_reviewed_retriever_memory_and_fallback_contracts",
+    "8573_reviewed_retriever_memory_and_fallback_contracts",
+    "referenced_child_is_still_not_inspected"
+  ],
+  "inputs": [
+    {
+      "id": 16081,
+      "inputSha256": "240fa1306060e29f9b4dd325155d4c2228e2971293da79f6cc50976ab1f84595",
+      "assessmentSha256": "559d5676521a86ce007a3b6daa05da734fe4437c97cd2bc9fc7d5a53b09bfba1"
+    },
+    {
+      "id": 20541,
+      "inputSha256": "d3d5f495130b43df93a319764459f352e104607f5eb28e5d061c77c3a7da20aa",
+      "assessmentSha256": "5377cdd647a5d8d01515b7df98ca14321ce78789fc783a98e5a3ef3830d8f408"
+    },
+    {
+      "id": 20459,
+      "inputSha256": "5d6db1a142789d17f06ecd8419d9c721593eca82fa142f537936ff4a0dbcf18d",
+      "assessmentSha256": "da7ad9e5ad27a04e0d19db6247e4ed9fc3162344dc7ae745eb31d6c097f365a6"
+    },
+    {
+      "id": 14034,
+      "inputSha256": "f7bf2111da711feaf7762c96132155804aefd683ba902bba50e1706851470dde",
+      "assessmentSha256": "5ec1a2cc2ae3ca7e797ecdf70db3d92407c76a97a405eaf192ddf9269ff8fa37"
+    },
+    {
+      "id": 2490,
+      "inputSha256": "1053cb887fe65b990c0f085cdd58ea6fbb208c0495e37c713db6c00c3272a3e9",
+      "assessmentSha256": "0ec29a09a2a8e76126ad6918233808a0575fd1ce8e300df067f7cdfb4f075b7e"
+    },
+    {
+      "id": 7643,
+      "inputSha256": "0d3fc12253934d795ec19610851727fa668af7a0b47232b51fef586135aecc0d",
+      "assessmentSha256": "da07eee0d2b625c1e317cfabcaa80f635ab2bc047b66e88d3fdb5243630e8ea1"
+    },
+    {
+      "id": 18521,
+      "inputSha256": "f5586df6760b5fb2c5accdb22c402316eeedfe3a0caf92b6139da78a2c63b157",
+      "assessmentSha256": "7813c0d9e1a973487e7bff1b5e64dcf38b8757974e639296a3a553d4a30227c4"
+    },
+    {
+      "id": 15403,
+      "inputSha256": "8438bdef61645e45e9efcb104c8313d910826e4376f36571089bcd2a39022068",
+      "assessmentSha256": "2c4fbfcf63cd265d185df721c60f1b6f91f2ee12ba845ec947e54362c097ffce"
+    },
+    {
+      "id": 10111,
+      "inputSha256": "244b7f1c399d278c8c7484aa0c98b3ec48e1c610099d4e1cde9bd38c601abc84",
+      "assessmentSha256": "f26cd49207064f980a9c32875c3997504dd8b9077276c30b7d9ffa0585aaadea"
+    },
+    {
+      "id": 10476,
+      "inputSha256": "68d2081d7de9527a35eabe01aacf10b73a6f989235739a53ca7f2a127ed2888e",
+      "assessmentSha256": "b0e978682d9c875de3ab3a3623d535977d522ca5146bb38461240ebaef179f70"
+    },
+    {
+      "id": 6216,
+      "inputSha256": "91fafa6e1b171d8de3ebc61dc4ca36e8a6ffedc47b6e12752c744b5a882ff8d5",
+      "assessmentSha256": "0469aa07f0367732104788fd9291e60ca0b6a4297ea4c85e2f3c17b37f4fab16"
+    },
+    {
+      "id": 3314,
+      "inputSha256": "fe41176ad71bfc5961baad02cdf22b94dea533cab3716ce591c4133fd43b0d0f",
+      "assessmentSha256": "46d156245d74c63232d349711d2231ee65d8730d7492d7e8ef0ee7d9087773ef"
+    },
+    {
+      "id": 11007,
+      "inputSha256": "a5b90072022086d7a8529309a0da2968481e902fc6260e4be6646489c0676580",
+      "assessmentSha256": "88735d8d954bb8ec2289b226a003d55f80056859d15684832d920e32db598831"
+    },
+    {
+      "id": 9638,
+      "inputSha256": "1148aa3119d3133bed0cab0012aa704e955b43244748b6d97fa6289d34a2513a",
+      "assessmentSha256": "17cf5188af8c800a0422e325bb49bd80d908d7da8ab677968e7803c57069c7e8"
+    },
+    {
+      "id": 7622,
+      "inputSha256": "feace2e3f32e895d5727651bee81c0b39952f5331b6e37a44e807387b2083dcb",
+      "assessmentSha256": "5b2cfd672e2f7f52ec34c41f24430da1e83a44e78e1c928ef70587e40a173bcb"
+    },
+    {
+      "id": 11807,
+      "inputSha256": "1a8e1f735dd96dee35c40f19dc350e623f85038c07bfa2c276758696f3a07fc5",
+      "assessmentSha256": "3eca7e275a2009e3ae51dcf2ba013a76368f830660dfe7a5ba924c43cacfca1f"
+    },
+    {
+      "id": 4751,
+      "inputSha256": "1964ec3735f5d24a7fbd0aa26fa8d9c4e1a2d98c3be7fd9a1922013f30015010",
+      "assessmentSha256": "6a414b958ce1cb9294f3f1fc250d80fa3a5e847b66b60956422c165ef26dbff9"
+    },
+    {
+      "id": 8965,
+      "inputSha256": "5c8155012ad2c2508444b3f238ac4a45ab3c60385b9a0006bb3c4497c64c6096",
+      "assessmentSha256": "f7688bb5b2ecd15612e5bc37b47c4a468924ee02ac59c64c1006213dea4fa8b3"
+    },
+    {
+      "id": 17039,
+      "inputSha256": "fef678692279bedce2e624248956c8b662462df71d86587b7d472bdc3d715d3e",
+      "assessmentSha256": "a1283505f8b6403868ae60b6959f44f76e8b43ebd98e7238504f06b0bd2212ed"
+    },
+    {
+      "id": 10077,
+      "inputSha256": "b84bbb410a9aed35d495b505fbf1b7f7c2b36269d4f5f429ac8eaf844425a8f3",
+      "assessmentSha256": "a13085434fcebe443af9acd1385c23677189397354c265fd5d59329e722851e4"
+    },
+    {
+      "id": 9908,
+      "inputSha256": "2815c4fabdd33c4bcd02b83e11887000951304a744b678d1b7b40c1add1c8c43",
+      "assessmentSha256": "5c12214fbb32ed5e90415c96a79e338644bf08b5ef6aba734a34c637789afc68"
+    },
+    {
+      "id": 11709,
+      "inputSha256": "4312d3fdfa6098aedb76e3efbf40e483c4d13f8865f42baca2bff906afe686c2",
+      "assessmentSha256": "ffd781a8cbd7eb2082bf7e43abc78c783a572d177b09edd386889e7bbf779383"
+    },
+    {
+      "id": 6270,
+      "inputSha256": "07d7ea293417f1a20a920d8c6367c20aae1419d89ff7016144090dc048a66e63",
+      "assessmentSha256": "6b61296d40928497b5bbc65159cf2e43fed58a5c72f201b651a755947d98ff48"
+    },
+    {
+      "id": 8573,
+      "inputSha256": "03cbecec8cb8376b9bbab9bd02c63cdc464a00c0b5136b768ac2d07d5d615b2a",
+      "assessmentSha256": "6cb6cadddf280f6ef80f76453cf087ce1515a379a3d2d71dac056550aa9b9748"
+    },
+    {
+      "id": 5819,
+      "inputSha256": "819722b716c1c3d0b8ef15e82a7189f409f600c6801ac07ea7cfdfc254d6bc37",
+      "assessmentSha256": "8f8de99a6479d31e383883ee7005744d9e3493e638b447428098c815810cebcc"
+    }
+  ],
+  "verificationScriptSha256": "a2eea9322785b7cfb9870041ad915a474a8adc53ef23462153f9bdd4ebe66d60"
+}

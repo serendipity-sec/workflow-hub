@@ -1,0 +1,117 @@
+{
+  "Database Risk Report": {
+    "risk": "database",
+    "sections": [
+      {
+        "title": "Expressions in \"Execute Query\" fields in SQL nodes",
+        "description": "This SQL node has an expression in the \"Query\" field of an \"Execute Query\" operation. Building a SQL query with an expression may lead to a SQL injection attack.",
+        "recommendation": "Consider using the \"Query Parameters\" field to pass parameters to the query, or validating the input of the expression in the \"Query\" field.",
+        "location": [
+          {
+            "kind": "node",
+            "workflowId": "xM4KN4LplMeaZBAi",
+            "workflowName": "Synthetic direct source",
+            "nodeId": "node-postgres",
+            "nodeName": "Postgres",
+            "nodeType": "n8n-nodes-base.postgres"
+          }
+        ]
+      },
+      {
+        "title": "Unused \"Query Parameters\" fields in SQL nodes",
+        "description": "These SQL nodes have no \"Query Parameters\" field in the \"Execute Query\" operation. Building a SQL query with unsanitized data may lead to a SQL injection attack.",
+        "recommendation": "Consider using the \"Query Parameters\" field to sanitize parameters passed to the query. See: https://docs.n8n.io/integrations/builtin/app-nodes/n8n-nodes-base.postgres#use-query-parameters",
+        "location": [
+          {
+            "kind": "node",
+            "workflowId": "SJdbqRFq0X50XtjT",
+            "workflowName": "Synthetic bound lookup",
+            "nodeId": "node-postgres",
+            "nodeName": "Postgres",
+            "nodeType": "n8n-nodes-base.postgres"
+          },
+          {
+            "kind": "node",
+            "workflowId": "PybLeisVdboueTnH",
+            "workflowName": "Synthetic unsupported transform",
+            "nodeId": "node-postgres",
+            "nodeName": "Postgres",
+            "nodeType": "n8n-nodes-base.postgres"
+          },
+          {
+            "kind": "node",
+            "workflowId": "kl4Gpv4zacJGcQkZ",
+            "workflowName": "Synthetic constant lookup",
+            "nodeId": "node-postgres",
+            "nodeName": "Postgres",
+            "nodeType": "n8n-nodes-base.postgres"
+          },
+          {
+            "kind": "node",
+            "workflowId": "xM4KN4LplMeaZBAi",
+            "workflowName": "Synthetic direct source",
+            "nodeId": "node-postgres",
+            "nodeName": "Postgres",
+            "nodeType": "n8n-nodes-base.postgres"
+          },
+          {
+            "kind": "node",
+            "workflowId": "pdpamjWMEnrrxt0S",
+            "workflowName": "Synthetic same-field IF",
+            "nodeId": "node-postgres",
+            "nodeName": "Postgres",
+            "nodeType": "n8n-nodes-base.postgres"
+          },
+          {
+            "kind": "node",
+            "workflowId": "qTuRpZ6O1VBzjbT6",
+            "workflowName": "Synthetic dynamic lookup",
+            "nodeId": "node-postgres",
+            "nodeName": "Postgres",
+            "nodeType": "n8n-nodes-base.postgres"
+          },
+          {
+            "kind": "node",
+            "workflowId": "NyU7XojkGf8INmkY",
+            "workflowName": "Synthetic false branch",
+            "nodeId": "node-postgres",
+            "nodeName": "Postgres",
+            "nodeType": "n8n-nodes-base.postgres"
+          },
+          {
+            "kind": "node",
+            "workflowId": "OkcG4Xu3JLJjaAnr",
+            "workflowName": "Synthetic missing subworkflow",
+            "nodeId": "node-postgres",
+            "nodeName": "Postgres",
+            "nodeType": "n8n-nodes-base.postgres"
+          },
+          {
+            "kind": "node",
+            "workflowId": "GZ8uW8zxCSbMPrG3",
+            "workflowName": "Synthetic numeric false branch",
+            "nodeId": "node-postgres",
+            "nodeName": "Postgres",
+            "nodeType": "n8n-nodes-base.postgres"
+          },
+          {
+            "kind": "node",
+            "workflowId": "OEVFxr3PuZlY9zbF",
+            "workflowName": "Synthetic unrelated IF",
+            "nodeId": "node-postgres",
+            "nodeName": "Postgres",
+            "nodeType": "n8n-nodes-base.postgres"
+          },
+          {
+            "kind": "node",
+            "workflowId": "bnhC8k394yHuzTO6",
+            "workflowName": "Synthetic unsupported version",
+            "nodeId": "node-postgres",
+            "nodeName": "Postgres",
+            "nodeType": "n8n-nodes-base.postgres"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,4643 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-11-22T11:37:21.240Z",
+  "engineVersion": "0.3.0",
+  "image": "sha256:76a440f2875efc886561396555a44f19ed06fa549ee152d13ab6aefeb6368c3e",
+  "workflowExecution": "not_run",
+  "datasetKind": "purposive_public_compatibility_and_service_fit_sample",
+  "generalAccuracy": "not_measured",
+  "manifestSha256": "38dcf445b512f0f77b8971a67b879c22cb000f7d10829260557a935865221ac5",
+  "verificationScriptSha256": "01be8d24b352081507e5c7299824a2237905781fc5d340f13e232fdd7bcb15db",
+  "artifacts": [
+    {
+      "path": "dist/advanced-risks.js",
+      "sha256": "a27ca67ff86cbce8564afce87e2552f79037d06e5aa07044ea55da100c220b5a"
+    },
+    {
+      "path": "dist/analysis.js",
+      "sha256": "6dc4f2494c2ab50310101ca27d494175529dbb6433994b1c359cd60b537ed1a8"
+    },
+    {
+      "path": "dist/analyzer.js",
+      "sha256": "556825a23e026f972a87b8c9210d93736ef1b4f1afe8c9a57c2f0c3819adefb1"
+    },
+    {
+      "path": "dist/api-client.js",
+      "sha256": "9437cf41dd1c6150d7f07f0da7da5a7cb8032ed4ee49056d0fa0db57083a4bf9"
+    },
+    {
+      "path": "dist/assessment-change.js",
+      "sha256": "30969ebfbf0af13b814d6e74a6fd17849eb33aefbc547b34a8ba85b95375221e"
+    },
+    {
+      "path": "dist/assessment-contract.js",
+      "sha256": "fdb5a21cb2bf11f50818f781ea102aa42707ece955280438f7d4fcf67f6d5645"
+    },
+    {
+      "path": "dist/assessment-engine.js",
+      "sha256": "458909e64a505b9c3e1a8f148daa415cfe8edc894aeca1fc4fc1d15492ad1dae"
+    },
+    {
+      "path": "dist/assessment-entry.js",
+      "sha256": "705c65c8b6555cce07d4378d1cb95377b34469b914fb2572b1e79ced5a2c89bf"
+    },
+    {
+      "path": "dist/assessment-environment.js",
+      "sha256": "f3a594bdec954ce0a2c67242fa0d53a44d56ca1a265b80d59c5309ef2009fe72"
+    },
+    {
+      "path": "dist/assessment-evidence.js",
+      "sha256": "5b39f2dc41975a16a924829af6eca261709db8590c9c433a4db17853db98dfe3"
+    },
+    {
+      "path": "dist/assessment-policy.js",
+      "sha256": "d0e916f0a61c76ccb4ea5d9cc72178d52e2e364acd7159c88d33c1171874655a"
+    },
+    {
+      "path": "dist/assessment-runner.js",
+      "sha256": "6d7b64cb4255f885cf87af331fb737651ca8a7da43bc42e7e37d92597b884545"
+    },
+    {
+      "path": "dist/assessment-subworkflows.js",
+      "sha256": "2edfe7a4ad1301d1bf43218757f9b6faa731e19154c9aba06b8b2ff8cfb3e858"
+    },
+    {
+      "path": "dist/cli.js",
+      "sha256": "2c07dd70cac701ece36c75b57790b207e74f1d388314eacacd57772955f4ebe7"
+    },
+    {
+      "path": "dist/compare.js",
+      "sha256": "285316ae6361b5cdbbe06fe4e292e09bf0e4dd3d2054db9cd7bb9165d97d9957"
+    },
+    {
+      "path": "dist/contract.js",
+      "sha256": "5321b13e2f273b88397b1a705f0c33471e56da1425ea2f76a9bd047670bb5a72"
+    },
+    {
+      "path": "dist/extended-sinks.js",
+      "sha256": "35079db2cae4ebadcc126f9120f68987605376561bb74f2d2f1fc3472c7936dd"
+    },
+    {
+      "path": "dist/gitleaks.js",
+      "sha256": "3a49ba7f08833d24bf9975bee850b7274349835593d5ea98a3485917d2514358"
+    },
+    {
+      "path": "dist/n8n.js",
+      "sha256": "9959bea42cf8a3469cea8495b7c3437bfb138eca9a70bd65b3ce65c3fe99fd5b"
+    },
+    {
+      "path": "dist/native-inspection.js",
+      "sha256": "0b75ddb8d874735ec32df7ae0d3a0e5a0784720d34d418481332a8cef8e4d3b7"
+    },
+    {
+      "path": "dist/runner.js",
+      "sha256": "41083f829a0ca94b723851908b7ec5c7a7a88641f8f7ff18c2eefba9f047be32"
+    },
+    {
+      "path": "dist/static-analyzer.js",
+      "sha256": "52ac33e78475a12bec8afbb3bc781147160d82ba8cac018c7e1988a3ff27f97f"
+    },
+    {
+      "path": "dist/static-compare.js",
+      "sha256": "f7534c666fd952368de818293aa7683a1430c85465fedb0c368b00f976fd9ea5"
+    },
+    {
+      "path": "dist/static-content.js",
+      "sha256": "ff2389cf78dcc62cac86aace43211c0a71d2ff6db8b86c8b1fd2045f42ecba5e"
+    },
+    {
+      "path": "dist/static-context.js",
+      "sha256": "ae7fbeaca1144baedaed05c64889d0bdca27f490ee7499449861909e5ccc96ce"
+    },
+    {
+      "path": "dist/static-contract.js",
+      "sha256": "da4ff903eb070b64d19f18475d726e92dd2851f6509cecb8fa50654739d0a5b3"
+    },
+    {
+      "path": "dist/static-engine.js",
+      "sha256": "b14906c6fa917d66609c01b6c7598a6153cdbddb39fc6c25cb30e42d6c1c7cc8"
+    },
+    {
+      "path": "dist/static-flow.js",
+      "sha256": "3970d92d26e6b43bbf332fb473d0fe15015aae4613ec30631cc57d02fe746161"
+    },
+    {
+      "path": "dist/static-runner.js",
+      "sha256": "96552467939754214b5eb3054e93e16ccf6445d8cb7809b875a89836040981a9"
+    },
+    {
+      "path": "dist/static-settings.js",
+      "sha256": "938f4d090e642d457251abe3541a6de6c698106b8bda554daf1b47f0cfd9a94f"
+    },
+    {
+      "path": "dist/subprocess.js",
+      "sha256": "a10601c441913e0e931cd153d7d51849bd672987fad561514d7cc79f75c94203"
+    },
+    {
+      "path": "dist/value-flow.js",
+      "sha256": "7f24e4a60133e217b8f64cd1fe46bdecf1c7e280da6686d3e5591f02d9162901"
+    },
+    {
+      "path": "dist/worker-io.js",
+      "sha256": "84d852d75dd47512213fa15c141e799b421863150525e15587faac9d71b6d6fe"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "210b879385eda91ef774b5f1bafa0b46a8be3845eaff15272a95a0315b53c763"
+    }
+  ],
+  "summary": {
+    "samples": 15,
+    "statuses": {
+      "analyzed": 0,
+      "partial": 14,
+      "unsupported": 0,
+      "error": 1
+    },
+    "toolErrors": 0,
+    "toolInvocations": 42,
+    "filesRejectedBeforeToolInspection": 1,
+    "automaticPlans": 0
+  },
+  "results": [
+    {
+      "id": 16081,
+      "sourceUrl": "https://api.n8n.io/templates/workflows/16081",
+      "inputSha256": "240fa1306060e29f9b4dd325155d4c2228e2971293da79f6cc50976ab1f84595",
+      "sourceBytes": 9261,
+      "acquisition": "reused_frozen_same_day",
+      "responseSha256": null,
+      "originalRedistributed": false,
+      "license": "not_verified",
+      "status": "partial",
+      "elapsedMs": 3358,
+      "decision": "inconclusive",
+      "categories": [
+        {
+          "category": "code_execution",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 3
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "dependencies",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 7,
+            "partial": 0,
+            "unsupported": 13,
+            "not_applicable": 4
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": [
+            "builtin_capability_profile_unreviewed",
+            "runtime_evidence_missing",
+            "unsupported_node_version"
+          ]
+        },
+        {
+          "category": "egress",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 5,
+            "unsupported": 1,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": [
+            "branch_guard_semantics_unresolved",
+            "node_execution_semantics_unresolved",
+            "opaque_node_effects"
+          ]
+        },
+        {
+          "category": "output",
+          "observations": 4,
+          "claims": {
+            "configuration": 2,
+            "candidate": 2,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 4,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 4,
+            "partial": 8,
+            "unsupported": 1,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [
+            "data_flow_hop",
+            "data_origin",
+            "whole_input_response",
+            "whole_object_transferred"
+          ],
+          "diagnosticCodes": [
+            "opaque_node_effects",
+            "payload_provenance_unresolved",
+            "response_data_sensitivity_unverified",
+            "response_recipient_authorization_unverified",
+            "transferred_data_sensitivity_unverified",
+            "trusted_policy_transfer_unresolved"
+          ]
+        },
+        {
+          "category": "pii",
+          "observations": 8,
+          "claims": {
+            "configuration": 0,
+            "candidate": 8,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 8,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 1,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": ["nlp_location_candidate", "nlp_person_candidate"],
+          "diagnosticCodes": ["nlp_english_model_profile"]
+        },
+        {
+          "category": "request_auth",
+          "observations": 1,
+          "claims": {
+            "configuration": 1,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 1,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": ["webhook_authentication_configured"],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "secrets",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "sql",
+          "observations": 4,
+          "claims": {
+            "configuration": 4,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 4,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 4,
+            "partial": 4,
+            "unsupported": 1,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [
+            "sql_operation_capability",
+            "sql_operation_delete",
+            "sql_operation_insert",
+            "sql_operation_select",
+            "sql_operation_update"
+          ],
+          "diagnosticCodes": [
+            "nonstandard_execution_semantics",
+            "opaque_node_effects",
+            "sql_parameter_binding_unresolved"
+          ]
+        },
+        {
+          "category": "ssrf",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 1,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": ["opaque_node_effects"]
+        },
+        {
+          "category": "transport",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        }
+      ],
+      "tools": [
+        {
+          "tool": "gitleaks",
+          "status": "completed",
+          "version": "8.30.1",
+          "code": null
+        },
+        {
+          "tool": "nlp",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": "2.2.366",
+            "spacy": "3.8.18",
+            "model": "en_core_web_sm@3.8.0"
+          }
+        },
+        {
+          "tool": "python",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": null,
+            "spacy": null,
+            "model": null
+          }
+        }
+      ],
+      "automaticPlans": 0,
+      "manualPlans": 13,
+      "automaticKinds": []
+    },
+    {
+      "id": 20541,
+      "sourceUrl": "https://api.n8n.io/templates/workflows/20541",
+      "inputSha256": "d3d5f495130b43df93a319764459f352e104607f5eb28e5d061c77c3a7da20aa",
+      "sourceBytes": 25171,
+      "acquisition": "reused_frozen_same_day",
+      "responseSha256": null,
+      "originalRedistributed": false,
+      "license": "not_verified",
+      "status": "partial",
+      "elapsedMs": 4152,
+      "decision": "inconclusive",
+      "categories": [
+        {
+          "category": "code_execution",
+          "observations": 4,
+          "claims": {
+            "configuration": 4,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 4,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 4,
+            "partial": 0,
+            "unsupported": 4,
+            "not_applicable": 1
+          },
+          "evidenceCodes": ["custom_code_node_declared"],
+          "diagnosticCodes": [
+            "javascript_control_flow_partial",
+            "javascript_semantics_partially_analyzed"
+          ]
+        },
+        {
+          "category": "dependencies",
+          "observations": 4,
+          "claims": {
+            "configuration": 4,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 4,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 10,
+            "partial": 0,
+            "unsupported": 11,
+            "not_applicable": 4
+          },
+          "evidenceCodes": ["custom_code_capability"],
+          "diagnosticCodes": [
+            "builtin_capability_profile_unreviewed",
+            "runtime_evidence_missing",
+            "unsupported_node_version"
+          ]
+        },
+        {
+          "category": "egress",
+          "observations": 20,
+          "claims": {
+            "configuration": 9,
+            "candidate": 11,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 9,
+            "low": 0,
+            "medium": 11,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 33,
+            "unsupported": 6,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [
+            "configured_outbound_body",
+            "data_flow_hop",
+            "data_origin",
+            "dynamic_recipient_or_destination",
+            "dynamic_request_destination",
+            "outbound_send_capability",
+            "whole_object_transferred"
+          ],
+          "diagnosticCodes": [
+            "code_mapping_unsupported",
+            "expression_parse_unavailable",
+            "expression_semantics_unsupported",
+            "expression_syntax_unsupported",
+            "flow_budget_exceeded",
+            "input_provenance_unresolved",
+            "node_execution_semantics_unresolved",
+            "node_transform_unsupported",
+            "nonstandard_execution_semantics",
+            "object_expression_unsupported",
+            "opaque_node_effects",
+            "payload_provenance_unresolved",
+            "recipient_provenance_unresolved",
+            "redirect_destination_unverified",
+            "transferred_data_sensitivity_unverified",
+            "trusted_policy_transfer_unresolved"
+          ]
+        },
+        {
+          "category": "output",
+          "observations": 1,
+          "claims": {
+            "configuration": 0,
+            "candidate": 1,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 1,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 5,
+            "unsupported": 7,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [
+            "data_flow_hop",
+            "data_origin",
+            "whole_object_transferred"
+          ],
+          "diagnosticCodes": [
+            "code_logging_and_sensitivity_partially_analyzed",
+            "code_logging_semantics_partial",
+            "input_provenance_unresolved",
+            "opaque_node_effects",
+            "payload_provenance_unresolved",
+            "response_recipient_authorization_unverified",
+            "transferred_data_sensitivity_unverified",
+            "trusted_policy_transfer_unresolved"
+          ]
+        },
+        {
+          "category": "pii",
+          "observations": 20,
+          "claims": {
+            "configuration": 0,
+            "candidate": 20,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 20,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 1,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": ["nlp_location_candidate", "nlp_person_candidate"],
+          "diagnosticCodes": ["nlp_english_model_profile"]
+        },
+        {
+          "category": "request_auth",
+          "observations": 1,
+          "claims": {
+            "configuration": 1,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 1,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": ["webhook_authentication_default_none"],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "secrets",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "sql",
+          "observations": 1,
+          "claims": {
+            "configuration": 1,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 1,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 3,
+            "partial": 1,
+            "unsupported": 8,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [
+            "sql_operation_capability",
+            "sql_operation_create",
+            "sql_operation_select"
+          ],
+          "diagnosticCodes": [
+            "nonstandard_execution_semantics",
+            "opaque_node_effects",
+            "sql_parse_unsupported"
+          ]
+        },
+        {
+          "category": "ssrf",
+          "observations": 3,
+          "claims": {
+            "configuration": 0,
+            "candidate": 3,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 3
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 3,
+            "unsupported": 6,
+            "not_applicable": 0
+          },
+          "evidenceCodes": ["dynamic_request_authority"],
+          "diagnosticCodes": [
+            "input_provenance_unresolved",
+            "nonstandard_execution_semantics",
+            "opaque_node_effects"
+          ]
+        },
+        {
+          "category": "transport",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 3,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": ["transport_url_unresolved"]
+        }
+      ],
+      "tools": [
+        {
+          "tool": "gitleaks",
+          "status": "completed",
+          "version": "8.30.1",
+          "code": null
+        },
+        {
+          "tool": "nlp",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": "2.2.366",
+            "spacy": "3.8.18",
+            "model": "en_core_web_sm@3.8.0"
+          }
+        },
+        {
+          "tool": "python",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": null,
+            "spacy": null,
+            "model": null
+          }
+        }
+      ],
+      "automaticPlans": 0,
+      "manualPlans": 30,
+      "automaticKinds": []
+    },
+    {
+      "id": 20459,
+      "sourceUrl": "https://api.n8n.io/templates/workflows/20459",
+      "inputSha256": "5d6db1a142789d17f06ecd8419d9c721593eca82fa142f537936ff4a0dbcf18d",
+      "sourceBytes": 27743,
+      "acquisition": "reused_frozen_same_day",
+      "responseSha256": null,
+      "originalRedistributed": false,
+      "license": "not_verified",
+      "status": "partial",
+      "elapsedMs": 4323,
+      "decision": "inconclusive",
+      "categories": [
+        {
+          "category": "code_execution",
+          "observations": 3,
+          "claims": {
+            "configuration": 3,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 3,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 3,
+            "partial": 0,
+            "unsupported": 3,
+            "not_applicable": 1
+          },
+          "evidenceCodes": ["custom_code_node_declared"],
+          "diagnosticCodes": [
+            "javascript_control_flow_partial",
+            "javascript_semantics_partially_analyzed"
+          ]
+        },
+        {
+          "category": "dependencies",
+          "observations": 3,
+          "claims": {
+            "configuration": 3,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 3,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 8,
+            "partial": 0,
+            "unsupported": 17,
+            "not_applicable": 4
+          },
+          "evidenceCodes": ["custom_code_capability"],
+          "diagnosticCodes": [
+            "builtin_capability_profile_unreviewed",
+            "runtime_evidence_missing",
+            "unsupported_node_version"
+          ]
+        },
+        {
+          "category": "egress",
+          "observations": 10,
+          "claims": {
+            "configuration": 6,
+            "candidate": 4,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 6,
+            "low": 0,
+            "medium": 4,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 22,
+            "unsupported": 6,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [
+            "configured_outbound_body",
+            "data_flow_hop",
+            "data_origin",
+            "dynamic_recipient_or_destination",
+            "dynamic_request_destination",
+            "outbound_send_capability",
+            "whole_object_transferred"
+          ],
+          "diagnosticCodes": [
+            "branch_guard_semantics_unresolved",
+            "code_mapping_unsupported",
+            "expression_parse_unavailable",
+            "expression_semantics_unsupported",
+            "expression_syntax_unsupported",
+            "flow_budget_exceeded",
+            "input_provenance_unresolved",
+            "node_execution_semantics_unresolved",
+            "node_transform_unsupported",
+            "nonstandard_execution_semantics",
+            "opaque_node_effects",
+            "payload_provenance_unresolved",
+            "redirect_destination_unverified",
+            "transferred_data_sensitivity_unverified",
+            "trusted_policy_transfer_unresolved"
+          ]
+        },
+        {
+          "category": "output",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 3,
+            "unsupported": 6,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": [
+            "code_logging_and_sensitivity_partially_analyzed",
+            "code_logging_semantics_partial",
+            "opaque_node_effects"
+          ]
+        },
+        {
+          "category": "pii",
+          "observations": 19,
+          "claims": {
+            "configuration": 0,
+            "candidate": 19,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 19,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 1,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [
+            "email_candidate",
+            "nlp_email_candidate",
+            "nlp_location_candidate",
+            "nlp_person_candidate"
+          ],
+          "diagnosticCodes": ["nlp_english_model_profile"]
+        },
+        {
+          "category": "request_auth",
+          "observations": 1,
+          "claims": {
+            "configuration": 1,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 1,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": ["webhook_authentication_default_none"],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "secrets",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "sql",
+          "observations": 9,
+          "claims": {
+            "configuration": 1,
+            "candidate": 8,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 1,
+            "low": 0,
+            "medium": 0,
+            "high": 8
+          },
+          "coverage": {
+            "checked": 4,
+            "partial": 8,
+            "unsupported": 8,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [
+            "declared_value_origin",
+            "dynamic_sql_text",
+            "sql_operation_capability",
+            "sql_operation_create",
+            "sql_operation_insert",
+            "sql_operation_select",
+            "sql_structure_or_quoted_input_candidate"
+          ],
+          "diagnosticCodes": [
+            "input_provenance_unresolved",
+            "nonstandard_execution_semantics",
+            "opaque_node_effects",
+            "sql_input_flow_partially_analyzed",
+            "sql_parse_unsupported"
+          ]
+        },
+        {
+          "category": "ssrf",
+          "observations": 2,
+          "claims": {
+            "configuration": 0,
+            "candidate": 2,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 2
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 2,
+            "unsupported": 6,
+            "not_applicable": 0
+          },
+          "evidenceCodes": ["dynamic_request_authority"],
+          "diagnosticCodes": [
+            "input_provenance_unresolved",
+            "nonstandard_execution_semantics",
+            "opaque_node_effects"
+          ]
+        },
+        {
+          "category": "transport",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 2,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": ["transport_url_unresolved"]
+        }
+      ],
+      "tools": [
+        {
+          "tool": "gitleaks",
+          "status": "completed",
+          "version": "8.30.1",
+          "code": null
+        },
+        {
+          "tool": "nlp",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": "2.2.366",
+            "spacy": "3.8.18",
+            "model": "en_core_web_sm@3.8.0"
+          }
+        },
+        {
+          "tool": "python",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": null,
+            "spacy": null,
+            "model": null
+          }
+        }
+      ],
+      "automaticPlans": 0,
+      "manualPlans": 29,
+      "automaticKinds": []
+    },
+    {
+      "id": 14034,
+      "sourceUrl": "https://api.n8n.io/templates/workflows/14034",
+      "inputSha256": "f7bf2111da711feaf7762c96132155804aefd683ba902bba50e1706851470dde",
+      "sourceBytes": 14859,
+      "acquisition": "reused_frozen_same_day",
+      "responseSha256": null,
+      "originalRedistributed": false,
+      "license": "not_verified",
+      "status": "partial",
+      "elapsedMs": 3079,
+      "decision": "inconclusive",
+      "categories": [
+        {
+          "category": "code_execution",
+          "observations": 1,
+          "claims": {
+            "configuration": 1,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 1,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 1,
+            "not_applicable": 1
+          },
+          "evidenceCodes": ["custom_code_node_declared"],
+          "diagnosticCodes": [
+            "javascript_control_flow_partial",
+            "javascript_semantics_partially_analyzed"
+          ]
+        },
+        {
+          "category": "dependencies",
+          "observations": 1,
+          "claims": {
+            "configuration": 1,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 1,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 3,
+            "partial": 0,
+            "unsupported": 7,
+            "not_applicable": 4
+          },
+          "evidenceCodes": ["custom_code_capability"],
+          "diagnosticCodes": [
+            "builtin_capability_profile_unreviewed",
+            "runtime_evidence_missing"
+          ]
+        },
+        {
+          "category": "egress",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 5,
+            "unsupported": 2,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": [
+            "code_mapping_unsupported",
+            "expression_parse_unavailable",
+            "expression_semantics_unsupported",
+            "expression_syntax_unsupported",
+            "flow_budget_exceeded",
+            "opaque_node_effects"
+          ]
+        },
+        {
+          "category": "output",
+          "observations": 1,
+          "claims": {
+            "configuration": 0,
+            "candidate": 1,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 1,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 2,
+            "unsupported": 3,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [
+            "data_flow_hop",
+            "data_origin",
+            "whole_object_transferred"
+          ],
+          "diagnosticCodes": [
+            "code_logging_and_sensitivity_partially_analyzed",
+            "code_logging_semantics_partial",
+            "input_provenance_unresolved",
+            "opaque_node_effects",
+            "payload_provenance_unresolved",
+            "response_recipient_authorization_unverified",
+            "transferred_data_sensitivity_unverified",
+            "trusted_policy_transfer_unresolved"
+          ]
+        },
+        {
+          "category": "pii",
+          "observations": 13,
+          "claims": {
+            "configuration": 0,
+            "candidate": 13,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 13,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 1,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": ["nlp_location_candidate", "nlp_person_candidate"],
+          "diagnosticCodes": ["nlp_english_model_profile"]
+        },
+        {
+          "category": "request_auth",
+          "observations": 1,
+          "claims": {
+            "configuration": 1,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 1,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": ["webhook_authentication_default_none"],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "secrets",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "sql",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 2,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": ["opaque_node_effects"]
+        },
+        {
+          "category": "ssrf",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 2,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": ["opaque_node_effects"]
+        },
+        {
+          "category": "transport",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        }
+      ],
+      "tools": [
+        {
+          "tool": "gitleaks",
+          "status": "completed",
+          "version": "8.30.1",
+          "code": null
+        },
+        {
+          "tool": "nlp",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": "2.2.366",
+            "spacy": "3.8.18",
+            "model": "en_core_web_sm@3.8.0"
+          }
+        },
+        {
+          "tool": "python",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": null,
+            "spacy": null,
+            "model": null
+          }
+        }
+      ],
+      "automaticPlans": 0,
+      "manualPlans": 12,
+      "automaticKinds": []
+    },
+    {
+      "id": 2490,
+      "sourceUrl": "https://api.n8n.io/templates/workflows/2490",
+      "inputSha256": "1053cb887fe65b990c0f085cdd58ea6fbb208c0495e37c713db6c00c3272a3e9",
+      "sourceBytes": 10793,
+      "acquisition": "reused_frozen_same_day",
+      "responseSha256": null,
+      "originalRedistributed": false,
+      "license": "not_verified",
+      "status": "partial",
+      "elapsedMs": 3788,
+      "decision": "inconclusive",
+      "categories": [
+        {
+          "category": "code_execution",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 3
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "dependencies",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 7,
+            "partial": 0,
+            "unsupported": 12,
+            "not_applicable": 4
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": [
+            "builtin_capability_profile_unreviewed",
+            "runtime_evidence_missing"
+          ]
+        },
+        {
+          "category": "egress",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 6,
+            "unsupported": 6,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": [
+            "node_transform_unsupported",
+            "opaque_node_effects"
+          ]
+        },
+        {
+          "category": "output",
+          "observations": 10,
+          "claims": {
+            "configuration": 5,
+            "candidate": 5,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 10,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 10,
+            "unsupported": 6,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [
+            "data_origin",
+            "whole_input_response",
+            "whole_object_transferred"
+          ],
+          "diagnosticCodes": [
+            "opaque_node_effects",
+            "payload_provenance_unresolved",
+            "response_data_sensitivity_unverified",
+            "response_recipient_authorization_unverified",
+            "transferred_data_sensitivity_unverified",
+            "trusted_policy_transfer_unresolved"
+          ]
+        },
+        {
+          "category": "pii",
+          "observations": 12,
+          "claims": {
+            "configuration": 0,
+            "candidate": 12,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 12,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 1,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": ["nlp_location_candidate", "nlp_person_candidate"],
+          "diagnosticCodes": ["nlp_english_model_profile"]
+        },
+        {
+          "category": "request_auth",
+          "observations": 2,
+          "claims": {
+            "configuration": 2,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 2,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 2,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": ["webhook_authentication_default_none"],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "secrets",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "sql",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 6,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": ["opaque_node_effects"]
+        },
+        {
+          "category": "ssrf",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 6,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": ["opaque_node_effects"]
+        },
+        {
+          "category": "transport",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        }
+      ],
+      "tools": [
+        {
+          "tool": "gitleaks",
+          "status": "completed",
+          "version": "8.30.1",
+          "code": null
+        },
+        {
+          "tool": "nlp",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": "2.2.366",
+            "spacy": "3.8.18",
+            "model": "en_core_web_sm@3.8.0"
+          }
+        },
+        {
+          "tool": "python",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": null,
+            "spacy": null,
+            "model": null
+          }
+        }
+      ],
+      "automaticPlans": 0,
+      "manualPlans": 16,
+      "automaticKinds": []
+    },
+    {
+      "id": 7643,
+      "sourceUrl": "https://api.n8n.io/templates/workflows/7643",
+      "inputSha256": "0d3fc12253934d795ec19610851727fa668af7a0b47232b51fef586135aecc0d",
+      "sourceBytes": 4470,
+      "acquisition": "workflow_object_extracted_from_official_api",
+      "responseSha256": "36d9f8d0e46de3bd09fa1c514f623de1485f12b20f656fe76d0705d633454e6d",
+      "originalRedistributed": false,
+      "license": "not_verified",
+      "status": "partial",
+      "elapsedMs": 2597,
+      "decision": "inconclusive",
+      "categories": [
+        {
+          "category": "code_execution",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 3
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "dependencies",
+          "observations": 4,
+          "claims": {
+            "configuration": 4,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 4,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 4,
+            "unsupported": 5,
+            "not_applicable": 3
+          },
+          "evidenceCodes": [
+            "ai_model_boundary_declared",
+            "ai_node_declared",
+            "attached_model_declaration"
+          ],
+          "diagnosticCodes": [
+            "ai_node_semantics_unreviewed",
+            "builtin_capability_profile_unreviewed",
+            "model_attack_resistance_and_value_flow_unverified",
+            "non_main_connection_semantics_unreviewed",
+            "runtime_evidence_missing"
+          ]
+        },
+        {
+          "category": "egress",
+          "observations": 4,
+          "claims": {
+            "configuration": 2,
+            "candidate": 2,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 3,
+            "low": 0,
+            "medium": 1,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 7,
+            "unsupported": 7,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [
+            "data_field_transferred",
+            "data_flow_hop",
+            "data_origin",
+            "dynamic_recipient_or_destination",
+            "external_connector_declared",
+            "outbound_send_capability"
+          ],
+          "diagnosticCodes": [
+            "expression_semantics_unsupported",
+            "node_transform_unsupported",
+            "opaque_node_effects",
+            "partial_workflow_topology",
+            "payload_provenance_unresolved",
+            "recipient_identity_unresolved",
+            "recipient_provenance_unresolved",
+            "transferred_data_sensitivity_unverified",
+            "trusted_policy_transfer_unresolved",
+            "unsupported_send_operation"
+          ]
+        },
+        {
+          "category": "output",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 1,
+            "unsupported": 7,
+            "not_applicable": 2
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": [
+            "opaque_node_effects",
+            "partial_workflow_topology"
+          ]
+        },
+        {
+          "category": "pii",
+          "observations": 8,
+          "claims": {
+            "configuration": 0,
+            "candidate": 8,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 8,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 1,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": ["nlp_location_candidate", "nlp_person_candidate"],
+          "diagnosticCodes": ["nlp_english_model_profile"]
+        },
+        {
+          "category": "request_auth",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "secrets",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "sql",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 1,
+            "unsupported": 7,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": [
+            "opaque_node_effects",
+            "partial_workflow_topology"
+          ]
+        },
+        {
+          "category": "ssrf",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 1,
+            "unsupported": 7,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": [
+            "opaque_node_effects",
+            "partial_workflow_topology"
+          ]
+        },
+        {
+          "category": "transport",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        }
+      ],
+      "tools": [
+        {
+          "tool": "gitleaks",
+          "status": "completed",
+          "version": "8.30.1",
+          "code": null
+        },
+        {
+          "tool": "nlp",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": "2.2.366",
+            "spacy": "3.8.18",
+            "model": "en_core_web_sm@3.8.0"
+          }
+        },
+        {
+          "tool": "python",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": null,
+            "spacy": null,
+            "model": null
+          }
+        }
+      ],
+      "automaticPlans": 0,
+      "manualPlans": 10,
+      "automaticKinds": []
+    },
+    {
+      "id": 18521,
+      "sourceUrl": "https://api.n8n.io/templates/workflows/18521",
+      "inputSha256": "f5586df6760b5fb2c5accdb22c402316eeedfe3a0caf92b6139da78a2c63b157",
+      "sourceBytes": 13480,
+      "acquisition": "workflow_object_extracted_from_official_api",
+      "responseSha256": "215a846bbf8528a808d3259578b7b3ee559ee757729e2d8b5e4d4496836d36f1",
+      "originalRedistributed": false,
+      "license": "not_verified",
+      "status": "partial",
+      "elapsedMs": 3814,
+      "decision": "inconclusive",
+      "categories": [
+        {
+          "category": "code_execution",
+          "observations": 2,
+          "claims": {
+            "configuration": 2,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 2,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 2,
+            "partial": 0,
+            "unsupported": 2,
+            "not_applicable": 1
+          },
+          "evidenceCodes": ["custom_code_node_declared"],
+          "diagnosticCodes": [
+            "javascript_control_flow_partial",
+            "javascript_semantics_partially_analyzed"
+          ]
+        },
+        {
+          "category": "dependencies",
+          "observations": 8,
+          "claims": {
+            "configuration": 8,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 8,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 4,
+            "partial": 5,
+            "unsupported": 14,
+            "not_applicable": 3
+          },
+          "evidenceCodes": [
+            "ai_model_boundary_declared",
+            "ai_node_declared",
+            "attached_model_declaration",
+            "custom_code_capability"
+          ],
+          "diagnosticCodes": [
+            "ai_node_semantics_unreviewed",
+            "builtin_capability_profile_unreviewed",
+            "model_attack_resistance_and_value_flow_unverified",
+            "non_main_connection_semantics_unreviewed",
+            "runtime_evidence_missing"
+          ]
+        },
+        {
+          "category": "egress",
+          "observations": 8,
+          "claims": {
+            "configuration": 3,
+            "candidate": 5,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 7,
+            "low": 0,
+            "medium": 1,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 16,
+            "unsupported": 12,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [
+            "data_field_transferred",
+            "data_flow_hop",
+            "data_origin",
+            "dynamic_recipient_or_destination",
+            "outbound_send_capability"
+          ],
+          "diagnosticCodes": [
+            "code_mapping_unsupported",
+            "expression_semantics_unsupported",
+            "expression_syntax_unsupported",
+            "instance_workflow_link_included",
+            "node_transform_unsupported",
+            "opaque_node_effects",
+            "partial_workflow_topology",
+            "payload_provenance_unresolved",
+            "recipient_provenance_unresolved",
+            "transferred_data_sensitivity_unverified",
+            "trusted_policy_transfer_unresolved"
+          ]
+        },
+        {
+          "category": "output",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 3,
+            "unsupported": 12,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": [
+            "code_logging_and_sensitivity_partially_analyzed",
+            "code_logging_semantics_partial",
+            "opaque_node_effects",
+            "partial_workflow_topology"
+          ]
+        },
+        {
+          "category": "pii",
+          "observations": 21,
+          "claims": {
+            "configuration": 0,
+            "candidate": 21,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 21,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 1,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": ["nlp_location_candidate", "nlp_person_candidate"],
+          "diagnosticCodes": ["nlp_english_model_profile"]
+        },
+        {
+          "category": "request_auth",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "secrets",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "sql",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 1,
+            "unsupported": 12,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": [
+            "opaque_node_effects",
+            "partial_workflow_topology"
+          ]
+        },
+        {
+          "category": "ssrf",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 1,
+            "unsupported": 12,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": [
+            "opaque_node_effects",
+            "partial_workflow_topology"
+          ]
+        },
+        {
+          "category": "transport",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        }
+      ],
+      "tools": [
+        {
+          "tool": "gitleaks",
+          "status": "completed",
+          "version": "8.30.1",
+          "code": null
+        },
+        {
+          "tool": "nlp",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": "2.2.366",
+            "spacy": "3.8.18",
+            "model": "en_core_web_sm@3.8.0"
+          }
+        },
+        {
+          "tool": "python",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": null,
+            "spacy": null,
+            "model": null
+          }
+        }
+      ],
+      "automaticPlans": 0,
+      "manualPlans": 25,
+      "automaticKinds": []
+    },
+    {
+      "id": 15403,
+      "sourceUrl": "https://api.n8n.io/templates/workflows/15403",
+      "inputSha256": "8438bdef61645e45e9efcb104c8313d910826e4376f36571089bcd2a39022068",
+      "sourceBytes": 18185,
+      "acquisition": "workflow_object_extracted_from_official_api",
+      "responseSha256": "7150f7e41ffca5cd76a21a8aad074bd3b5f84a3a940c0ab0b04666a1af7d4ca5",
+      "originalRedistributed": false,
+      "license": "not_verified",
+      "status": "partial",
+      "elapsedMs": 4369,
+      "decision": "inconclusive",
+      "categories": [
+        {
+          "category": "code_execution",
+          "observations": 4,
+          "claims": {
+            "configuration": 4,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 4,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 4,
+            "partial": 0,
+            "unsupported": 4,
+            "not_applicable": 1
+          },
+          "evidenceCodes": ["custom_code_node_declared"],
+          "diagnosticCodes": [
+            "javascript_control_flow_partial",
+            "javascript_semantics_partially_analyzed"
+          ]
+        },
+        {
+          "category": "dependencies",
+          "observations": 5,
+          "claims": {
+            "configuration": 5,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 5,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 4,
+            "partial": 1,
+            "unsupported": 24,
+            "not_applicable": 4
+          },
+          "evidenceCodes": ["ai_node_declared", "custom_code_capability"],
+          "diagnosticCodes": [
+            "ai_node_semantics_unreviewed",
+            "builtin_capability_profile_unreviewed",
+            "runtime_evidence_missing",
+            "unsupported_node_version"
+          ]
+        },
+        {
+          "category": "egress",
+          "observations": 10,
+          "claims": {
+            "configuration": 4,
+            "candidate": 6,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 4,
+            "low": 0,
+            "medium": 6,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 25,
+            "unsupported": 15,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [
+            "data_flow_hop",
+            "data_origin",
+            "dynamic_recipient_or_destination",
+            "external_connector_declared",
+            "outbound_send_capability",
+            "personal_data_candidate_transferred"
+          ],
+          "diagnosticCodes": [
+            "code_mapping_unsupported",
+            "direct_reference_unconnected",
+            "expression_parse_unavailable",
+            "expression_semantics_unsupported",
+            "expression_syntax_unsupported",
+            "instance_workflow_link_included",
+            "node_transform_unsupported",
+            "opaque_node_effects",
+            "payload_provenance_unresolved",
+            "recipient_provenance_unresolved",
+            "transferred_data_sensitivity_unverified",
+            "trusted_policy_transfer_unresolved",
+            "unsupported_send_operation"
+          ]
+        },
+        {
+          "category": "output",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 4,
+            "unsupported": 15,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": [
+            "code_logging_and_sensitivity_partially_analyzed",
+            "code_logging_semantics_partial",
+            "opaque_node_effects"
+          ]
+        },
+        {
+          "category": "pii",
+          "observations": 24,
+          "claims": {
+            "configuration": 0,
+            "candidate": 24,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 24,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 1,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [
+            "email_candidate",
+            "nlp_email_candidate",
+            "nlp_location_candidate",
+            "nlp_person_candidate"
+          ],
+          "diagnosticCodes": ["nlp_english_model_profile"]
+        },
+        {
+          "category": "request_auth",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "secrets",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "sql",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 15,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": ["opaque_node_effects"]
+        },
+        {
+          "category": "ssrf",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 15,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": ["opaque_node_effects"]
+        },
+        {
+          "category": "transport",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        }
+      ],
+      "tools": [
+        {
+          "tool": "gitleaks",
+          "status": "completed",
+          "version": "8.30.1",
+          "code": null
+        },
+        {
+          "tool": "nlp",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": "2.2.366",
+            "spacy": "3.8.18",
+            "model": "en_core_web_sm@3.8.0"
+          }
+        },
+        {
+          "tool": "python",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": null,
+            "spacy": null,
+            "model": null
+          }
+        }
+      ],
+      "automaticPlans": 0,
+      "manualPlans": 28,
+      "automaticKinds": []
+    },
+    {
+      "id": 10111,
+      "sourceUrl": "https://api.n8n.io/templates/workflows/10111",
+      "inputSha256": "244b7f1c399d278c8c7484aa0c98b3ec48e1c610099d4e1cde9bd38c601abc84",
+      "sourceBytes": 19434,
+      "acquisition": "workflow_object_extracted_from_official_api",
+      "responseSha256": "340f7767b7d1941b586b15d746d1c67efe6909c393d94014d89a30e2d4af47b9",
+      "originalRedistributed": false,
+      "license": "not_verified",
+      "status": "partial",
+      "elapsedMs": 4262,
+      "decision": "inconclusive",
+      "categories": [
+        {
+          "category": "code_execution",
+          "observations": 3,
+          "claims": {
+            "configuration": 3,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 3,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 3,
+            "partial": 0,
+            "unsupported": 3,
+            "not_applicable": 1
+          },
+          "evidenceCodes": ["custom_code_node_declared"],
+          "diagnosticCodes": [
+            "javascript_control_flow_partial",
+            "javascript_semantics_partially_analyzed"
+          ]
+        },
+        {
+          "category": "dependencies",
+          "observations": 6,
+          "claims": {
+            "configuration": 6,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 6,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 5,
+            "partial": 3,
+            "unsupported": 29,
+            "not_applicable": 3
+          },
+          "evidenceCodes": [
+            "ai_model_boundary_declared",
+            "ai_node_declared",
+            "attached_model_declaration",
+            "custom_code_capability"
+          ],
+          "diagnosticCodes": [
+            "ai_node_semantics_unreviewed",
+            "builtin_capability_profile_unreviewed",
+            "model_attack_resistance_and_value_flow_unverified",
+            "non_main_connection_semantics_unreviewed",
+            "runtime_evidence_missing",
+            "unsupported_node_version"
+          ]
+        },
+        {
+          "category": "egress",
+          "observations": 5,
+          "claims": {
+            "configuration": 3,
+            "candidate": 2,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 4,
+            "low": 0,
+            "medium": 1,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 26,
+            "unsupported": 11,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [
+            "data_field_transferred",
+            "data_flow_hop",
+            "data_origin",
+            "outbound_send_capability",
+            "whole_object_transferred"
+          ],
+          "diagnosticCodes": [
+            "branch_guard_semantics_unresolved",
+            "code_mapping_unsupported",
+            "expression_parse_unavailable",
+            "expression_semantics_unsupported",
+            "expression_syntax_unsupported",
+            "node_transform_unsupported",
+            "object_expression_unsupported",
+            "opaque_node_effects",
+            "partial_workflow_topology",
+            "payload_provenance_unresolved",
+            "transferred_data_sensitivity_unverified",
+            "trusted_policy_transfer_unresolved"
+          ]
+        },
+        {
+          "category": "output",
+          "observations": 1,
+          "claims": {
+            "configuration": 0,
+            "candidate": 1,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 1,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 5,
+            "unsupported": 12,
+            "not_applicable": 1
+          },
+          "evidenceCodes": ["data_field_transferred", "data_origin"],
+          "diagnosticCodes": [
+            "code_logging_and_sensitivity_partially_analyzed",
+            "code_logging_semantics_partial",
+            "input_provenance_unresolved",
+            "opaque_node_effects",
+            "partial_workflow_topology",
+            "payload_provenance_unresolved",
+            "response_recipient_authorization_unverified",
+            "transferred_data_sensitivity_unverified",
+            "trusted_policy_transfer_unresolved"
+          ]
+        },
+        {
+          "category": "pii",
+          "observations": 39,
+          "claims": {
+            "configuration": 0,
+            "candidate": 39,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 39,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 1,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [
+            "email_candidate",
+            "nlp_email_candidate",
+            "nlp_location_candidate",
+            "nlp_person_candidate"
+          ],
+          "diagnosticCodes": ["nlp_english_model_profile"]
+        },
+        {
+          "category": "request_auth",
+          "observations": 1,
+          "claims": {
+            "configuration": 1,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 1,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": ["webhook_authentication_default_none"],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "secrets",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "sql",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 1,
+            "unsupported": 19,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": [
+            "opaque_node_effects",
+            "partial_workflow_topology",
+            "unsupported_node_version"
+          ]
+        },
+        {
+          "category": "ssrf",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 1,
+            "unsupported": 11,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": [
+            "opaque_node_effects",
+            "partial_workflow_topology"
+          ]
+        },
+        {
+          "category": "transport",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        }
+      ],
+      "tools": [
+        {
+          "tool": "gitleaks",
+          "status": "completed",
+          "version": "8.30.1",
+          "code": null
+        },
+        {
+          "tool": "nlp",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": "2.2.366",
+            "spacy": "3.8.18",
+            "model": "en_core_web_sm@3.8.0"
+          }
+        },
+        {
+          "tool": "python",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": null,
+            "spacy": null,
+            "model": null
+          }
+        }
+      ],
+      "automaticPlans": 0,
+      "manualPlans": 36,
+      "automaticKinds": []
+    },
+    {
+      "id": 10476,
+      "sourceUrl": "https://api.n8n.io/templates/workflows/10476",
+      "inputSha256": "68d2081d7de9527a35eabe01aacf10b73a6f989235739a53ca7f2a127ed2888e",
+      "sourceBytes": 16012,
+      "acquisition": "workflow_object_extracted_from_official_api",
+      "responseSha256": "1f9930ef686f7f130dfb216887277b3d8afaae14d90efd5a8e989f6f5adf16d3",
+      "originalRedistributed": false,
+      "license": "not_verified",
+      "status": "partial",
+      "elapsedMs": 4443,
+      "decision": "inconclusive",
+      "categories": [
+        {
+          "category": "code_execution",
+          "observations": 14,
+          "claims": {
+            "configuration": 10,
+            "candidate": 4,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 2,
+            "low": 0,
+            "medium": 10,
+            "high": 2
+          },
+          "coverage": {
+            "checked": 4,
+            "partial": 7,
+            "unsupported": 2,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [
+            "command_dynamic_value_candidate",
+            "command_execution_capability",
+            "custom_code_node_declared",
+            "declared_value_origin",
+            "dynamic_command_expression"
+          ],
+          "diagnosticCodes": [
+            "command_input_flow_partially_analyzed",
+            "command_input_origin_unresolved",
+            "javascript_profile_unsupported",
+            "python_static_profile_limited",
+            "unsupported_code_language"
+          ]
+        },
+        {
+          "category": "dependencies",
+          "observations": 7,
+          "claims": {
+            "configuration": 7,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 7,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 8,
+            "partial": 1,
+            "unsupported": 23,
+            "not_applicable": 4
+          },
+          "evidenceCodes": [
+            "ai_node_declared",
+            "custom_code_capability",
+            "remote_shell_or_file_capability"
+          ],
+          "diagnosticCodes": [
+            "ai_node_semantics_unreviewed",
+            "builtin_capability_profile_unreviewed",
+            "runtime_evidence_missing"
+          ]
+        },
+        {
+          "category": "egress",
+          "observations": 17,
+          "claims": {
+            "configuration": 10,
+            "candidate": 5,
+            "supported_path": 2
+          },
+          "severity": {
+            "info": 14,
+            "low": 0,
+            "medium": 3,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 27,
+            "unsupported": 22,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [
+            "data_field_transferred",
+            "data_flow_hop",
+            "data_origin",
+            "outbound_send_capability",
+            "whole_object_transferred"
+          ],
+          "diagnosticCodes": [
+            "code_language_unresolved",
+            "expression_semantics_unsupported",
+            "expression_syntax_unsupported",
+            "merge_item_alignment_unverified",
+            "node_execution_semantics_unresolved",
+            "node_transform_unsupported",
+            "opaque_node_effects",
+            "payload_provenance_unresolved",
+            "transferred_data_sensitivity_unverified",
+            "trusted_policy_transfer_unresolved"
+          ]
+        },
+        {
+          "category": "output",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 3,
+            "unsupported": 22,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": [
+            "opaque_node_effects",
+            "python_static_profile_limited",
+            "unsupported_code_language",
+            "unsupported_log_code_profile"
+          ]
+        },
+        {
+          "category": "pii",
+          "observations": 22,
+          "claims": {
+            "configuration": 0,
+            "candidate": 22,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 22,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 1,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": ["nlp_location_candidate", "nlp_person_candidate"],
+          "diagnosticCodes": ["nlp_english_model_profile"]
+        },
+        {
+          "category": "request_auth",
+          "observations": 1,
+          "claims": {
+            "configuration": 1,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 1,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": ["webhook_authentication_default_none"],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "secrets",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "sql",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 22,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": ["opaque_node_effects"]
+        },
+        {
+          "category": "ssrf",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 22,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": ["opaque_node_effects"]
+        },
+        {
+          "category": "transport",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        }
+      ],
+      "tools": [
+        {
+          "tool": "gitleaks",
+          "status": "completed",
+          "version": "8.30.1",
+          "code": null
+        },
+        {
+          "tool": "nlp",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": "2.2.366",
+            "spacy": "3.8.18",
+            "model": "en_core_web_sm@3.8.0"
+          }
+        },
+        {
+          "tool": "python",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": null,
+            "spacy": null,
+            "model": null
+          }
+        }
+      ],
+      "automaticPlans": 0,
+      "manualPlans": 41,
+      "automaticKinds": []
+    },
+    {
+      "id": 6216,
+      "sourceUrl": "https://api.n8n.io/templates/workflows/6216",
+      "inputSha256": "91fafa6e1b171d8de3ebc61dc4ca36e8a6ffedc47b6e12752c744b5a882ff8d5",
+      "sourceBytes": 6320,
+      "acquisition": "workflow_object_extracted_from_official_api",
+      "responseSha256": "310ce513def0c71dc8677ecda05865b606a062b7dd8d6493c4dd971af2b76f2b",
+      "originalRedistributed": false,
+      "license": "not_verified",
+      "status": "partial",
+      "elapsedMs": 3347,
+      "decision": "inconclusive",
+      "categories": [
+        {
+          "category": "code_execution",
+          "observations": 5,
+          "claims": {
+            "configuration": 3,
+            "candidate": 2,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 1,
+            "low": 0,
+            "medium": 3,
+            "high": 1
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 2,
+            "unsupported": 1,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [
+            "command_dynamic_value_candidate",
+            "command_execution_capability",
+            "custom_code_node_declared",
+            "declared_value_origin",
+            "dynamic_command_expression"
+          ],
+          "diagnosticCodes": [
+            "command_input_flow_partially_analyzed",
+            "command_input_origin_unresolved",
+            "javascript_control_flow_partial",
+            "javascript_semantics_partially_analyzed"
+          ]
+        },
+        {
+          "category": "dependencies",
+          "observations": 2,
+          "claims": {
+            "configuration": 2,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 2,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 2,
+            "partial": 0,
+            "unsupported": 13,
+            "not_applicable": 4
+          },
+          "evidenceCodes": [
+            "custom_code_capability",
+            "local_command_capability"
+          ],
+          "diagnosticCodes": [
+            "builtin_capability_profile_unreviewed",
+            "runtime_evidence_missing",
+            "unsupported_node_version"
+          ]
+        },
+        {
+          "category": "egress",
+          "observations": 1,
+          "claims": {
+            "configuration": 1,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 1,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 9,
+            "unsupported": 6,
+            "not_applicable": 0
+          },
+          "evidenceCodes": ["external_connector_declared"],
+          "diagnosticCodes": [
+            "code_mapping_unsupported",
+            "expression_semantics_unsupported",
+            "expression_syntax_unsupported",
+            "node_transform_unsupported",
+            "opaque_node_effects",
+            "trusted_policy_transfer_unresolved",
+            "unsupported_node_version"
+          ]
+        },
+        {
+          "category": "output",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 1,
+            "unsupported": 6,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": [
+            "code_logging_and_sensitivity_partially_analyzed",
+            "code_logging_semantics_partial",
+            "opaque_node_effects"
+          ]
+        },
+        {
+          "category": "pii",
+          "observations": 22,
+          "claims": {
+            "configuration": 0,
+            "candidate": 22,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 22,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 1,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [
+            "email_candidate",
+            "nlp_email_candidate",
+            "nlp_location_candidate",
+            "nlp_person_candidate"
+          ],
+          "diagnosticCodes": ["nlp_english_model_profile"]
+        },
+        {
+          "category": "request_auth",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "secrets",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "sql",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 6,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": ["opaque_node_effects"]
+        },
+        {
+          "category": "ssrf",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 6,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": ["opaque_node_effects"]
+        },
+        {
+          "category": "transport",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        }
+      ],
+      "tools": [
+        {
+          "tool": "gitleaks",
+          "status": "completed",
+          "version": "8.30.1",
+          "code": null
+        },
+        {
+          "tool": "nlp",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": "2.2.366",
+            "spacy": "3.8.18",
+            "model": "en_core_web_sm@3.8.0"
+          }
+        },
+        {
+          "tool": "python",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": null,
+            "spacy": null,
+            "model": null
+          }
+        }
+      ],
+      "automaticPlans": 0,
+      "manualPlans": 17,
+      "automaticKinds": []
+    },
+    {
+      "id": 3314,
+      "sourceUrl": "https://api.n8n.io/templates/workflows/3314",
+      "inputSha256": "fe41176ad71bfc5961baad02cdf22b94dea533cab3716ce591c4133fd43b0d0f",
+      "sourceBytes": 41674,
+      "acquisition": "workflow_object_extracted_from_official_api",
+      "responseSha256": "8d2b655f0b6bac210b2d55e7eb759dde53668690e45d05d2d9bcba9ff912e23c",
+      "originalRedistributed": false,
+      "license": "not_verified",
+      "status": "partial",
+      "elapsedMs": 4255,
+      "decision": "inconclusive",
+      "categories": [
+        {
+          "category": "code_execution",
+          "observations": 3,
+          "claims": {
+            "configuration": 3,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 3,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 3,
+            "partial": 0,
+            "unsupported": 3,
+            "not_applicable": 1
+          },
+          "evidenceCodes": ["custom_code_node_declared"],
+          "diagnosticCodes": [
+            "javascript_control_flow_partial",
+            "javascript_semantics_partially_analyzed"
+          ]
+        },
+        {
+          "category": "dependencies",
+          "observations": 9,
+          "claims": {
+            "configuration": 9,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 9,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 4,
+            "partial": 5,
+            "unsupported": 12,
+            "not_applicable": 3
+          },
+          "evidenceCodes": [
+            "ai_model_boundary_declared",
+            "ai_node_declared",
+            "attached_model_declaration",
+            "custom_code_capability"
+          ],
+          "diagnosticCodes": [
+            "ai_node_semantics_unreviewed",
+            "builtin_capability_profile_unreviewed",
+            "model_attack_resistance_and_value_flow_unverified",
+            "non_main_connection_semantics_unreviewed",
+            "runtime_evidence_missing"
+          ]
+        },
+        {
+          "category": "egress",
+          "observations": 8,
+          "claims": {
+            "configuration": 3,
+            "candidate": 5,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 5,
+            "low": 0,
+            "medium": 3,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 23,
+            "unsupported": 11,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [
+            "data_field_transferred",
+            "data_flow_hop",
+            "data_origin",
+            "dynamic_recipient_or_destination",
+            "dynamic_request_destination",
+            "outbound_send_capability",
+            "whole_object_transferred"
+          ],
+          "diagnosticCodes": [
+            "code_mapping_unsupported",
+            "expression_parse_unavailable",
+            "expression_semantics_unsupported",
+            "expression_syntax_unsupported",
+            "flow_budget_exceeded",
+            "input_provenance_unresolved",
+            "node_execution_semantics_unresolved",
+            "node_transform_unsupported",
+            "opaque_node_effects",
+            "partial_workflow_topology",
+            "payload_provenance_unresolved",
+            "recipient_provenance_unresolved",
+            "redirect_destination_unverified",
+            "transferred_data_sensitivity_unverified",
+            "trusted_policy_transfer_unresolved"
+          ]
+        },
+        {
+          "category": "output",
+          "observations": 1,
+          "claims": {
+            "configuration": 0,
+            "candidate": 1,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 1,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 4,
+            "unsupported": 11,
+            "not_applicable": 1
+          },
+          "evidenceCodes": ["console_output_call_candidate"],
+          "diagnosticCodes": [
+            "code_logging_and_sensitivity_partially_analyzed",
+            "code_logging_semantics_partial",
+            "opaque_node_effects",
+            "partial_workflow_topology",
+            "payload_provenance_unresolved",
+            "transferred_data_sensitivity_unverified",
+            "trusted_policy_transfer_unresolved"
+          ]
+        },
+        {
+          "category": "pii",
+          "observations": 23,
+          "claims": {
+            "configuration": 0,
+            "candidate": 23,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 23,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 1,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [
+            "email_candidate",
+            "nlp_email_candidate",
+            "nlp_location_candidate",
+            "nlp_person_candidate"
+          ],
+          "diagnosticCodes": [
+            "native_field_size_limit",
+            "nlp_english_model_profile"
+          ]
+        },
+        {
+          "category": "request_auth",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "secrets",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "sql",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 1,
+            "unsupported": 11,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": [
+            "opaque_node_effects",
+            "partial_workflow_topology"
+          ]
+        },
+        {
+          "category": "ssrf",
+          "observations": 1,
+          "claims": {
+            "configuration": 0,
+            "candidate": 1,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 1
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 2,
+            "unsupported": 11,
+            "not_applicable": 0
+          },
+          "evidenceCodes": ["dynamic_request_authority"],
+          "diagnosticCodes": [
+            "input_provenance_unresolved",
+            "opaque_node_effects",
+            "partial_workflow_topology"
+          ]
+        },
+        {
+          "category": "transport",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 1,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": ["transport_url_unresolved"]
+        }
+      ],
+      "tools": [
+        {
+          "tool": "gitleaks",
+          "status": "completed",
+          "version": "8.30.1",
+          "code": null
+        },
+        {
+          "tool": "nlp",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": "2.2.366",
+            "spacy": "3.8.18",
+            "model": "en_core_web_sm@3.8.0"
+          }
+        },
+        {
+          "tool": "python",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": null,
+            "spacy": null,
+            "model": null
+          }
+        }
+      ],
+      "automaticPlans": 0,
+      "manualPlans": 28,
+      "automaticKinds": []
+    },
+    {
+      "id": 11007,
+      "sourceUrl": "https://api.n8n.io/templates/workflows/11007",
+      "inputSha256": "a5b90072022086d7a8529309a0da2968481e902fc6260e4be6646489c0676580",
+      "sourceBytes": 40525,
+      "acquisition": "workflow_object_extracted_from_official_api",
+      "responseSha256": "4b8d035f5446dad962bb3942fc6025f634db13413fb102cfd6eb03170123f8f7",
+      "originalRedistributed": false,
+      "license": "not_verified",
+      "status": "partial",
+      "elapsedMs": 5507,
+      "decision": "inconclusive",
+      "categories": [
+        {
+          "category": "code_execution",
+          "observations": 16,
+          "claims": {
+            "configuration": 10,
+            "candidate": 6,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 4,
+            "low": 0,
+            "medium": 9,
+            "high": 3
+          },
+          "coverage": {
+            "checked": 4,
+            "partial": 6,
+            "unsupported": 4,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [
+            "command_dynamic_value_candidate",
+            "command_execution_capability",
+            "command_external_value_candidate",
+            "custom_code_node_declared",
+            "declared_value_origin",
+            "dynamic_command_expression"
+          ],
+          "diagnosticCodes": [
+            "command_input_flow_partially_analyzed",
+            "command_input_origin_unresolved",
+            "javascript_control_flow_partial",
+            "javascript_semantics_partially_analyzed"
+          ]
+        },
+        {
+          "category": "dependencies",
+          "observations": 12,
+          "claims": {
+            "configuration": 12,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 12,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 13,
+            "partial": 0,
+            "unsupported": 20,
+            "not_applicable": 4
+          },
+          "evidenceCodes": [
+            "custom_code_capability",
+            "local_command_capability",
+            "local_file_access_capability"
+          ],
+          "diagnosticCodes": [
+            "builtin_capability_profile_unreviewed",
+            "runtime_evidence_missing"
+          ]
+        },
+        {
+          "category": "egress",
+          "observations": 5,
+          "claims": {
+            "configuration": 2,
+            "candidate": 3,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 4,
+            "low": 0,
+            "medium": 1,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 25,
+            "unsupported": 21,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [
+            "data_field_transferred",
+            "data_origin",
+            "dynamic_recipient_or_destination",
+            "external_connector_declared",
+            "outbound_send_capability"
+          ],
+          "diagnosticCodes": [
+            "binary_payload_unavailable",
+            "code_mapping_unsupported",
+            "code_parse_unavailable",
+            "expression_parse_unavailable",
+            "expression_semantics_unsupported",
+            "expression_syntax_unsupported",
+            "flow_budget_exceeded",
+            "node_transform_unsupported",
+            "object_expression_unsupported",
+            "opaque_node_effects",
+            "payload_provenance_unresolved",
+            "recipient_provenance_unresolved",
+            "transferred_data_sensitivity_unverified",
+            "trusted_policy_transfer_unresolved",
+            "unsupported_send_operation"
+          ]
+        },
+        {
+          "category": "output",
+          "observations": 3,
+          "claims": {
+            "configuration": 0,
+            "candidate": 3,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 3,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 4,
+            "unsupported": 21,
+            "not_applicable": 1
+          },
+          "evidenceCodes": ["console_output_call_candidate"],
+          "diagnosticCodes": [
+            "code_logging_and_sensitivity_partially_analyzed",
+            "code_logging_semantics_partial",
+            "opaque_node_effects",
+            "payload_provenance_unresolved",
+            "transferred_data_sensitivity_unverified",
+            "trusted_policy_transfer_unresolved"
+          ]
+        },
+        {
+          "category": "pii",
+          "observations": 36,
+          "claims": {
+            "configuration": 0,
+            "candidate": 36,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 36,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 1,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [
+            "email_candidate",
+            "nlp_email_candidate",
+            "nlp_location_candidate",
+            "nlp_person_candidate"
+          ],
+          "diagnosticCodes": ["nlp_english_model_profile"]
+        },
+        {
+          "category": "request_auth",
+          "observations": 1,
+          "claims": {
+            "configuration": 1,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 1,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": ["webhook_authentication_default_none"],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "secrets",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "sql",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 21,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": ["opaque_node_effects"]
+        },
+        {
+          "category": "ssrf",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 21,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": ["opaque_node_effects"]
+        },
+        {
+          "category": "transport",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        }
+      ],
+      "tools": [
+        {
+          "tool": "gitleaks",
+          "status": "completed",
+          "version": "8.30.1",
+          "code": null
+        },
+        {
+          "tool": "nlp",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": "2.2.366",
+            "spacy": "3.8.18",
+            "model": "en_core_web_sm@3.8.0"
+          }
+        },
+        {
+          "tool": "python",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": null,
+            "spacy": null,
+            "model": null
+          }
+        }
+      ],
+      "automaticPlans": 0,
+      "manualPlans": 46,
+      "automaticKinds": []
+    },
+    {
+      "id": 9638,
+      "sourceUrl": "https://api.n8n.io/templates/workflows/9638",
+      "inputSha256": "1148aa3119d3133bed0cab0012aa704e955b43244748b6d97fa6289d34a2513a",
+      "sourceBytes": 8506,
+      "acquisition": "workflow_object_extracted_from_official_api",
+      "responseSha256": "c5a9730fd20927cebbb88f2127d9ebbba7a49d615f84c7b149145c08c31e5f82",
+      "originalRedistributed": false,
+      "license": "not_verified",
+      "status": "partial",
+      "elapsedMs": 3402,
+      "decision": "inconclusive",
+      "categories": [
+        {
+          "category": "code_execution",
+          "observations": 1,
+          "claims": {
+            "configuration": 1,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 1,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 1,
+            "not_applicable": 1
+          },
+          "evidenceCodes": ["custom_code_node_declared"],
+          "diagnosticCodes": [
+            "javascript_control_flow_partial",
+            "javascript_semantics_partially_analyzed"
+          ]
+        },
+        {
+          "category": "dependencies",
+          "observations": 5,
+          "claims": {
+            "configuration": 5,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 5,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 2,
+            "partial": 4,
+            "unsupported": 10,
+            "not_applicable": 3
+          },
+          "evidenceCodes": [
+            "ai_model_boundary_declared",
+            "ai_node_declared",
+            "attached_model_declaration",
+            "custom_code_capability"
+          ],
+          "diagnosticCodes": [
+            "ai_node_semantics_unreviewed",
+            "builtin_capability_profile_unreviewed",
+            "model_attack_resistance_and_value_flow_unverified",
+            "non_main_connection_semantics_unreviewed",
+            "runtime_evidence_missing"
+          ]
+        },
+        {
+          "category": "egress",
+          "observations": 4,
+          "claims": {
+            "configuration": 3,
+            "candidate": 1,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 3,
+            "low": 0,
+            "medium": 1,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 14,
+            "unsupported": 9,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [
+            "data_flow_hop",
+            "data_origin",
+            "external_connector_declared",
+            "outbound_send_capability",
+            "whole_object_transferred"
+          ],
+          "diagnosticCodes": [
+            "code_mapping_unsupported",
+            "expression_parse_unavailable",
+            "expression_semantics_unsupported",
+            "expression_syntax_unsupported",
+            "instance_workflow_link_included",
+            "node_transform_unsupported",
+            "opaque_node_effects",
+            "partial_workflow_topology",
+            "payload_provenance_unresolved",
+            "transferred_data_sensitivity_unverified",
+            "trusted_policy_transfer_unresolved",
+            "unsupported_send_operation"
+          ]
+        },
+        {
+          "category": "output",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 2,
+            "unsupported": 9,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": [
+            "code_logging_and_sensitivity_partially_analyzed",
+            "code_logging_semantics_partial",
+            "opaque_node_effects",
+            "partial_workflow_topology"
+          ]
+        },
+        {
+          "category": "pii",
+          "observations": 17,
+          "claims": {
+            "configuration": 0,
+            "candidate": 17,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 17,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 1,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": ["nlp_location_candidate", "nlp_person_candidate"],
+          "diagnosticCodes": ["nlp_english_model_profile"]
+        },
+        {
+          "category": "request_auth",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "secrets",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 1,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        },
+        {
+          "category": "sql",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 1,
+            "unsupported": 9,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": [
+            "opaque_node_effects",
+            "partial_workflow_topology"
+          ]
+        },
+        {
+          "category": "ssrf",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 1,
+            "unsupported": 9,
+            "not_applicable": 0
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": [
+            "opaque_node_effects",
+            "partial_workflow_topology"
+          ]
+        },
+        {
+          "category": "transport",
+          "observations": 0,
+          "claims": {
+            "configuration": 0,
+            "candidate": 0,
+            "supported_path": 0
+          },
+          "severity": {
+            "info": 0,
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "coverage": {
+            "checked": 0,
+            "partial": 0,
+            "unsupported": 0,
+            "not_applicable": 1
+          },
+          "evidenceCodes": [],
+          "diagnosticCodes": []
+        }
+      ],
+      "tools": [
+        {
+          "tool": "gitleaks",
+          "status": "completed",
+          "version": "8.30.1",
+          "code": null
+        },
+        {
+          "tool": "nlp",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": "2.2.366",
+            "spacy": "3.8.18",
+            "model": "en_core_web_sm@3.8.0"
+          }
+        },
+        {
+          "tool": "python",
+          "status": "completed",
+          "versions": {
+            "python": "3.11.2",
+            "presidio": null,
+            "spacy": null,
+            "model": null
+          }
+        }
+      ],
+      "automaticPlans": 0,
+      "manualPlans": 20,
+      "automaticKinds": []
+    },
+    {
+      "id": 7622,
+      "sourceUrl": "https://api.n8n.io/templates/workflows/7622",
+      "inputSha256": "feace2e3f32e895d5727651bee81c0b39952f5331b6e37a44e807387b2083dcb",
+      "sourceBytes": 3986,
+      "acquisition": "workflow_object_extracted_from_official_api",
+      "responseSha256": "57c71083123016d40380eec3abddcaa3c2b36c11512f4c482697265283174b9b",
+      "originalRedistributed": false,
+      "license": "not_verified",
+      "status": "error",
+      "elapsedMs": 1101,
+      "decision": "inconclusive",
+      "categories": [],
+      "tools": [],
+      "automaticPlans": 0,
+      "manualPlans": 0,
+      "errorCode": "invalid_input"
+    }
+  ]
+}

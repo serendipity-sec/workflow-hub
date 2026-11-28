@@ -10,7 +10,7 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  # 변경 경로를 판단한다. frontend/backend job은 skipped여도 필수 검사를 통과한 것으로 처리된다.
+  # 영역별 검사 경로를 판단한다. 해당 없는 영역의 job은 skipped로 처리된다.
   # 워크플로 전체에 paths 필터를 걸면 필수 검사가 대기 상태로 남아 머지가 막히므로 job 단위로 거른다.
   changes:
     runs-on: ubuntu-latest
@@ -21,6 +21,7 @@ jobs:
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
+      worker: ${{ steps.filter.outputs.worker }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - id: filter
@@ -33,6 +34,9 @@ jobs:
               - '.github/workflows/ci.yml'
             backend:
               - 'backend/**'
+              - '.github/workflows/ci.yml'
+            worker:
+              - 'worker/**'
               - '.github/workflows/ci.yml'
   repository:
     runs-on: ubuntu-latest
@@ -88,6 +92,32 @@ jobs:
           java-version: '25'
           cache: gradle
       - run: bash gradlew --no-daemon spotlessCheck test bootJar
+  worker:
+    needs: changes
+    if: ${{ !cancelled() && (github.event_name == 'push' || needs.changes.result != 'success' || needs.changes.outputs.worker == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: worker/.node-version
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+      - run: npm ci
+      - run: npm run verify
+      - run: node validation/verify-static-corpus.mjs
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: '1.26.x'
+          cache: false
+      - name: Verify the native static content scanner
+        run: |
+          go install -ldflags="-X github.com/zricethezav/gitleaks/v8/version.Version=8.30.1" github.com/zricethezav/gitleaks/v8@v8.30.1
+          WORKER_GITLEAKS_PATH="$(go env GOPATH)/bin/gitleaks" node validation/verify-static-tools.mjs
   secrets:
     runs-on: ubuntu-latest
     timeout-minutes: 10

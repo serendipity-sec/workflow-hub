@@ -1,0 +1,62 @@
+{
+  "taskId": "synthetic-task",
+  "attemptId": "synthetic-attempt",
+  "workflowVersionId": "synthetic-version",
+  "inputSha256": "fc5b6f72454ccd175bb629fffe445273c9e7a440ab0128ea65f4d675fc4d64b8",
+  "contractVersion": "1.0.0",
+  "engineVersion": "0.1.0",
+  "rulesVersion": "0.1.0",
+  "adapterVersion": "n8n@2.48.7/workflow-json@1",
+  "status": "analyzed",
+  "coverage": [
+    {
+      "sink": {
+        "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+        "pointer": "/nodes/1/parameters/query"
+      },
+      "disposition": "interpolated",
+      "inputKey": "bc36fa6bfae2844fe417601edf84796d15c7305c105cf2e99d6c887db45c243b",
+      "shapeKey": "143c5d9f4e200b6e36ebf16e7573698e68c79b1ab0bf5b9300ffa696f253e1d1"
+    }
+  ],
+  "findings": [
+    {
+      "id": "4c806289c9b64ddd10b75d9b98bcc54d59267da3a3618d333783fb37f66916a0",
+      "ruleId": "N8N_POSTGRES_DYNAMIC_QUERY",
+      "source": {
+        "nodeKey": "2e2c9540ec00acc8271a2db4e376c5d34b350edd4bbb340107fdb96a8bf3d53d",
+        "pointer": "/nodes/0"
+      },
+      "sink": {
+        "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+        "pointer": "/nodes/1/parameters/query"
+      },
+      "path": [
+        {
+          "nodeKey": "2e2c9540ec00acc8271a2db4e376c5d34b350edd4bbb340107fdb96a8bf3d53d",
+          "pointer": "/nodes/0"
+        },
+        {
+          "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+          "pointer": "/nodes/1/parameters/query"
+        }
+      ],
+      "reference": "current_input",
+      "guard": "absent",
+      "assumptions": ["single_json_webhook_item", "pinned_node_semantics"],
+      "remediation": {
+        "strategy": "use_value_parameter",
+        "binding": {
+          "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+          "pointer": "/nodes/1/parameters/options/queryReplacement"
+        },
+        "checks": [
+          "fixed_sql_value_position",
+          "expected_rows_and_side_effects",
+          "rescan_same_rules"
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

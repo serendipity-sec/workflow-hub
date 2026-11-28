@@ -1,0 +1,853 @@
+{
+  "schemaVersion": "1.0.0",
+  "outcome": "passed",
+  "engineVersion": "0.6.0",
+  "image": "sha256:a5b45932907a95a2a814aab0a16c31af361a5ccab84128a734a2e9eb3ed51ac0",
+  "workflowExecution": "not_run",
+  "actualTeamApiIntegration": "not_run",
+  "generalAccuracy": "not_measured",
+  "unitTests": {
+    "passed": 410,
+    "failed": 0,
+    "skipped": 0,
+    "logSha256": "3f688fb4225722f58e33866eacf1800de1c5c607138c05b3094b0a3b69911a82"
+  },
+  "repositoryToolingTests": {
+    "passed": 6,
+    "failed": 0,
+    "logSha256": "9ec8aaf0e9967345131643eb0822b70518405c3cf2706a939a8d8278cf7faa98"
+  },
+  "review": {
+    "method": "codex_review_and_independent_cross_review",
+    "scope": "issue_scoped_branch_against_origin_main_and_worktree",
+    "unresolvedFindings": 0,
+    "resolutionLogSha256": "8ef3eefc01d6e12781cb78d99a81a547f5a38b11c23f7b684cce6c2f2dc1a555"
+  },
+  "staticCorpus": {
+    "cases": 27,
+    "factDenominator": 23,
+    "stateCases": 4,
+    "assertedTP": 13,
+    "assertedTN": 10,
+    "assertedFP": 0,
+    "assertedFN": 0,
+    "analysisErrors": 2,
+    "unsupportedTargetCases": 1,
+    "partialTargetCases": 4,
+    "passed": 27,
+    "assertionFailures": 0
+  },
+  "legacySql": {
+    "cases": 12,
+    "engineVersion": "0.1.2",
+    "metrics": {
+      "all": {
+        "positive": 5,
+        "negative": 3,
+        "tp": 5,
+        "fp": 0,
+        "fn": 0,
+        "tn": 3,
+        "failed": 0,
+        "unsupported": 4
+      },
+      "validation": {
+        "positive": 4,
+        "negative": 1,
+        "tp": 4,
+        "fp": 0,
+        "fn": 0,
+        "tn": 1,
+        "failed": 0,
+        "unsupported": 4
+      }
+    },
+    "localReceiptSha256": "532dac2f70db3fe70b2e700a97f5fc37f541fab39a00de3778d2c5243abc5fa9"
+  },
+  "nativeProfile": {
+    "assertions": 44,
+    "groups": {
+      "baseline": 18,
+      "longTextAndScopes": 11,
+      "nativeBudget": 15
+    },
+    "versions": {
+      "python": "3.11.2",
+      "presidio": "2.2.366",
+      "spacy": "3.8.18",
+      "model": "en_core_web_sm@3.8.0"
+    },
+    "contextSensitiveShortNameObserved": false,
+    "rawAssessmentSha256": "ded3f26184fda889cf7bb30c7705058c00be1158789f467d0b6915061672612e"
+  },
+  "publicSamples": {
+    "samples": 15,
+    "statuses": {
+      "analyzed": 0,
+      "partial": 15,
+      "unsupported": 0,
+      "error": 0
+    },
+    "toolErrors": 0,
+    "toolInvocations": 45,
+    "filesRejectedBeforeToolInspection": 0,
+    "automaticPlans": 0
+  },
+  "publicRegressions": 54,
+  "controlledRevisionCases": 3,
+  "coverage": {
+    "before": {
+      "samples": 15,
+      "statuses": {
+        "partial": 15
+      },
+      "toolInvocations": 45,
+      "toolErrors": 0,
+      "diagnosticCounts": {
+        "builtin_capability_profile_unreviewed": 71,
+        "opaque_node_effects": 512,
+        "response_data_sensitivity_unverified": 7,
+        "payload_provenance_unresolved": 40,
+        "response_recipient_authorization_unverified": 14,
+        "transferred_data_sensitivity_unverified": 44,
+        "trusted_policy_transfer_unresolved": 56,
+        "nonstandard_execution_semantics": 30,
+        "sql_parameter_binding_unresolved": 3,
+        "sql_parameter_mapping_data_dependent": 3,
+        "nlp_english_model_profile": 15,
+        "nlp_metadata_formats_only": 15,
+        "nlp_program_formats_only": 12,
+        "nlp_template_literal_text_only": 15,
+        "runtime_evidence_missing": 15,
+        "node_execution_semantics_unresolved": 18,
+        "transport_url_unresolved": 6,
+        "input_provenance_unresolved": 20,
+        "code_logging_and_sensitivity_partially_analyzed": 26,
+        "recipient_provenance_unresolved": 8,
+        "redirect_destination_unverified": 6,
+        "code_logging_semantics_partial": 26,
+        "javascript_control_flow_partial": 22,
+        "javascript_semantics_partially_analyzed": 26,
+        "nlp_technical_entity_filtered": 10,
+        "code_mapping_unsupported": 19,
+        "expression_semantics_unsupported": 36,
+        "field_projection_partial": 29,
+        "node_transform_unsupported": 50,
+        "object_expression_unsupported": 5,
+        "sql_input_flow_partially_analyzed": 5,
+        "sql_parse_unsupported": 4,
+        "flow_budget_exceeded": 3,
+        "nlp_json_string_values_only": 4,
+        "ai_node_semantics_unreviewed": 21,
+        "non_main_connection_semantics_unreviewed": 9,
+        "partial_workflow_topology": 24,
+        "read_response_classification_unverified": 4,
+        "recipient_identity_unresolved": 2,
+        "model_attack_resistance_and_value_flow_unverified": 8,
+        "destination_access_unverified": 3,
+        "instance_workflow_link_included": 5,
+        "model_processing_and_retention_unverified": 1,
+        "provider_endpoint_from_credentials_unverified": 1,
+        "direct_reference_unconnected": 4,
+        "unsupported_database_operation": 1,
+        "database_operation_profile_unsupported": 1,
+        "command_input_origin_unresolved": 6,
+        "unsupported_code_language": 4,
+        "message_reply_markup_unverified": 2,
+        "unsupported_log_code_profile": 2,
+        "command_input_flow_partially_analyzed": 5,
+        "javascript_profile_unsupported": 2,
+        "python_static_profile_limited": 4,
+        "code_language_unresolved": 2,
+        "merge_item_alignment_unverified": 2,
+        "nlp_chunked_text_profile": 1,
+        "binary_payload_unavailable": 2,
+        "code_parse_unavailable": 1,
+        "expression_syntax_unsupported": 1
+      },
+      "affectedSamples": {
+        "builtin_capability_profile_unreviewed": 15,
+        "opaque_node_effects": 15,
+        "response_data_sensitivity_unverified": 2,
+        "payload_provenance_unresolved": 14,
+        "response_recipient_authorization_unverified": 5,
+        "transferred_data_sensitivity_unverified": 14,
+        "trusted_policy_transfer_unresolved": 15,
+        "nonstandard_execution_semantics": 3,
+        "sql_parameter_binding_unresolved": 1,
+        "sql_parameter_mapping_data_dependent": 1,
+        "nlp_english_model_profile": 15,
+        "nlp_metadata_formats_only": 15,
+        "nlp_program_formats_only": 12,
+        "nlp_template_literal_text_only": 15,
+        "runtime_evidence_missing": 15,
+        "node_execution_semantics_unresolved": 5,
+        "transport_url_unresolved": 3,
+        "input_provenance_unresolved": 5,
+        "code_logging_and_sensitivity_partially_analyzed": 10,
+        "recipient_provenance_unresolved": 5,
+        "redirect_destination_unverified": 3,
+        "code_logging_semantics_partial": 10,
+        "javascript_control_flow_partial": 10,
+        "javascript_semantics_partially_analyzed": 10,
+        "nlp_technical_entity_filtered": 10,
+        "code_mapping_unsupported": 10,
+        "expression_semantics_unsupported": 12,
+        "field_projection_partial": 10,
+        "node_transform_unsupported": 13,
+        "object_expression_unsupported": 3,
+        "sql_input_flow_partially_analyzed": 2,
+        "sql_parse_unsupported": 1,
+        "flow_budget_exceeded": 1,
+        "nlp_json_string_values_only": 4,
+        "ai_node_semantics_unreviewed": 8,
+        "non_main_connection_semantics_unreviewed": 6,
+        "partial_workflow_topology": 6,
+        "read_response_classification_unverified": 4,
+        "recipient_identity_unresolved": 2,
+        "model_attack_resistance_and_value_flow_unverified": 6,
+        "destination_access_unverified": 2,
+        "instance_workflow_link_included": 3,
+        "model_processing_and_retention_unverified": 1,
+        "provider_endpoint_from_credentials_unverified": 1,
+        "direct_reference_unconnected": 1,
+        "unsupported_database_operation": 1,
+        "database_operation_profile_unsupported": 1,
+        "command_input_origin_unresolved": 3,
+        "unsupported_code_language": 1,
+        "message_reply_markup_unverified": 1,
+        "unsupported_log_code_profile": 1,
+        "command_input_flow_partially_analyzed": 3,
+        "javascript_profile_unsupported": 1,
+        "python_static_profile_limited": 1,
+        "code_language_unresolved": 1,
+        "merge_item_alignment_unverified": 1,
+        "nlp_chunked_text_profile": 1,
+        "binary_payload_unavailable": 1,
+        "code_parse_unavailable": 1,
+        "expression_syntax_unsupported": 1
+      }
+    },
+    "after": {
+      "samples": 15,
+      "statuses": {
+        "partial": 15
+      },
+      "toolInvocations": 45,
+      "toolErrors": 0,
+      "diagnosticCounts": {
+        "opaque_node_effects": 512,
+        "response_data_sensitivity_unverified": 10,
+        "payload_provenance_unresolved": 47,
+        "response_recipient_authorization_unverified": 14,
+        "transferred_data_sensitivity_unverified": 55,
+        "trusted_policy_transfer_unresolved": 68,
+        "nonstandard_execution_semantics": 26,
+        "sql_parameter_binding_unresolved": 4,
+        "sql_parameter_mapping_data_dependent": 3,
+        "nlp_english_model_profile": 15,
+        "nlp_metadata_formats_only": 15,
+        "nlp_program_formats_only": 12,
+        "nlp_template_literal_text_only": 15,
+        "runtime_evidence_missing": 15,
+        "node_execution_semantics_unresolved": 18,
+        "transport_url_unresolved": 6,
+        "input_provenance_unresolved": 20,
+        "code_logging_and_sensitivity_partially_analyzed": 26,
+        "recipient_provenance_unresolved": 8,
+        "redirect_destination_unverified": 6,
+        "code_logging_semantics_partial": 26,
+        "javascript_control_flow_partial": 22,
+        "javascript_semantics_partially_analyzed": 26,
+        "dns_redirect_and_network_access_unverified": 6,
+        "http_destination_provenance_unresolved": 4,
+        "nlp_technical_entity_filtered": 10,
+        "code_branch_field_optional": 1,
+        "code_call_effect_unresolved": 4,
+        "code_closure_capture_unresolved": 2,
+        "code_effects_partially_analyzed": 12,
+        "code_exception_value_unverified": 5,
+        "code_source_observations_only": 6,
+        "code_statement_profile_unresolved": 7,
+        "code_try_state_unresolved": 5,
+        "expression_semantics_unsupported": 37,
+        "field_projection_partial": 34,
+        "json_parse_shape_unverified": 6,
+        "node_transform_unsupported": 30,
+        "object_expression_unsupported": 5,
+        "string_split_cardinality_unverified": 7,
+        "sql_query_structure_unresolved": 4,
+        "code_array_spread_shape_unverified": 1,
+        "code_bounded_flow_partial": 2,
+        "code_collection_cardinality_unverified": 5,
+        "code_collection_shape_unverified": 4,
+        "code_dynamic_index_unresolved": 1,
+        "code_expression_profile_unresolved": 2,
+        "flow_budget_exceeded": 3,
+        "nlp_json_string_values_only": 4,
+        "destination_access_unverified": 10,
+        "read_response_classification_unverified": 7,
+        "record_match_selection_unverified": 1,
+        "service_response_shape_unverified": 11,
+        "ai_runtime_invocation_and_permissions_unverified": 45,
+        "non_main_connection_semantics_unreviewed": 2,
+        "partial_workflow_topology": 24,
+        "recipient_identity_unresolved": 2,
+        "ai_binary_prompt_content_unverified": 24,
+        "ai_connection_contract_unresolved": 4,
+        "ai_required_model_connection_missing": 4,
+        "ai_required_output_parser_missing": 2,
+        "ai_prompt_expression_partial": 8,
+        "model_attack_resistance_and_value_flow_unverified": 8,
+        "ai_generation_output_unverified": 8,
+        "ai_prompt_value_unresolved": 8,
+        "instance_workflow_link_included": 5,
+        "sheet_empty_header_fallback_possible": 1,
+        "sheet_headers_runtime_unverified": 1,
+        "ai_model_context_sensitivity_unverified": 6,
+        "ai_model_endpoint_from_credentials_unverified": 6,
+        "ai_model_invocation_and_output_unverified": 6,
+        "ai_model_transfer_policy_unresolved": 6,
+        "ai_node_semantics_unreviewed": 2,
+        "model_processing_and_retention_unverified": 2,
+        "provider_endpoint_from_credentials_unverified": 2,
+        "ai_node_profile_unreviewed": 2,
+        "code_collection_index_unverified": 1,
+        "direct_reference_unconnected": 4,
+        "database_runtime_schema_and_permissions_unverified": 3,
+        "sql_input_flow_partially_analyzed": 1,
+        "database_input_provenance_unresolved": 1,
+        "code_loop_summary_partial": 2,
+        "command_input_origin_unresolved": 6,
+        "unsupported_code_language": 4,
+        "message_reply_markup_unverified": 2,
+        "model_invocation_and_output_unverified": 1,
+        "unsupported_log_code_profile": 2,
+        "command_input_flow_partially_analyzed": 5,
+        "javascript_profile_unsupported": 2,
+        "remote_host_permissions_and_directory_unverified": 4,
+        "remote_working_directory_unavailable": 4,
+        "python_static_profile_limited": 4,
+        "code_language_unresolved": 2,
+        "merge_item_alignment_unverified": 2,
+        "nlp_chunked_text_profile": 1,
+        "binary_payload_unavailable": 7,
+        "filesystem_permissions_and_path_scope_unverified": 5,
+        "local_file_path_provenance_unresolved": 5,
+        "code_parse_unavailable": 1,
+        "expression_syntax_unsupported": 1,
+        "code_callback_mutation_unresolved": 1,
+        "required_send_field_missing": 1
+      },
+      "affectedSamples": {
+        "opaque_node_effects": 15,
+        "response_data_sensitivity_unverified": 2,
+        "payload_provenance_unresolved": 14,
+        "response_recipient_authorization_unverified": 5,
+        "transferred_data_sensitivity_unverified": 14,
+        "trusted_policy_transfer_unresolved": 15,
+        "nonstandard_execution_semantics": 3,
+        "sql_parameter_binding_unresolved": 2,
+        "sql_parameter_mapping_data_dependent": 1,
+        "nlp_english_model_profile": 15,
+        "nlp_metadata_formats_only": 15,
+        "nlp_program_formats_only": 12,
+        "nlp_template_literal_text_only": 15,
+        "runtime_evidence_missing": 15,
+        "node_execution_semantics_unresolved": 5,
+        "transport_url_unresolved": 3,
+        "input_provenance_unresolved": 5,
+        "code_logging_and_sensitivity_partially_analyzed": 10,
+        "recipient_provenance_unresolved": 5,
+        "redirect_destination_unverified": 3,
+        "code_logging_semantics_partial": 10,
+        "javascript_control_flow_partial": 10,
+        "javascript_semantics_partially_analyzed": 10,
+        "dns_redirect_and_network_access_unverified": 3,
+        "http_destination_provenance_unresolved": 2,
+        "nlp_technical_entity_filtered": 10,
+        "code_branch_field_optional": 1,
+        "code_call_effect_unresolved": 3,
+        "code_closure_capture_unresolved": 2,
+        "code_effects_partially_analyzed": 7,
+        "code_exception_value_unverified": 2,
+        "code_source_observations_only": 4,
+        "code_statement_profile_unresolved": 5,
+        "code_try_state_unresolved": 2,
+        "expression_semantics_unsupported": 11,
+        "field_projection_partial": 10,
+        "json_parse_shape_unverified": 3,
+        "node_transform_unsupported": 12,
+        "object_expression_unsupported": 3,
+        "string_split_cardinality_unverified": 7,
+        "sql_query_structure_unresolved": 1,
+        "code_array_spread_shape_unverified": 1,
+        "code_bounded_flow_partial": 2,
+        "code_collection_cardinality_unverified": 3,
+        "code_collection_shape_unverified": 3,
+        "code_dynamic_index_unresolved": 1,
+        "code_expression_profile_unresolved": 2,
+        "flow_budget_exceeded": 1,
+        "nlp_json_string_values_only": 4,
+        "destination_access_unverified": 3,
+        "read_response_classification_unverified": 5,
+        "record_match_selection_unverified": 1,
+        "service_response_shape_unverified": 6,
+        "ai_runtime_invocation_and_permissions_unverified": 6,
+        "non_main_connection_semantics_unreviewed": 2,
+        "partial_workflow_topology": 6,
+        "recipient_identity_unresolved": 2,
+        "ai_binary_prompt_content_unverified": 6,
+        "ai_connection_contract_unresolved": 2,
+        "ai_required_model_connection_missing": 2,
+        "ai_required_output_parser_missing": 2,
+        "ai_prompt_expression_partial": 6,
+        "model_attack_resistance_and_value_flow_unverified": 6,
+        "ai_generation_output_unverified": 6,
+        "ai_prompt_value_unresolved": 6,
+        "instance_workflow_link_included": 3,
+        "sheet_empty_header_fallback_possible": 1,
+        "sheet_headers_runtime_unverified": 1,
+        "ai_model_context_sensitivity_unverified": 4,
+        "ai_model_endpoint_from_credentials_unverified": 4,
+        "ai_model_invocation_and_output_unverified": 4,
+        "ai_model_transfer_policy_unresolved": 4,
+        "ai_node_semantics_unreviewed": 2,
+        "model_processing_and_retention_unverified": 2,
+        "provider_endpoint_from_credentials_unverified": 2,
+        "ai_node_profile_unreviewed": 2,
+        "code_collection_index_unverified": 1,
+        "direct_reference_unconnected": 1,
+        "database_runtime_schema_and_permissions_unverified": 1,
+        "sql_input_flow_partially_analyzed": 1,
+        "database_input_provenance_unresolved": 1,
+        "code_loop_summary_partial": 2,
+        "command_input_origin_unresolved": 3,
+        "unsupported_code_language": 1,
+        "message_reply_markup_unverified": 1,
+        "model_invocation_and_output_unverified": 1,
+        "unsupported_log_code_profile": 1,
+        "command_input_flow_partially_analyzed": 3,
+        "javascript_profile_unsupported": 1,
+        "remote_host_permissions_and_directory_unverified": 1,
+        "remote_working_directory_unavailable": 1,
+        "python_static_profile_limited": 1,
+        "code_language_unresolved": 1,
+        "merge_item_alignment_unverified": 1,
+        "nlp_chunked_text_profile": 1,
+        "binary_payload_unavailable": 1,
+        "filesystem_permissions_and_path_scope_unverified": 1,
+        "local_file_path_provenance_unresolved": 1,
+        "code_parse_unavailable": 1,
+        "expression_syntax_unsupported": 1,
+        "code_callback_mutation_unresolved": 1,
+        "required_send_field_missing": 1
+      }
+    },
+    "diagnosticDelta": {
+      "ai_binary_prompt_content_unverified": 24,
+      "ai_connection_contract_unresolved": 4,
+      "ai_generation_output_unverified": 8,
+      "ai_model_context_sensitivity_unverified": 6,
+      "ai_model_endpoint_from_credentials_unverified": 6,
+      "ai_model_invocation_and_output_unverified": 6,
+      "ai_model_transfer_policy_unresolved": 6,
+      "ai_node_profile_unreviewed": 2,
+      "ai_node_semantics_unreviewed": -19,
+      "ai_prompt_expression_partial": 8,
+      "ai_prompt_value_unresolved": 8,
+      "ai_required_model_connection_missing": 4,
+      "ai_required_output_parser_missing": 2,
+      "ai_runtime_invocation_and_permissions_unverified": 45,
+      "binary_payload_unavailable": 5,
+      "builtin_capability_profile_unreviewed": -71,
+      "code_array_spread_shape_unverified": 1,
+      "code_bounded_flow_partial": 2,
+      "code_branch_field_optional": 1,
+      "code_call_effect_unresolved": 4,
+      "code_callback_mutation_unresolved": 1,
+      "code_closure_capture_unresolved": 2,
+      "code_collection_cardinality_unverified": 5,
+      "code_collection_index_unverified": 1,
+      "code_collection_shape_unverified": 4,
+      "code_dynamic_index_unresolved": 1,
+      "code_effects_partially_analyzed": 12,
+      "code_exception_value_unverified": 5,
+      "code_expression_profile_unresolved": 2,
+      "code_language_unresolved": 0,
+      "code_logging_and_sensitivity_partially_analyzed": 0,
+      "code_logging_semantics_partial": 0,
+      "code_loop_summary_partial": 2,
+      "code_mapping_unsupported": -19,
+      "code_parse_unavailable": 0,
+      "code_source_observations_only": 6,
+      "code_statement_profile_unresolved": 7,
+      "code_try_state_unresolved": 5,
+      "command_input_flow_partially_analyzed": 0,
+      "command_input_origin_unresolved": 0,
+      "database_input_provenance_unresolved": 1,
+      "database_operation_profile_unsupported": -1,
+      "database_runtime_schema_and_permissions_unverified": 3,
+      "destination_access_unverified": 7,
+      "direct_reference_unconnected": 0,
+      "dns_redirect_and_network_access_unverified": 6,
+      "expression_semantics_unsupported": 1,
+      "expression_syntax_unsupported": 0,
+      "field_projection_partial": 5,
+      "filesystem_permissions_and_path_scope_unverified": 5,
+      "flow_budget_exceeded": 0,
+      "http_destination_provenance_unresolved": 4,
+      "input_provenance_unresolved": 0,
+      "instance_workflow_link_included": 0,
+      "javascript_control_flow_partial": 0,
+      "javascript_profile_unsupported": 0,
+      "javascript_semantics_partially_analyzed": 0,
+      "json_parse_shape_unverified": 6,
+      "local_file_path_provenance_unresolved": 5,
+      "merge_item_alignment_unverified": 0,
+      "message_reply_markup_unverified": 0,
+      "model_attack_resistance_and_value_flow_unverified": 0,
+      "model_invocation_and_output_unverified": 1,
+      "model_processing_and_retention_unverified": 1,
+      "nlp_chunked_text_profile": 0,
+      "nlp_english_model_profile": 0,
+      "nlp_json_string_values_only": 0,
+      "nlp_metadata_formats_only": 0,
+      "nlp_program_formats_only": 0,
+      "nlp_technical_entity_filtered": 0,
+      "nlp_template_literal_text_only": 0,
+      "node_execution_semantics_unresolved": 0,
+      "node_transform_unsupported": -20,
+      "non_main_connection_semantics_unreviewed": -7,
+      "nonstandard_execution_semantics": -4,
+      "object_expression_unsupported": 0,
+      "opaque_node_effects": 0,
+      "partial_workflow_topology": 0,
+      "payload_provenance_unresolved": 7,
+      "provider_endpoint_from_credentials_unverified": 1,
+      "python_static_profile_limited": 0,
+      "read_response_classification_unverified": 3,
+      "recipient_identity_unresolved": 0,
+      "recipient_provenance_unresolved": 0,
+      "record_match_selection_unverified": 1,
+      "redirect_destination_unverified": 0,
+      "remote_host_permissions_and_directory_unverified": 4,
+      "remote_working_directory_unavailable": 4,
+      "required_send_field_missing": 1,
+      "response_data_sensitivity_unverified": 3,
+      "response_recipient_authorization_unverified": 0,
+      "runtime_evidence_missing": 0,
+      "service_response_shape_unverified": 11,
+      "sheet_empty_header_fallback_possible": 1,
+      "sheet_headers_runtime_unverified": 1,
+      "sql_input_flow_partially_analyzed": -4,
+      "sql_parameter_binding_unresolved": 1,
+      "sql_parameter_mapping_data_dependent": 0,
+      "sql_parse_unsupported": -4,
+      "sql_query_structure_unresolved": 4,
+      "string_split_cardinality_unverified": 7,
+      "transferred_data_sensitivity_unverified": 11,
+      "transport_url_unresolved": 0,
+      "trusted_policy_transfer_unresolved": 12,
+      "unsupported_code_language": 0,
+      "unsupported_database_operation": -1,
+      "unsupported_log_code_profile": 0
+    }
+  },
+  "isolationChecks": {
+    "uid": 65532,
+    "interfaces": ["lo"],
+    "rootWriteDenied": true,
+    "networkFailure": "ENETUNREACH",
+    "memory": "1073741824",
+    "pids": "96",
+    "cpu": "100000 100000",
+    "noNewPrivileges": true,
+    "noCapabilities": true
+  },
+  "failureChecks": [
+    "evidence_input_mismatch",
+    "cancelled",
+    "cancelled",
+    "assessment_timeout"
+  ],
+  "cancellationPhases": ["early_request", "observed_running"],
+  "cleanup": "no_new_containers",
+  "assessments": [
+    {
+      "id": "native_content_and_python",
+      "inputSha256": "cd53f8bb511e164dc2c20a30b03a12874438bb301afbedad601620e5430ac003",
+      "status": "partial",
+      "files": 1
+    },
+    {
+      "id": "mapped_sensitive_mail_and_package_policy",
+      "inputSha256": "e6566bf8a7012d081558b391a854aa99177e1857a884fe31d4ee8004d1ab28ef",
+      "status": "partial",
+      "files": 1
+    },
+    {
+      "id": "bounded_code_to_sheet",
+      "inputSha256": "5bf6949f639d170394a3444e7dd3c4adfc67b5cacb39ff77df738c3df4dff0f1",
+      "status": "partial",
+      "files": 1
+    },
+    {
+      "id": "prompt_model_and_tool_contracts",
+      "inputSha256": "65106389062e75a053a513d7fa3ea75af2016c7d065cb68e5a1d77d0b8a1f436",
+      "status": "partial",
+      "files": 1
+    },
+    {
+      "id": "code_literal_sql_definition",
+      "inputSha256": "6a6277ec3d8e1f1608ae851048b9ce122ff98d39d36373b33efdeac83a957582",
+      "status": "partial",
+      "files": 1
+    },
+    {
+      "id": "sql_original",
+      "inputSha256": "fc5b6f72454ccd175bb629fffe445273c9e7a440ab0128ea65f4d675fc4d64b8",
+      "status": "partial",
+      "files": 1
+    },
+    {
+      "id": "sql_repaired",
+      "inputSha256": "59bdcfb7cd7c4cbc5a77d557352d8b60ec17ee15fdb6de94e96af3148cbf6ba6",
+      "status": "partial",
+      "files": 1
+    },
+    {
+      "id": "inline_child_definition",
+      "inputSha256": "5902e59beb04735dd6ced364761d6d80b54b4a093a47f65a48c92efa56cbe12d",
+      "status": "partial",
+      "files": 2
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "dist/advanced-risks.js",
+      "sha256": "481d473146e1026ff6231395fc5625939763f582b15ad7be030d5f2e60713491"
+    },
+    {
+      "path": "dist/ai-flow.js",
+      "sha256": "83d4a3274a4f128549e857c2819e606b402b8b9bbd997c3e60a5e7318999c92e"
+    },
+    {
+      "path": "dist/analysis.js",
+      "sha256": "ff2e9f7d645c1b262d690c9c31142f847c04fae8214b547e17e2d3a67e545c65"
+    },
+    {
+      "path": "dist/analyzer.js",
+      "sha256": "556825a23e026f972a87b8c9210d93736ef1b4f1afe8c9a57c2f0c3819adefb1"
+    },
+    {
+      "path": "dist/api-client.js",
+      "sha256": "bd8d36f7e35fba4c05780a1295b07a92f5b7246b76d8194091ca60c92ba7c6ab"
+    },
+    {
+      "path": "dist/assessment-change.js",
+      "sha256": "d433bf0fe05468af6338c1eb0d4ac790a4fde4b6a1400d3c3098aa5a244cf43a"
+    },
+    {
+      "path": "dist/assessment-compare.js",
+      "sha256": "182cc42f16f55feaef218d711b064d1733a036d2f6984ff55726b1451eee673c"
+    },
+    {
+      "path": "dist/assessment-contract.js",
+      "sha256": "3399037d09a234e36271ef1d95ac254b60c5296c1c8925f9108a02a69fcc337f"
+    },
+    {
+      "path": "dist/assessment-engine.js",
+      "sha256": "ec5e5af821822e659ec6d16c93726a5238b8b0636abf60ac0c52b284c2e868c4"
+    },
+    {
+      "path": "dist/assessment-entry.js",
+      "sha256": "705c65c8b6555cce07d4378d1cb95377b34469b914fb2572b1e79ced5a2c89bf"
+    },
+    {
+      "path": "dist/assessment-environment.js",
+      "sha256": "f3a594bdec954ce0a2c67242fa0d53a44d56ca1a265b80d59c5309ef2009fe72"
+    },
+    {
+      "path": "dist/assessment-evidence.js",
+      "sha256": "3f0addd802152ba71b44328c11499f933506d075cf47503bb3306e39b4fc29b9"
+    },
+    {
+      "path": "dist/assessment-policy.js",
+      "sha256": "d0e916f0a61c76ccb4ea5d9cc72178d52e2e364acd7159c88d33c1171874655a"
+    },
+    {
+      "path": "dist/assessment-runner.js",
+      "sha256": "6d7b64cb4255f885cf87af331fb737651ca8a7da43bc42e7e37d92597b884545"
+    },
+    {
+      "path": "dist/assessment-subworkflows.js",
+      "sha256": "2edfe7a4ad1301d1bf43218757f9b6faa731e19154c9aba06b8b2ff8cfb3e858"
+    },
+    {
+      "path": "dist/assessment-summary.js",
+      "sha256": "70d505b28d72ebd338b54a18e83a1aef91b8dcd196efd3d06d6ba1f6753e46d0"
+    },
+    {
+      "path": "dist/bounded-code.js",
+      "sha256": "250840f9994046a82a9452443a3d891eca01c3987d866a695d1ea5590f7cac59"
+    },
+    {
+      "path": "dist/cli.js",
+      "sha256": "2c2063be9e359680ece2504d460220b4b6dbb3cd613ad502224cb40a857ca8b1"
+    },
+    {
+      "path": "dist/compare.js",
+      "sha256": "285316ae6361b5cdbbe06fe4e292e09bf0e4dd3d2054db9cd7bb9165d97d9957"
+    },
+    {
+      "path": "dist/contract.js",
+      "sha256": "411b50bf729c1075f6e47f679abe306732d46084e4563439c790e867ef6e12fc"
+    },
+    {
+      "path": "dist/definition-risks.js",
+      "sha256": "c500fe466a8de498a4c0c26eb877f2a876c953549021ea2e3e93d1ebff132a42"
+    },
+    {
+      "path": "dist/extended-sinks.js",
+      "sha256": "74fdb4464065fdbcd6fa4b090b01ad0bc5ff79c501a9b1ff25d9381a5302bfc4"
+    },
+    {
+      "path": "dist/gitleaks.js",
+      "sha256": "3a49ba7f08833d24bf9975bee850b7274349835593d5ea98a3485917d2514358"
+    },
+    {
+      "path": "dist/n8n.js",
+      "sha256": "c41ea303044befa667c47dc803e2433496426dd8d7c772c255add03a67dcbc4c"
+    },
+    {
+      "path": "dist/native-inspection.js",
+      "sha256": "1d0fa3abbd60dd082325934a575d09ec94b6b4fd75f0da9cbcf8520dd48504aa"
+    },
+    {
+      "path": "dist/runner.js",
+      "sha256": "c57e47f86c2bb5f7774b99cdf0327f67d51140097af9d1922bb396f1d3a6cc04"
+    },
+    {
+      "path": "dist/static-analyzer.js",
+      "sha256": "52ac33e78475a12bec8afbb3bc781147160d82ba8cac018c7e1988a3ff27f97f"
+    },
+    {
+      "path": "dist/static-compare.js",
+      "sha256": "f7534c666fd952368de818293aa7683a1430c85465fedb0c368b00f976fd9ea5"
+    },
+    {
+      "path": "dist/static-content.js",
+      "sha256": "ff2389cf78dcc62cac86aace43211c0a71d2ff6db8b86c8b1fd2045f42ecba5e"
+    },
+    {
+      "path": "dist/static-context.js",
+      "sha256": "ae7fbeaca1144baedaed05c64889d0bdca27f490ee7499449861909e5ccc96ce"
+    },
+    {
+      "path": "dist/static-contract.js",
+      "sha256": "da4ff903eb070b64d19f18475d726e92dd2851f6509cecb8fa50654739d0a5b3"
+    },
+    {
+      "path": "dist/static-engine.js",
+      "sha256": "b14906c6fa917d66609c01b6c7598a6153cdbddb39fc6c25cb30e42d6c1c7cc8"
+    },
+    {
+      "path": "dist/static-flow.js",
+      "sha256": "77a14afbdd145724c692511510a0a1c454326a5cdf6d04622a1ef145e706da32"
+    },
+    {
+      "path": "dist/static-runner.js",
+      "sha256": "96552467939754214b5eb3054e93e16ccf6445d8cb7809b875a89836040981a9"
+    },
+    {
+      "path": "dist/static-settings.js",
+      "sha256": "0f2dfe45a6008d45c755f7bb61df4ce438b2e1ff1bbe23c91abc02a467206db5"
+    },
+    {
+      "path": "dist/subprocess.js",
+      "sha256": "a10601c441913e0e931cd153d7d51849bd672987fad561514d7cc79f75c94203"
+    },
+    {
+      "path": "dist/value-flow.js",
+      "sha256": "c2b434ea3de62f234d028da1758af9b08289956f63cf834383ce01937038d956"
+    },
+    {
+      "path": "dist/worker-io.js",
+      "sha256": "84d852d75dd47512213fa15c141e799b421863150525e15587faac9d71b6d6fe"
+    },
+    {
+      "path": "tools/native-inspection.py",
+      "sha256": "58602e032f766b5b52d2405355bae869db509f292326e2210b2d6ac9ee8dcd92"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "b10738585e6563b13b872c3818b1b48bf71f5b2e2feb2a63b7e519f622509b42"
+    }
+  ],
+  "sourceHashes": {
+    "dist/assessment-runner.js": "6d7b64cb4255f885cf87af331fb737651ca8a7da43bc42e7e37d92597b884545",
+    "dist/assessment-engine.js": "ec5e5af821822e659ec6d16c93726a5238b8b0636abf60ac0c52b284c2e868c4",
+    "dist/assessment-entry.js": "705c65c8b6555cce07d4378d1cb95377b34469b914fb2572b1e79ced5a2c89bf",
+    "dist/assessment-change.js": "d433bf0fe05468af6338c1eb0d4ac790a4fde4b6a1400d3c3098aa5a244cf43a",
+    "dist/value-flow.js": "c2b434ea3de62f234d028da1758af9b08289956f63cf834383ce01937038d956",
+    "dist/advanced-risks.js": "481d473146e1026ff6231395fc5625939763f582b15ad7be030d5f2e60713491",
+    "dist/extended-sinks.js": "74fdb4464065fdbcd6fa4b090b01ad0bc5ff79c501a9b1ff25d9381a5302bfc4",
+    "tools/native-inspection.py": "58602e032f766b5b52d2405355bae869db509f292326e2210b2d6ac9ee8dcd92",
+    "package-lock.json": "b10738585e6563b13b872c3818b1b48bf71f5b2e2feb2a63b7e519f622509b42",
+    "Dockerfile.assessment": "bbaaff37ce893e46669f43f37fbd4411b89c5a8d95a0929f30e0c4b54e9c3f03",
+    "Dockerfile.assessment-runtime": "e03213f7e2365ca2299bb53953c4d0ffd5d3bd8cba9a8e194d4f96c794667217",
+    "tools/requirements-nlp.txt": "9c5a900fd49463a84e121748e3bd2d5fd6207a0ec6947fd101021c4bdba9a174",
+    "validation/verify-assessment-runtime.mjs": "d6da0f2902c33c2e43c5bbe23fc65c47dca0e06b3332d281bfda680e2bad6dc7"
+  },
+  "localRawReceipts": {
+    "runtime": {
+      "file": "assessment-runtime-0.6.0-results.json",
+      "sha256": "41070c9a4fee4a1fc89236850c1282fca4cc9b62bc410069f0743b58548b5bda"
+    },
+    "native": {
+      "file": "native-profile-0.6.0-results.json.assessment.raw.json",
+      "sha256": "ded3f26184fda889cf7bb30c7705058c00be1158789f467d0b6915061672612e"
+    }
+  },
+  "records": [
+    {
+      "path": "validation/native-profile-0.6.0-results.json",
+      "sha256": "d7f74d1c42f82d254d7bc1a20b59df048beb7c339a30d8423736e46d31b56c3e"
+    },
+    {
+      "path": "validation/public-assessment-0.6.0-results.json",
+      "sha256": "74f79ed55add47f7ac86768dc5f4381bff188254f8d3a690a257f40687045768"
+    },
+    {
+      "path": "validation/public-coverage-0.6.0-results.json",
+      "sha256": "9cf2e215bd57514960a9b2bcc47f7fea7074722423295997be6eb97ed9124e91"
+    },
+    {
+      "path": "validation/public-regressions-0.6.0-results.json",
+      "sha256": "1d18247e2b29e4af0d2bd818ca30bb8df22372815009e21016d942c63f25c637"
+    },
+    {
+      "path": "validation/public-service-path-0.6.0-results.json",
+      "sha256": "eb5cfcd82a72c2881e7773cdf6fbaec21b0652b057f9eee7fa4b26cd41cf64aa"
+    },
+    {
+      "path": "validation/static-corpus-0.6.0-results.json",
+      "sha256": "8fb75a41c5dce71b657095044aacb310dc49761961d18c030ae20233db0d4cfc"
+    },
+    {
+      "path": "validation/node-profile-sources-0.6.0.json",
+      "sha256": "a36f74e902ebce360dd8aeafddd0ad9690e9235cb5ef4a038eb08e18cf097942"
+    }
+  ],
+  "boundaries": [
+    "public_and_user_code_never_executed",
+    "ai_models_and_tools_never_invoked",
+    "partial_is_neither_error_nor_safety_verdict",
+    "diagnostics_are_not_independent_vulnerabilities",
+    "opaque_early_exit_is_not_coverage_improvement",
+    "runtime_and_policy_evidence_not_replaced_by_api_connection",
+    "historical_inputs_and_results_preserved",
+    "controlled_revisions_do_not_prove_business_behavior_preserved"
+  ]
+}

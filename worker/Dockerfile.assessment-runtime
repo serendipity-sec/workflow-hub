@@ -1,0 +1,10 @@
+FROM ghcr.io/gitleaks/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f AS secret_tool
+FROM node@sha256:d8e448a56fc63242f70026718378bd4b00f8c82e78d20eefb199224a4d8e33d8
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv && rm -rf /var/lib/apt/lists/*
+COPY --from=secret_tool /usr/bin/gitleaks /usr/local/bin/gitleaks
+COPY tools/requirements-nlp.txt /opt/requirements-nlp.txt
+RUN python3 -m venv /opt/nlp && /opt/nlp/bin/python -m pip install --no-cache-dir --disable-pip-version-check -r /opt/requirements-nlp.txt
+WORKDIR /opt/worker
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+ENV PYTHONDONTWRITEBYTECODE=1 OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 GOMAXPROCS=1

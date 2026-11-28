@@ -1,0 +1,566 @@
+{
+  "schemaVersion": "1.0.0",
+  "outcome": "passed",
+  "model": "z-ai/glm-5.3-flash",
+  "provider": "openrouter",
+  "maxPriceUsdPerMillionTokens": {
+    "prompt": 0.04,
+    "completion": 0.08,
+    "request": 0
+  },
+  "workflowExecution": "not_run",
+  "actualTeamApiIntegration": "not_run",
+  "modelAuthority": "explanation_only",
+  "staticVerdictsUnchanged": true,
+  "sourceContentSent": false,
+  "modelSelectionReviewed": "separate_manual_review_required",
+  "renderedText": "deterministic_original_evidence",
+  "totalReportedCostUsd": 0.0027272358,
+  "samples": [
+    {
+      "id": 16081,
+      "inputSha256": "240fa1306060e29f9b4dd325155d4c2228e2971293da79f6cc50976ab1f84595",
+      "assessmentSha256": "503f84f4bbf1f990ad7418a9d0c9e9787e2b2b51167b88053948d0227c08c0b2",
+      "inspectionSha256": "003ef94c54a4a7418b4e0871c42d0a9a4eaa13594be4c4a1125f89c4b33c8b40",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "counts": {
+        "findings": 5,
+        "observations": 27,
+        "analysisGaps": 20,
+        "environmentChecks": 17,
+        "scopeNotes": 4
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "llmStatus": "generated",
+      "llmCode": null,
+      "llmContextSha256": "6216f915778a2bee7e8cf3c1967d9c0bf90246ac3d0d5dd60e11638befe1f05a",
+      "selectedReferences": 8,
+      "omittedReferences": 10,
+      "usage": {
+        "promptTokens": 4495,
+        "completionTokens": 147,
+        "costUsd": 0.0001908753
+      },
+      "availableReferences": 36,
+      "inspectionArtifact": "16081.inspection.json"
+    },
+    {
+      "id": 20541,
+      "inputSha256": "d3d5f495130b43df93a319764459f352e104607f5eb28e5d061c77c3a7da20aa",
+      "assessmentSha256": "ca5d5ef20bac8f031585ba5ea5cffa7ea05c18379d0366b6a443e828add30aac",
+      "inspectionSha256": "347b7e1c4557c7f89a1088e9d91c38eca34f273d217d1dce9e22826692fa81c1",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "counts": {
+        "findings": 22,
+        "observations": 41,
+        "analysisGaps": 96,
+        "environmentChecks": 16,
+        "scopeNotes": 5
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "llmStatus": "generated",
+      "llmCode": null,
+      "llmContextSha256": "5b48de38f39a02cafdb276e9af5ba9f764e4cf55081adf6187a9a792e85131f8",
+      "selectedReferences": 8,
+      "omittedReferences": 103,
+      "usage": {
+        "promptTokens": 4482,
+        "completionTokens": 31,
+        "costUsd": 0.0001812622
+      },
+      "availableReferences": 36,
+      "inspectionArtifact": "20541.inspection.json"
+    },
+    {
+      "id": 20459,
+      "inputSha256": "5d6db1a142789d17f06ecd8419d9c721593eca82fa142f537936ff4a0dbcf18d",
+      "assessmentSha256": "4ec0b0acaceb0edbb1e1bcacea8e72b6f137f403ac89b20fff4f1e7d0385fef5",
+      "inspectionSha256": "10b1417e47d1f8db1c0d0f55a9ff63089d59a034f8d9abaced3b40b0ee9170fe",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "counts": {
+        "findings": 20,
+        "observations": 40,
+        "analysisGaps": 80,
+        "environmentChecks": 9,
+        "scopeNotes": 5
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "llmStatus": "generated",
+      "llmCode": null,
+      "llmContextSha256": "d2e0defc939328dec720e1a4efd7da549681cba6f62bcc35801cafe219cb932d",
+      "selectedReferences": 8,
+      "omittedReferences": 78,
+      "usage": {
+        "promptTokens": 4431,
+        "completionTokens": 31,
+        "costUsd": 0.0001779601
+      },
+      "availableReferences": 36,
+      "inspectionArtifact": "20459.inspection.json"
+    },
+    {
+      "id": 14034,
+      "inputSha256": "f7bf2111da711feaf7762c96132155804aefd683ba902bba50e1706851470dde",
+      "assessmentSha256": "37b2f286c91a56bab76c0fc9368b9a1e0cc2952ffeec4e7dab5a1e40d87405c6",
+      "inspectionSha256": "44eb4651e2af7f01d816f9427e0351dedfab5784aa76d645f6bd9a5bd3c712f4",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "counts": {
+        "findings": 7,
+        "observations": 10,
+        "analysisGaps": 18,
+        "environmentChecks": 4,
+        "scopeNotes": 6
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "llmStatus": "generated",
+      "llmCode": null,
+      "llmContextSha256": "d79d66c1eb2e1770ac718b1a39bde18c94533ab9feebd17b84dae05159dc42c8",
+      "selectedReferences": 8,
+      "omittedReferences": 0,
+      "usage": {
+        "promptTokens": 4528,
+        "completionTokens": 111,
+        "costUsd": 0.0001893696
+      },
+      "availableReferences": 35,
+      "inspectionArtifact": "14034.inspection.json"
+    },
+    {
+      "id": 2490,
+      "inputSha256": "1053cb887fe65b990c0f085cdd58ea6fbb208c0495e37c713db6c00c3272a3e9",
+      "assessmentSha256": "edc086e9e380b50174cfe0de5329ad95d4e836d546b4e0fddb688c22eb2373a2",
+      "inspectionSha256": "54d8591631a8ae46e2bf26753eb2f48d8cb9d0ce484b8ddc117a3dab84dd83ef",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed_with_errors",
+      "analysisStatus": "review_required",
+      "counts": {
+        "findings": 22,
+        "observations": 35,
+        "analysisGaps": 39,
+        "environmentChecks": 44,
+        "scopeNotes": 3
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "llmStatus": "generated",
+      "llmCode": null,
+      "llmContextSha256": "4d4a7f778ba38ab5e71920457b80c6c6ff1bfadbcd1918eb122ecfd4103451f1",
+      "selectedReferences": 8,
+      "omittedReferences": 71,
+      "usage": {
+        "promptTokens": 4479,
+        "completionTokens": 49,
+        "costUsd": 0.0001825537
+      },
+      "availableReferences": 36,
+      "inspectionArtifact": "2490.inspection.json"
+    },
+    {
+      "id": 7643,
+      "inputSha256": "0d3fc12253934d795ec19610851727fa668af7a0b47232b51fef586135aecc0d",
+      "assessmentSha256": "e107e59c8774d02b9e11021ce25a01424d8b00d7dfa716c183e50bdcd4ea7a6b",
+      "inspectionSha256": "58b2a9cdf7c60c8c7e90bff774035914456de0e0274d06f663b201af01fd6d0c",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "counts": {
+        "findings": 2,
+        "observations": 18,
+        "analysisGaps": 49,
+        "environmentChecks": 14,
+        "scopeNotes": 6
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "llmStatus": "generated",
+      "llmCode": null,
+      "llmContextSha256": "01062684fa90b1fb162255d0e453515231ffafd61604b15aaca18016f4bf6249",
+      "selectedReferences": 8,
+      "omittedReferences": 36,
+      "usage": {
+        "promptTokens": 4487,
+        "completionTokens": 31,
+        "costUsd": 0.0001814617
+      },
+      "availableReferences": 35,
+      "inspectionArtifact": "7643.inspection.json"
+    },
+    {
+      "id": 18521,
+      "inputSha256": "f5586df6760b5fb2c5accdb22c402316eeedfe3a0caf92b6139da78a2c63b157",
+      "assessmentSha256": "a08b724d3a055c370d1408a554d8da85748683e8ec346618c9816f165d930af3",
+      "inspectionSha256": "a0a48f1bfc13e100c366674a747941376560bd31cdc39b5eaa6516b1258f95d7",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "counts": {
+        "findings": 18,
+        "observations": 41,
+        "analysisGaps": 95,
+        "environmentChecks": 34,
+        "scopeNotes": 7
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "llmStatus": "generated",
+      "llmCode": null,
+      "llmContextSha256": "61aec9680e1d00291879c55e97dbd7780064a5c217ab57ed359d661209f43335",
+      "selectedReferences": 8,
+      "omittedReferences": 119,
+      "usage": {
+        "promptTokens": 4424,
+        "completionTokens": 31,
+        "costUsd": 0.000178948
+      },
+      "availableReferences": 35,
+      "inspectionArtifact": "18521.inspection.json"
+    },
+    {
+      "id": 15403,
+      "inputSha256": "8438bdef61645e45e9efcb104c8313d910826e4376f36571089bcd2a39022068",
+      "assessmentSha256": "8c5c1a708d38bbc7392c52f3b8a6c78de7b460485ec3011e40f348f02e6db2af",
+      "inspectionSha256": "c9f79e84875ed0ac05540ad24ee3b2758f22300de784e3ab6798440038cebd92",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "counts": {
+        "findings": 21,
+        "observations": 41,
+        "analysisGaps": 93,
+        "environmentChecks": 21,
+        "scopeNotes": 5
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "llmStatus": "generated",
+      "llmCode": null,
+      "llmContextSha256": "b574cf34795fb51e6dbea5b040248ba7665c1b953ff8c3648185619391314cda",
+      "selectedReferences": 8,
+      "omittedReferences": 105,
+      "usage": {
+        "promptTokens": 4513,
+        "completionTokens": 31,
+        "costUsd": 0.0001812319
+      },
+      "availableReferences": 35,
+      "inspectionArtifact": "15403.inspection.json"
+    },
+    {
+      "id": 10111,
+      "inputSha256": "244b7f1c399d278c8c7484aa0c98b3ec48e1c610099d4e1cde9bd38c601abc84",
+      "assessmentSha256": "7b0c23cf80c2b05ef4db18af38615fbf646eab141cbce8e74abda6c82d3cf95b",
+      "inspectionSha256": "59b0e51222679832e437e24019249a30e8bf2b79563ca66a4768bfd5ba56e8d9",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "counts": {
+        "findings": 28,
+        "observations": 55,
+        "analysisGaps": 87,
+        "environmentChecks": 21,
+        "scopeNotes": 6
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "llmStatus": "generated",
+      "llmCode": null,
+      "llmContextSha256": "69e4e9b96df17b155af14c44d61bc78a895e40e740a44e1c7bd9b45529168d58",
+      "selectedReferences": 8,
+      "omittedReferences": 107,
+      "usage": {
+        "promptTokens": 4339,
+        "completionTokens": 31,
+        "costUsd": 0.0001755565
+      },
+      "availableReferences": 35,
+      "inspectionArtifact": "10111.inspection.json"
+    },
+    {
+      "id": 10476,
+      "inputSha256": "68d2081d7de9527a35eabe01aacf10b73a6f989235739a53ca7f2a127ed2888e",
+      "assessmentSha256": "74045fe253c1f8bae2f33a7c29dc0a17df8a60cf9284a1411c90724aa178397e",
+      "inspectionSha256": "219353daecaa765fd02f12c5a32a0ceb9ad8598f64d5995f332d78bfeb93c435",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "counts": {
+        "findings": 20,
+        "observations": 51,
+        "analysisGaps": 125,
+        "environmentChecks": 27,
+        "scopeNotes": 8
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "llmStatus": "generated",
+      "llmCode": null,
+      "llmContextSha256": "f7ed21a5600c65abd6d62d6782e2ceff0995984bb4d081056df962eeea969757",
+      "selectedReferences": 8,
+      "omittedReferences": 145,
+      "usage": {
+        "promptTokens": 4332,
+        "completionTokens": 31,
+        "costUsd": 0.0001752772
+      },
+      "availableReferences": 35,
+      "inspectionArtifact": "10476.inspection.json"
+    },
+    {
+      "id": 6216,
+      "inputSha256": "91fafa6e1b171d8de3ebc61dc4ca36e8a6ffedc47b6e12752c744b5a882ff8d5",
+      "assessmentSha256": "d99e84249dedf423879c398c862d7ae47335549acba2e3ff76544be59d889705",
+      "inspectionSha256": "0c276e0723df3bf8bc7cc06a880eb07ad2955d4c43be51fae101f707b7098671",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "counts": {
+        "findings": 13,
+        "observations": 16,
+        "analysisGaps": 36,
+        "environmentChecks": 3,
+        "scopeNotes": 4
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "llmStatus": "generated",
+      "llmCode": null,
+      "llmContextSha256": "b0dcdcd5bda0fc4e31fd1cbb214345413d2ae8b01f15c6af30ac88d1fc566e14",
+      "selectedReferences": 8,
+      "omittedReferences": 21,
+      "usage": {
+        "promptTokens": 4517,
+        "completionTokens": 31,
+        "costUsd": 0.0001813915
+      },
+      "availableReferences": 35,
+      "inspectionArtifact": "6216.inspection.json"
+    },
+    {
+      "id": 3314,
+      "inputSha256": "fe41176ad71bfc5961baad02cdf22b94dea533cab3716ce591c4133fd43b0d0f",
+      "assessmentSha256": "872e528a5d6fdfc07b26685a836f1cfc6a6df67d0fa2a42c94a55836b8433825",
+      "inspectionSha256": "5b76d50a42d984df6dea5228f2cd134c74ed0f244dfb59f50316aa4797f22940",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "counts": {
+        "findings": 14,
+        "observations": 39,
+        "analysisGaps": 95,
+        "environmentChecks": 26,
+        "scopeNotes": 8
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "llmStatus": "generated",
+      "llmCode": null,
+      "llmContextSha256": "8396d1219e196610a5ac86c17d516e34a873242de8fa0fa192e20aad35dcf3b0",
+      "selectedReferences": 8,
+      "omittedReferences": 107,
+      "usage": {
+        "promptTokens": 4467,
+        "completionTokens": 31,
+        "costUsd": 0.0001806637
+      },
+      "availableReferences": 36,
+      "inspectionArtifact": "3314.inspection.json"
+    },
+    {
+      "id": 11007,
+      "inputSha256": "a5b90072022086d7a8529309a0da2968481e902fc6260e4be6646489c0676580",
+      "assessmentSha256": "e8361142fe229171ec29db2a50bc0576798d4a832ea0d7ef1642ec9887699658",
+      "inspectionSha256": "53d7875aa03bb2757d21f56411d66bc4d2746805e78c7d7033e1ebd0d49ee920",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "counts": {
+        "findings": 31,
+        "observations": 45,
+        "analysisGaps": 132,
+        "environmentChecks": 15,
+        "scopeNotes": 4
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "llmStatus": "generated",
+      "llmCode": null,
+      "llmContextSha256": "b101455d0dde20905669085c369f3ab0ed991a3b3af8545e173f17b22f983989",
+      "selectedReferences": 8,
+      "omittedReferences": 147,
+      "usage": {
+        "promptTokens": 4396,
+        "completionTokens": 31,
+        "costUsd": 0.0001778308
+      },
+      "availableReferences": 35,
+      "inspectionArtifact": "11007.inspection.json"
+    },
+    {
+      "id": 9638,
+      "inputSha256": "1148aa3119d3133bed0cab0012aa704e955b43244748b6d97fa6289d34a2513a",
+      "assessmentSha256": "6cc989c69711f9cdd274fde9af050ac2433c1bcc83afab1b28b02c081080443d",
+      "inspectionSha256": "0e094a0bd9d8531d7828b6bc0acf7ea06f40c824c450fdaff7b5c3ef78b67ced",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "counts": {
+        "findings": 4,
+        "observations": 27,
+        "analysisGaps": 63,
+        "environmentChecks": 21,
+        "scopeNotes": 7
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "llmStatus": "generated",
+      "llmCode": null,
+      "llmContextSha256": "940b25cbe8df8c6fa946321a0e69b5237f74095b180e23a860feee64d61dcbc7",
+      "selectedReferences": 8,
+      "omittedReferences": 60,
+      "usage": {
+        "promptTokens": 4498,
+        "completionTokens": 177,
+        "costUsd": 0.000193347
+      },
+      "availableReferences": 35,
+      "inspectionArtifact": "9638.inspection.json"
+    },
+    {
+      "id": 7622,
+      "inputSha256": "feace2e3f32e895d5727651bee81c0b39952f5331b6e37a44e807387b2083dcb",
+      "assessmentSha256": "72b8fab4b8e0b8edba810da3295e697b40209f852399d294b21dc50b6a94a598",
+      "inspectionSha256": "0cd26e853b0d8051e3b2d0139994ae7b9b340c4805a13cd36977da452fe5a31f",
+      "engineVersion": "0.7.0",
+      "assessmentStatus": "partial",
+      "executionStatus": "completed",
+      "analysisStatus": "review_required",
+      "counts": {
+        "findings": 5,
+        "observations": 21,
+        "analysisGaps": 44,
+        "environmentChecks": 14,
+        "scopeNotes": 6
+      },
+      "omitted": {
+        "findings": 0,
+        "observations": 0,
+        "analysisGaps": 0,
+        "environmentChecks": 0,
+        "scopeNotes": 0
+      },
+      "llmStatus": "generated",
+      "llmCode": null,
+      "llmContextSha256": "00d01be006d6a8b5fde9350eac6b4b83cb2d59e1f9bb019b38b4f635e8441405",
+      "selectedReferences": 8,
+      "omittedReferences": 34,
+      "usage": {
+        "promptTokens": 4438,
+        "completionTokens": 31,
+        "costUsd": 0.0001795066
+      },
+      "availableReferences": 35,
+      "inspectionArtifact": "7622.inspection.json"
+    }
+  ],
+  "receiptCorrection": {
+    "reason": "distinguish_available_context_from_selected_references",
+    "source": "hash_verified_inspection_outputs",
+    "apiRepeated": false
+  }
+}

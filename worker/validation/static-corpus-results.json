@@ -1,0 +1,883 @@
+{
+  "corpusVersion": "1.0.0",
+  "generatedAt": "2026-11-22T09:56:31.547Z",
+  "nodeVersion": "v24.14.0",
+  "contractVersion": "2.0.0",
+  "engineVersion": "0.2.0",
+  "rulesVersion": "0.2.0",
+  "adapterVersion": "n8n@2.48.7/workflow-json@1",
+  "scope": "synthetic_declared_rule_facts_only",
+  "scanner": "controlled_fixture",
+  "workflowExecution": "not_run",
+  "nativeScannerAccuracyMeasured": false,
+  "publicTemplateAccuracy": "unknown",
+  "realApiIntegration": "not_run",
+  "command": "node validation/verify-static-corpus.mjs [report path]",
+  "corpusDefinitionSha256": "324ab75b3852fbd350ee8006f4f8eb44aefd5dc1552066582467802d2f78a75a",
+  "scriptSha256": "43b29ebd036a2cef03399ed5f1ca878df414e85d236fc63a5ba09df268817866",
+  "metricDefinition": {
+    "denominator": "One predeclared presence/absence assertion for one evidence code in one category per fact case; state cases excluded.",
+    "positive": "The selected declared configuration, capability or candidate pattern is present; not an exploitable vulnerability label.",
+    "negative": "The selected declared pattern is absent; not a clean-file or safety label. Other patterns may be present.",
+    "TP_TN_FP_FN": "Compare that predeclared fact with the selected evidence code only. Claim strength is asserted separately.",
+    "failed": "Target-category cases whose analyzer report is error, including expected rejection cases; not assertionFailures.",
+    "unsupported": "Target-category cases with at least one unsupported coverage row; can overlap a correctly observed capability fact.",
+    "partial": "Target-category cases with at least one partial coverage row; can overlap a fact or unsupported scope.",
+    "scanner": "Sanitized fixture reports exercise rule composition and mapping only; no native Gitleaks process runs here."
+  },
+  "evidenceSeparation": {
+    "nativeTools": "static-tool-results.json: separate 7-case native/tool-boundary evidence",
+    "legacySqlCorpus": "Existing 12-case SQL corpus is unchanged and has its own denominator.",
+    "publicTemplates": "The separate 5-template smoke run has unknown accuracy and contributes no TP/FP/FN labels here."
+  },
+  "summary": {
+    "cases": 27,
+    "factDenominator": 23,
+    "stateCases": 4,
+    "assertedTP": 13,
+    "assertedTN": 10,
+    "assertedFP": 0,
+    "assertedFN": 0,
+    "analysisErrors": 2,
+    "unsupportedTargetCases": 1,
+    "partialTargetCases": 4,
+    "passed": 27,
+    "assertionFailures": 0
+  },
+  "byCategory": {
+    "secrets": {
+      "factDenominator": 3,
+      "expectedPositive": 2,
+      "expectedNegative": 1,
+      "assertedTP": 2,
+      "assertedTN": 1,
+      "assertedFP": 0,
+      "assertedFN": 0,
+      "stateCases": 2,
+      "failed": 1,
+      "unsupported": 0,
+      "partial": 1,
+      "assertionFailures": 0
+    },
+    "pii": {
+      "factDenominator": 2,
+      "expectedPositive": 1,
+      "expectedNegative": 1,
+      "assertedTP": 1,
+      "assertedTN": 1,
+      "assertedFP": 0,
+      "assertedFN": 0,
+      "stateCases": 0,
+      "failed": 0,
+      "unsupported": 0,
+      "partial": 0,
+      "assertionFailures": 0
+    },
+    "request_auth": {
+      "factDenominator": 2,
+      "expectedPositive": 1,
+      "expectedNegative": 1,
+      "assertedTP": 1,
+      "assertedTN": 1,
+      "assertedFP": 0,
+      "assertedFN": 0,
+      "stateCases": 0,
+      "failed": 0,
+      "unsupported": 0,
+      "partial": 0,
+      "assertionFailures": 0
+    },
+    "egress": {
+      "factDenominator": 2,
+      "expectedPositive": 1,
+      "expectedNegative": 1,
+      "assertedTP": 1,
+      "assertedTN": 1,
+      "assertedFP": 0,
+      "assertedFN": 0,
+      "stateCases": 0,
+      "failed": 0,
+      "unsupported": 0,
+      "partial": 0,
+      "assertionFailures": 0
+    },
+    "ssrf": {
+      "factDenominator": 3,
+      "expectedPositive": 2,
+      "expectedNegative": 1,
+      "assertedTP": 2,
+      "assertedTN": 1,
+      "assertedFP": 0,
+      "assertedFN": 0,
+      "stateCases": 1,
+      "failed": 0,
+      "unsupported": 1,
+      "partial": 0,
+      "assertionFailures": 0
+    },
+    "sql": {
+      "factDenominator": 2,
+      "expectedPositive": 1,
+      "expectedNegative": 1,
+      "assertedTP": 1,
+      "assertedTN": 1,
+      "assertedFP": 0,
+      "assertedFN": 0,
+      "stateCases": 0,
+      "failed": 0,
+      "unsupported": 0,
+      "partial": 0,
+      "assertionFailures": 0
+    },
+    "code_execution": {
+      "factDenominator": 2,
+      "expectedPositive": 1,
+      "expectedNegative": 1,
+      "assertedTP": 1,
+      "assertedTN": 1,
+      "assertedFP": 0,
+      "assertedFN": 0,
+      "stateCases": 0,
+      "failed": 0,
+      "unsupported": 0,
+      "partial": 0,
+      "assertionFailures": 0
+    },
+    "transport": {
+      "factDenominator": 2,
+      "expectedPositive": 1,
+      "expectedNegative": 1,
+      "assertedTP": 1,
+      "assertedTN": 1,
+      "assertedFP": 0,
+      "assertedFN": 0,
+      "stateCases": 0,
+      "failed": 0,
+      "unsupported": 0,
+      "partial": 0,
+      "assertionFailures": 0
+    },
+    "output": {
+      "factDenominator": 3,
+      "expectedPositive": 2,
+      "expectedNegative": 1,
+      "assertedTP": 2,
+      "assertedTN": 1,
+      "assertedFP": 0,
+      "assertedFN": 0,
+      "stateCases": 0,
+      "failed": 0,
+      "unsupported": 0,
+      "partial": 2,
+      "assertionFailures": 0
+    },
+    "dependencies": {
+      "factDenominator": 2,
+      "expectedPositive": 1,
+      "expectedNegative": 1,
+      "assertedTP": 1,
+      "assertedTN": 1,
+      "assertedFP": 0,
+      "assertedFN": 0,
+      "stateCases": 0,
+      "failed": 0,
+      "unsupported": 0,
+      "partial": 1,
+      "assertionFailures": 0
+    }
+  },
+  "results": [
+    {
+      "case": "literal_credential",
+      "category": "secrets",
+      "expected": {
+        "kind": "fact",
+        "code": "literal_credential_field",
+        "present": true,
+        "claim": "candidate"
+      },
+      "inputSha256": "3adb3c3fe450af431014d7132ba04e6c95737d8677664a9dfaff07a431bc0bde",
+      "reportSha256": "ad221f6f0735203d96dc6d4101152c4d3b9541d1ec94a8d151a6853f1d519131",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "partial",
+      "targetFactObserved": true,
+      "targetClaims": ["candidate"],
+      "coverage": {
+        "checked": 1,
+        "partial": 0,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": [],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "credential_reference",
+      "category": "secrets",
+      "expected": {
+        "kind": "fact",
+        "code": "literal_credential_field",
+        "present": false
+      },
+      "inputSha256": "9fc19fb160e9ad053eb76675dbfdff10002647927580bf63e803593483980404",
+      "reportSha256": "e6039760f0ea1b3d4d50765e9e62c50e2d4f926f3abe703ac978240dc4eca8a3",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "partial",
+      "targetFactObserved": false,
+      "targetClaims": [],
+      "coverage": {
+        "checked": 1,
+        "partial": 0,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": [],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "email_format",
+      "category": "pii",
+      "expected": {
+        "kind": "fact",
+        "code": "email_candidate",
+        "present": true,
+        "claim": "candidate"
+      },
+      "inputSha256": "04206d73a3ffbb0e5fe4a1cde0bf8c49383501a5a70aa54a78fc934ba98dca5b",
+      "reportSha256": "a22ca06449d8d78a431b78f4568259809edb59f7a69ac0c7cbb5fdbf033a8de7",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "partial",
+      "targetFactObserved": true,
+      "targetClaims": ["candidate"],
+      "coverage": {
+        "checked": 1,
+        "partial": 0,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": [],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "ordinary_text",
+      "category": "pii",
+      "expected": {
+        "kind": "fact",
+        "code": "email_candidate",
+        "present": false
+      },
+      "inputSha256": "fe927874ba5a843df93b1051cb737ae2d148baaf4d3ded6f1e714d7129cc9a3c",
+      "reportSha256": "644dc43a57a967febee39eea3738e268c9c117c8bc4d0cb063c26dd09600105a",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "partial",
+      "targetFactObserved": false,
+      "targetClaims": [],
+      "coverage": {
+        "checked": 1,
+        "partial": 0,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": [],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "webhook_default_auth",
+      "category": "request_auth",
+      "expected": {
+        "kind": "fact",
+        "code": "webhook_authentication_default_none",
+        "present": true,
+        "claim": "configuration"
+      },
+      "inputSha256": "badc5f8b81828d3a03ca94944dfe48982c8f0f9f94c76446885be9befdf31f2f",
+      "reportSha256": "88b21ade8905c0581a74b3ccce7b9f15ba60e21edd3565adda01dd15344c89c5",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "analyzed",
+      "targetFactObserved": true,
+      "targetClaims": ["configuration"],
+      "coverage": {
+        "checked": 1,
+        "partial": 0,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": [],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "webhook_header_auth",
+      "category": "request_auth",
+      "expected": {
+        "kind": "fact",
+        "code": "webhook_authentication_default_none",
+        "present": false
+      },
+      "inputSha256": "affb40bf769ffa8b9e9c59f531c026982f0a9b9d947b55b07d68284faa147d17",
+      "reportSha256": "b509117f51517b86bf102f1d386de1b37d0356c3b1ae13b2381d2750c571839a",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "analyzed",
+      "targetFactObserved": false,
+      "targetClaims": [],
+      "coverage": {
+        "checked": 1,
+        "partial": 0,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": [],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "http_destination",
+      "category": "egress",
+      "expected": {
+        "kind": "fact",
+        "code": "configured_request_destination",
+        "present": true,
+        "claim": "configuration"
+      },
+      "inputSha256": "87163c5a3574b80944f418cb973ddc80f68a87ab45a1759449fe975353cf4d96",
+      "reportSha256": "3ee2804df8bc7e6615b1f4e773c15888833d48d07720d66450c54ed82be2ef8a",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "analyzed",
+      "targetFactObserved": true,
+      "targetClaims": ["configuration"],
+      "coverage": {
+        "checked": 1,
+        "partial": 0,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": [],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "no_http_destination",
+      "category": "egress",
+      "expected": {
+        "kind": "fact",
+        "code": "configured_request_destination",
+        "present": false
+      },
+      "inputSha256": "a52a05a810b7fc66c4fa8c350a17741410813169d9b7737efe50ee2740330fcd",
+      "reportSha256": "67a3ad67bc73ecf432608d4f3c7bf10a1c8a1aaf755abf9dadb99038899f89e1",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "partial",
+      "targetFactObserved": false,
+      "targetClaims": [],
+      "coverage": {
+        "checked": 0,
+        "partial": 0,
+        "unsupported": 0,
+        "not_applicable": 1
+      },
+      "diagnosticCodes": [],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "dynamic_authority",
+      "category": "ssrf",
+      "expected": {
+        "kind": "fact",
+        "code": "dynamic_request_authority",
+        "present": true,
+        "claim": "supported_path"
+      },
+      "inputSha256": "a73e5a72f767712f49d4931a827282576b1339cf2ac6fe40628b783c095e7afb",
+      "reportSha256": "42edbf128750d2eecd45b9cf401b0c590f92dc55e035ec920da6142499ba1487",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "partial",
+      "targetFactObserved": true,
+      "targetClaims": ["supported_path"],
+      "coverage": {
+        "checked": 1,
+        "partial": 0,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": [],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "fixed_origin_dynamic_path",
+      "category": "ssrf",
+      "expected": {
+        "kind": "fact",
+        "code": "dynamic_request_authority",
+        "present": false
+      },
+      "inputSha256": "6428d2942268d58c728fe3c13d213a583d534cdf86d1dd4698c8128f83f1bc8b",
+      "reportSha256": "8d378ca63c3a608b1c4cb657f1e148f289338dcf468254e971bc2d044614a483",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "partial",
+      "targetFactObserved": false,
+      "targetClaims": [],
+      "coverage": {
+        "checked": 1,
+        "partial": 0,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": [],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "sql_text_interpolation",
+      "category": "sql",
+      "expected": {
+        "kind": "fact",
+        "code": "dynamic_sql_text",
+        "present": true,
+        "claim": "supported_path"
+      },
+      "inputSha256": "2b90e40caf7f2ccf8d9dc3779565f609a70aa70dca660eda209d64bbfa442fd9",
+      "reportSha256": "f10b982484301bcde44c195d9c6e2e6aa09ff1d415a009e38e95f48a764d858d",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "analyzed",
+      "targetFactObserved": true,
+      "targetClaims": ["supported_path"],
+      "coverage": {
+        "checked": 1,
+        "partial": 0,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": [],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "sql_fixed_text_value_parameter",
+      "category": "sql",
+      "expected": {
+        "kind": "fact",
+        "code": "dynamic_sql_text",
+        "present": false
+      },
+      "inputSha256": "498dbe51c20cf38f4b411239780e8d7d8ae2d7d83afaccc32fcb6cd670cd7e9c",
+      "reportSha256": "66893961a42067c9371211f6f26ace269690ed2120bd3d018eaa51dec7255597",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "analyzed",
+      "targetFactObserved": false,
+      "targetClaims": [],
+      "coverage": {
+        "checked": 1,
+        "partial": 0,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": [],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "command_input_expression",
+      "category": "code_execution",
+      "expected": {
+        "kind": "fact",
+        "code": "webhook_body_used_in_command_expression",
+        "present": true,
+        "claim": "supported_path"
+      },
+      "inputSha256": "b2817142d64e7a126a44f0a7a4a461fda503f527b991ce621119faeab18d7661",
+      "reportSha256": "c2bc38b598cddc5f81eee0d7d2a5ae83ca7356797afa12b84daedca684082083",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "partial",
+      "targetFactObserved": true,
+      "targetClaims": ["supported_path"],
+      "coverage": {
+        "checked": 1,
+        "partial": 0,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": [],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "command_fixed_text",
+      "category": "code_execution",
+      "expected": {
+        "kind": "fact",
+        "code": "webhook_body_used_in_command_expression",
+        "present": false
+      },
+      "inputSha256": "7a90a4482fe51c3f863cf06d20c7bdbf81474d4dfbf6f9771477641b94725d23",
+      "reportSha256": "f749933e7f53c5def2d5245f5ed2673fb795588a450aca6d756f4d36a885f8b9",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "partial",
+      "targetFactObserved": false,
+      "targetClaims": [],
+      "coverage": {
+        "checked": 1,
+        "partial": 0,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": [],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "tls_validation_disabled",
+      "category": "transport",
+      "expected": {
+        "kind": "fact",
+        "code": "tls_certificate_validation_disabled",
+        "present": true,
+        "claim": "configuration"
+      },
+      "inputSha256": "c0f0baf332daad138897fd703765a6c1ca34215dfdf99926853cc31ab49577cd",
+      "reportSha256": "b7bc950bdb2184465d856e2189f842b640bfbc62c266973b5ca0701a224d92ed",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "analyzed",
+      "targetFactObserved": true,
+      "targetClaims": ["configuration"],
+      "coverage": {
+        "checked": 1,
+        "partial": 0,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": [],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "tls_validation_enabled",
+      "category": "transport",
+      "expected": {
+        "kind": "fact",
+        "code": "tls_certificate_validation_disabled",
+        "present": false
+      },
+      "inputSha256": "1f7d02a0f73482f808a9c4f448f9c0d8a4cf76497424159bcfdd9f7bb3c19be8",
+      "reportSha256": "5075bb088eb3209d8771567c8bdc7f6f92c95dabd6124dffc545464c8a080207",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "analyzed",
+      "targetFactObserved": false,
+      "targetClaims": [],
+      "coverage": {
+        "checked": 1,
+        "partial": 0,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": [],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "whole_input_response",
+      "category": "output",
+      "expected": {
+        "kind": "fact",
+        "code": "whole_input_response",
+        "present": true,
+        "claim": "supported_path"
+      },
+      "inputSha256": "313e6bee014aaa31b3abd21ae00f3bc63b0e76da9c7b5643088def7a1afc25de",
+      "reportSha256": "36f412b8e1258723f60c5e5a13b2e88f4e50c7e502efdbb5bd62c9a4a9259a28",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "partial",
+      "targetFactObserved": true,
+      "targetClaims": ["supported_path"],
+      "coverage": {
+        "checked": 0,
+        "partial": 1,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": ["response_data_sensitivity_unverified"],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "selected_field_response",
+      "category": "output",
+      "expected": {
+        "kind": "fact",
+        "code": "whole_input_response",
+        "present": false
+      },
+      "inputSha256": "5c9d375c7e1faf42fb07d000415d533d78b84464a753c4dff8ca51f1c63e81fd",
+      "reportSha256": "d83f3aec0f719c9c5a0771d1ba10b98bc62f31556a1ea85e7d485e0415955fb4",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "analyzed",
+      "targetFactObserved": false,
+      "targetClaims": [],
+      "coverage": {
+        "checked": 1,
+        "partial": 0,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": [],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "external_node_declaration",
+      "category": "dependencies",
+      "expected": {
+        "kind": "fact",
+        "code": "community_or_external_node_declared",
+        "present": true,
+        "claim": "configuration"
+      },
+      "inputSha256": "b64ce790e681fcf024c976c35d66f05cd89d0ca8b453d4c6557033c6c1756b35",
+      "reportSha256": "b21baa6754d3145bcd0782b5c7ed247ed5f364e559ddfb720bba1510a3ef254d",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "partial",
+      "targetFactObserved": true,
+      "targetClaims": ["configuration"],
+      "coverage": {
+        "checked": 0,
+        "partial": 1,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": ["installed_package_version_and_content_missing"],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "core_node_declaration",
+      "category": "dependencies",
+      "expected": {
+        "kind": "fact",
+        "code": "community_or_external_node_declared",
+        "present": false
+      },
+      "inputSha256": "badc5f8b81828d3a03ca94944dfe48982c8f0f9f94c76446885be9befdf31f2f",
+      "reportSha256": "88b21ade8905c0581a74b3ccce7b9f15ba60e21edd3565adda01dd15344c89c5",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "analyzed",
+      "targetFactObserved": false,
+      "targetClaims": [],
+      "coverage": {
+        "checked": 1,
+        "partial": 0,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": [],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "whole_input_console",
+      "category": "output",
+      "expected": {
+        "kind": "fact",
+        "code": "javascript_whole_input_log_call",
+        "present": true,
+        "claim": "candidate"
+      },
+      "inputSha256": "8618dd5828091f36ba1e7d7a834211a6eeae14ff242fcdc2a2c242432fb8d961",
+      "reportSha256": "c0b5187d9dd3c18f3883f42b0dbc112af51826ea913b76dff83917b0e520a6c0",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "partial",
+      "targetFactObserved": true,
+      "targetClaims": ["candidate"],
+      "coverage": {
+        "checked": 0,
+        "partial": 1,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": ["code_logging_and_sensitivity_partially_analyzed"],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "literal_loopback",
+      "category": "ssrf",
+      "expected": {
+        "kind": "fact",
+        "code": "configured_nonpublic_destination",
+        "present": true,
+        "claim": "configuration"
+      },
+      "inputSha256": "b17f7d0d65ad278503f039e6b6125368d3cf9fc0412d282d91f09e132273fb5f",
+      "reportSha256": "e0408452ea76f6cc5d20da78dcbf8103704e9bb8af1fc5be40a19de2d5b355f4",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "analyzed",
+      "targetFactObserved": true,
+      "targetClaims": ["configuration"],
+      "coverage": {
+        "checked": 1,
+        "partial": 0,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": [],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "sanitized_scanner_mapping",
+      "category": "secrets",
+      "expected": {
+        "kind": "fact",
+        "code": "gitleaks_secret_candidate",
+        "present": true,
+        "claim": "candidate"
+      },
+      "inputSha256": "af37b3ac9c95252112065dc00e7c9a5ff18cf6c54381fc93bd409ccd37ac2bd6",
+      "reportSha256": "aebc5a56322f54c4a1a456c9dd6648b369874977843cc18dca9c16482e4e844b",
+      "scanner": "controlled_fixture",
+      "scannerMode": "mapped_candidate",
+      "status": "partial",
+      "targetFactObserved": true,
+      "targetClaims": ["candidate"],
+      "coverage": {
+        "checked": 1,
+        "partial": 0,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": [],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "missing_secret_tool",
+      "category": "secrets",
+      "expected": {
+        "kind": "state",
+        "status": "partial",
+        "diagnostic": "tool_unavailable",
+        "coverage": "partial"
+      },
+      "inputSha256": "a52a05a810b7fc66c4fa8c350a17741410813169d9b7737efe50ee2740330fcd",
+      "reportSha256": "e528bfff070d97e056ea759ef390ab15ac34782c65d7008a7035ccc1b087bbe8",
+      "scanner": "controlled_fixture",
+      "scannerMode": "unavailable",
+      "status": "partial",
+      "targetFactObserved": false,
+      "targetClaims": [],
+      "coverage": {
+        "checked": 0,
+        "partial": 1,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": ["tool_unavailable"],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "unsupported_http_version",
+      "category": "ssrf",
+      "expected": {
+        "kind": "state",
+        "status": "partial",
+        "diagnostic": "unsupported_node_version",
+        "coverage": "unsupported"
+      },
+      "inputSha256": "a278dc09922b23b658f5ab323de6308444160fe23d5719f1571d27e17e144b6b",
+      "reportSha256": "a94cbd87e97a43f72a00abe6569773795fc8084c1d475e01137ff19f298b7ab8",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "partial",
+      "targetFactObserved": false,
+      "targetClaims": [],
+      "coverage": {
+        "checked": 0,
+        "partial": 0,
+        "unsupported": 1,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": ["unsupported_node_version"],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "duplicate_json_key",
+      "category": null,
+      "expected": {
+        "kind": "state",
+        "status": "error",
+        "code": "duplicate_key"
+      },
+      "inputSha256": "25462eb59a308dcf770bfbdd220227ba70c322aa47855b1010d8b497711563ea",
+      "reportSha256": "e98d3a27d7da48db0c0e5d0595a6573de63aed41535c15b59804000c81be8b79",
+      "scanner": "controlled_fixture",
+      "scannerMode": "completed_empty",
+      "status": "error",
+      "code": "duplicate_key",
+      "targetFactObserved": false,
+      "targetClaims": [],
+      "coverage": {
+        "checked": 0,
+        "partial": 0,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": [],
+      "passed": true,
+      "mismatches": []
+    },
+    {
+      "case": "invalid_scanner_index",
+      "category": "secrets",
+      "expected": {
+        "kind": "state",
+        "status": "error",
+        "code": "invalid_result"
+      },
+      "inputSha256": "a52a05a810b7fc66c4fa8c350a17741410813169d9b7737efe50ee2740330fcd",
+      "reportSha256": "11277f3798df1cafb9097d487cdb540e3e17921e07463079fd7119dec9f6b838",
+      "scanner": "controlled_fixture",
+      "scannerMode": "invalid_index",
+      "status": "error",
+      "code": "invalid_result",
+      "targetFactObserved": false,
+      "targetClaims": [],
+      "coverage": {
+        "checked": 0,
+        "partial": 0,
+        "unsupported": 0,
+        "not_applicable": 0
+      },
+      "diagnosticCodes": [],
+      "passed": true,
+      "mismatches": []
+    }
+  ]
+}

@@ -1,0 +1,618 @@
+{
+  "outcome": "passed",
+  "scope": "fixed_synthetic_static_candidates_not_exploitability",
+  "engineVersion": "0.1.2",
+  "currentManifestSha256": "dea141873ecf622efde2931a4b9c2c32fcf0abbade4f1ad645a9eb417c49bc5a",
+  "correctedHistoricalLabels": ["type-constrained-false"],
+  "correction": "false_equals_does_not_prove_number_type_due_to_null_and_undefined",
+  "originalInputsAndHistoricalResultsPreserved": true,
+  "workflowExecution": "not_run",
+  "metrics": {
+    "all": {
+      "positive": 5,
+      "negative": 3,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "tn": 3,
+      "failed": 0,
+      "unsupported": 4
+    },
+    "validation": {
+      "positive": 4,
+      "negative": 1,
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "tn": 1,
+      "failed": 0,
+      "unsupported": 4
+    }
+  },
+  "results": [
+    {
+      "id": "interpolated",
+      "inputSha256": "fc5b6f72454ccd175bb629fffe445273c9e7a440ab0128ea65f4d675fc4d64b8",
+      "result": {
+        "taskId": "validation-interpolated",
+        "attemptId": "validation-attempt",
+        "workflowVersionId": "workflow-interpolated",
+        "inputSha256": "fc5b6f72454ccd175bb629fffe445273c9e7a440ab0128ea65f4d675fc4d64b8",
+        "contractVersion": "1.0.0",
+        "engineVersion": "0.1.2",
+        "rulesVersion": "0.1.0",
+        "adapterVersion": "n8n@2.48.7/workflow-json@1",
+        "status": "analyzed",
+        "coverage": [
+          {
+            "sink": {
+              "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+              "pointer": "/nodes/1/parameters/query"
+            },
+            "disposition": "interpolated",
+            "inputKey": "bc36fa6bfae2844fe417601edf84796d15c7305c105cf2e99d6c887db45c243b",
+            "shapeKey": "143c5d9f4e200b6e36ebf16e7573698e68c79b1ab0bf5b9300ffa696f253e1d1"
+          }
+        ],
+        "findings": [
+          {
+            "id": "4c806289c9b64ddd10b75d9b98bcc54d59267da3a3618d333783fb37f66916a0",
+            "ruleId": "N8N_POSTGRES_DYNAMIC_QUERY",
+            "source": {
+              "nodeKey": "2e2c9540ec00acc8271a2db4e376c5d34b350edd4bbb340107fdb96a8bf3d53d",
+              "pointer": "/nodes/0"
+            },
+            "sink": {
+              "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+              "pointer": "/nodes/1/parameters/query"
+            },
+            "path": [
+              {
+                "nodeKey": "2e2c9540ec00acc8271a2db4e376c5d34b350edd4bbb340107fdb96a8bf3d53d",
+                "pointer": "/nodes/0"
+              },
+              {
+                "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+                "pointer": "/nodes/1/parameters/query"
+              }
+            ],
+            "reference": "current_input",
+            "guard": "absent",
+            "assumptions": [
+              "single_json_webhook_item",
+              "pinned_node_semantics"
+            ],
+            "remediation": {
+              "strategy": "use_value_parameter",
+              "binding": {
+                "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+                "pointer": "/nodes/1/parameters/options/queryReplacement"
+              },
+              "checks": [
+                "fixed_sql_value_position",
+                "expected_rows_and_side_effects",
+                "rescan_same_rules"
+              ]
+            }
+          }
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "unrelated-if",
+      "inputSha256": "6c3c47de1ad8ddb33588e6f1284c330a4fc31c96c2d3f45ebd05063ac1fa25af",
+      "result": {
+        "taskId": "validation-unrelated-if",
+        "attemptId": "validation-attempt",
+        "workflowVersionId": "workflow-unrelated-if",
+        "inputSha256": "6c3c47de1ad8ddb33588e6f1284c330a4fc31c96c2d3f45ebd05063ac1fa25af",
+        "contractVersion": "1.0.0",
+        "engineVersion": "0.1.2",
+        "rulesVersion": "0.1.0",
+        "adapterVersion": "n8n@2.48.7/workflow-json@1",
+        "status": "analyzed",
+        "coverage": [
+          {
+            "sink": {
+              "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+              "pointer": "/nodes/2/parameters/query"
+            },
+            "disposition": "interpolated",
+            "inputKey": "bc36fa6bfae2844fe417601edf84796d15c7305c105cf2e99d6c887db45c243b",
+            "shapeKey": "54f2af18e398f0a71b929ca0e21745975a8766aee0f9ff6b0e07a67051cf44a6"
+          }
+        ],
+        "findings": [
+          {
+            "id": "4c806289c9b64ddd10b75d9b98bcc54d59267da3a3618d333783fb37f66916a0",
+            "ruleId": "N8N_POSTGRES_DYNAMIC_QUERY",
+            "source": {
+              "nodeKey": "2e2c9540ec00acc8271a2db4e376c5d34b350edd4bbb340107fdb96a8bf3d53d",
+              "pointer": "/nodes/0"
+            },
+            "sink": {
+              "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+              "pointer": "/nodes/2/parameters/query"
+            },
+            "path": [
+              {
+                "nodeKey": "2e2c9540ec00acc8271a2db4e376c5d34b350edd4bbb340107fdb96a8bf3d53d",
+                "pointer": "/nodes/0"
+              },
+              {
+                "nodeKey": "603472f87138f5963cb7348e515c176267f3e6704f578e352cd43683dc92d653",
+                "pointer": "/nodes/1"
+              },
+              {
+                "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+                "pointer": "/nodes/2/parameters/query"
+              }
+            ],
+            "reference": "current_input",
+            "guard": "unrelated_value",
+            "assumptions": [
+              "single_json_webhook_item",
+              "pinned_node_semantics"
+            ],
+            "remediation": {
+              "strategy": "use_value_parameter",
+              "binding": {
+                "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+                "pointer": "/nodes/2/parameters/options/queryReplacement"
+              },
+              "checks": [
+                "fixed_sql_value_position",
+                "expected_rows_and_side_effects",
+                "rescan_same_rules"
+              ]
+            }
+          }
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "direct-origin",
+      "inputSha256": "b8265749db62a063d9fe023f28e38a8b912c93abf5d9f9c51bcfd4f49d836ded",
+      "result": {
+        "taskId": "validation-direct-origin",
+        "attemptId": "validation-attempt",
+        "workflowVersionId": "workflow-direct-origin",
+        "inputSha256": "b8265749db62a063d9fe023f28e38a8b912c93abf5d9f9c51bcfd4f49d836ded",
+        "contractVersion": "1.0.0",
+        "engineVersion": "0.1.2",
+        "rulesVersion": "0.1.0",
+        "adapterVersion": "n8n@2.48.7/workflow-json@1",
+        "status": "analyzed",
+        "coverage": [
+          {
+            "sink": {
+              "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+              "pointer": "/nodes/2/parameters/query"
+            },
+            "disposition": "interpolated",
+            "inputKey": "bc36fa6bfae2844fe417601edf84796d15c7305c105cf2e99d6c887db45c243b",
+            "shapeKey": "54f2af18e398f0a71b929ca0e21745975a8766aee0f9ff6b0e07a67051cf44a6"
+          }
+        ],
+        "findings": [
+          {
+            "id": "4c806289c9b64ddd10b75d9b98bcc54d59267da3a3618d333783fb37f66916a0",
+            "ruleId": "N8N_POSTGRES_DYNAMIC_QUERY",
+            "source": {
+              "nodeKey": "2e2c9540ec00acc8271a2db4e376c5d34b350edd4bbb340107fdb96a8bf3d53d",
+              "pointer": "/nodes/0"
+            },
+            "sink": {
+              "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+              "pointer": "/nodes/2/parameters/query"
+            },
+            "path": [
+              {
+                "nodeKey": "2e2c9540ec00acc8271a2db4e376c5d34b350edd4bbb340107fdb96a8bf3d53d",
+                "pointer": "/nodes/0"
+              },
+              {
+                "nodeKey": "603472f87138f5963cb7348e515c176267f3e6704f578e352cd43683dc92d653",
+                "pointer": "/nodes/1"
+              },
+              {
+                "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+                "pointer": "/nodes/2/parameters/query"
+              }
+            ],
+            "reference": "direct_source",
+            "guard": "unrelated_value",
+            "assumptions": [
+              "single_json_webhook_item",
+              "pinned_node_semantics"
+            ],
+            "remediation": {
+              "strategy": "use_value_parameter",
+              "binding": {
+                "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+                "pointer": "/nodes/2/parameters/options/queryReplacement"
+              },
+              "checks": [
+                "fixed_sql_value_position",
+                "expected_rows_and_side_effects",
+                "rescan_same_rules"
+              ]
+            }
+          }
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "reject-branch",
+      "inputSha256": "06effff8324f3777fd4db81a415e3157643f4a6981cf2ae87f8864298d064dce",
+      "result": {
+        "taskId": "validation-reject-branch",
+        "attemptId": "validation-attempt",
+        "workflowVersionId": "workflow-reject-branch",
+        "inputSha256": "06effff8324f3777fd4db81a415e3157643f4a6981cf2ae87f8864298d064dce",
+        "contractVersion": "1.0.0",
+        "engineVersion": "0.1.2",
+        "rulesVersion": "0.1.0",
+        "adapterVersion": "n8n@2.48.7/workflow-json@1",
+        "status": "analyzed",
+        "coverage": [
+          {
+            "sink": {
+              "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+              "pointer": "/nodes/2/parameters/query"
+            },
+            "disposition": "interpolated",
+            "inputKey": "bc36fa6bfae2844fe417601edf84796d15c7305c105cf2e99d6c887db45c243b",
+            "shapeKey": "fa64e59a878ad38732304f8406cb7c0b892b750b2f28399c402f7f8eaf40de36"
+          }
+        ],
+        "findings": [
+          {
+            "id": "4c806289c9b64ddd10b75d9b98bcc54d59267da3a3618d333783fb37f66916a0",
+            "ruleId": "N8N_POSTGRES_DYNAMIC_QUERY",
+            "source": {
+              "nodeKey": "2e2c9540ec00acc8271a2db4e376c5d34b350edd4bbb340107fdb96a8bf3d53d",
+              "pointer": "/nodes/0"
+            },
+            "sink": {
+              "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+              "pointer": "/nodes/2/parameters/query"
+            },
+            "path": [
+              {
+                "nodeKey": "2e2c9540ec00acc8271a2db4e376c5d34b350edd4bbb340107fdb96a8bf3d53d",
+                "pointer": "/nodes/0"
+              },
+              {
+                "nodeKey": "603472f87138f5963cb7348e515c176267f3e6704f578e352cd43683dc92d653",
+                "pointer": "/nodes/1"
+              },
+              {
+                "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+                "pointer": "/nodes/2/parameters/query"
+              }
+            ],
+            "reference": "current_input",
+            "guard": "reject_branch",
+            "assumptions": [
+              "single_json_webhook_item",
+              "pinned_node_semantics"
+            ],
+            "remediation": {
+              "strategy": "use_value_parameter",
+              "binding": {
+                "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+                "pointer": "/nodes/2/parameters/options/queryReplacement"
+              },
+              "checks": [
+                "fixed_sql_value_position",
+                "expected_rows_and_side_effects",
+                "rescan_same_rules"
+              ]
+            }
+          }
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "type-constrained-false",
+      "inputSha256": "62f4754755c47a4b1ea94ecb6f567dd638e948aa0af3fdb48868f2e711438c6e",
+      "result": {
+        "taskId": "validation-type-constrained-false",
+        "attemptId": "validation-attempt",
+        "workflowVersionId": "workflow-type-constrained-false",
+        "inputSha256": "62f4754755c47a4b1ea94ecb6f567dd638e948aa0af3fdb48868f2e711438c6e",
+        "contractVersion": "1.0.0",
+        "engineVersion": "0.1.2",
+        "rulesVersion": "0.1.0",
+        "adapterVersion": "n8n@2.48.7/workflow-json@1",
+        "status": "analyzed",
+        "coverage": [
+          {
+            "sink": {
+              "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+              "pointer": "/nodes/2/parameters/query"
+            },
+            "disposition": "interpolated",
+            "inputKey": "bc36fa6bfae2844fe417601edf84796d15c7305c105cf2e99d6c887db45c243b",
+            "shapeKey": "62c84498b6df54812fc931fdc97c23ec921dca3a3b1a8558711df3006ca511e2"
+          }
+        ],
+        "findings": [
+          {
+            "id": "4c806289c9b64ddd10b75d9b98bcc54d59267da3a3618d333783fb37f66916a0",
+            "ruleId": "N8N_POSTGRES_DYNAMIC_QUERY",
+            "source": {
+              "nodeKey": "2e2c9540ec00acc8271a2db4e376c5d34b350edd4bbb340107fdb96a8bf3d53d",
+              "pointer": "/nodes/0"
+            },
+            "sink": {
+              "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+              "pointer": "/nodes/2/parameters/query"
+            },
+            "path": [
+              {
+                "nodeKey": "2e2c9540ec00acc8271a2db4e376c5d34b350edd4bbb340107fdb96a8bf3d53d",
+                "pointer": "/nodes/0"
+              },
+              {
+                "nodeKey": "603472f87138f5963cb7348e515c176267f3e6704f578e352cd43683dc92d653",
+                "pointer": "/nodes/1"
+              },
+              {
+                "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+                "pointer": "/nodes/2/parameters/query"
+              }
+            ],
+            "reference": "current_input",
+            "guard": "reject_branch",
+            "assumptions": [
+              "single_json_webhook_item",
+              "pinned_node_semantics"
+            ],
+            "remediation": {
+              "strategy": "use_value_parameter",
+              "binding": {
+                "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+                "pointer": "/nodes/2/parameters/options/queryReplacement"
+              },
+              "checks": [
+                "fixed_sql_value_position",
+                "expected_rows_and_side_effects",
+                "rescan_same_rules"
+              ]
+            }
+          }
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "guarded",
+      "inputSha256": "3c530ca87ac524598e2783f3b32b020de13eb156cb6ef4a540f95ba01661add7",
+      "result": {
+        "taskId": "validation-guarded",
+        "attemptId": "validation-attempt",
+        "workflowVersionId": "workflow-guarded",
+        "inputSha256": "3c530ca87ac524598e2783f3b32b020de13eb156cb6ef4a540f95ba01661add7",
+        "contractVersion": "1.0.0",
+        "engineVersion": "0.1.2",
+        "rulesVersion": "0.1.0",
+        "adapterVersion": "n8n@2.48.7/workflow-json@1",
+        "status": "analyzed",
+        "coverage": [
+          {
+            "sink": {
+              "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+              "pointer": "/nodes/2/parameters/query"
+            },
+            "disposition": "guarded",
+            "inputKey": "bc36fa6bfae2844fe417601edf84796d15c7305c105cf2e99d6c887db45c243b",
+            "shapeKey": "3e7512aeb47783e74cab099e7d180fff1da74a9cf2d920e3c405d7fffd189481"
+          }
+        ],
+        "findings": [],
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "bound",
+      "inputSha256": "e2118900c9f4eef2c17fbc69f9e59941b5e424df10a29b0d8b68e7d45f6e454e",
+      "result": {
+        "taskId": "validation-bound",
+        "attemptId": "validation-attempt",
+        "workflowVersionId": "workflow-bound",
+        "inputSha256": "e2118900c9f4eef2c17fbc69f9e59941b5e424df10a29b0d8b68e7d45f6e454e",
+        "contractVersion": "1.0.0",
+        "engineVersion": "0.1.2",
+        "rulesVersion": "0.1.0",
+        "adapterVersion": "n8n@2.48.7/workflow-json@1",
+        "status": "analyzed",
+        "coverage": [
+          {
+            "sink": {
+              "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+              "pointer": "/nodes/1/parameters/query"
+            },
+            "disposition": "bound",
+            "inputKey": "bc36fa6bfae2844fe417601edf84796d15c7305c105cf2e99d6c887db45c243b",
+            "shapeKey": "143c5d9f4e200b6e36ebf16e7573698e68c79b1ab0bf5b9300ffa696f253e1d1"
+          }
+        ],
+        "findings": [],
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "constant",
+      "inputSha256": "b97118a1126e04ba42c9bf3b3156b435d9a01f5f2c8980d8799c6af8ca4ed7e2",
+      "result": {
+        "taskId": "validation-constant",
+        "attemptId": "validation-attempt",
+        "workflowVersionId": "workflow-constant",
+        "inputSha256": "b97118a1126e04ba42c9bf3b3156b435d9a01f5f2c8980d8799c6af8ca4ed7e2",
+        "contractVersion": "1.0.0",
+        "engineVersion": "0.1.2",
+        "rulesVersion": "0.1.0",
+        "adapterVersion": "n8n@2.48.7/workflow-json@1",
+        "status": "analyzed",
+        "coverage": [
+          {
+            "sink": {
+              "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+              "pointer": "/nodes/1/parameters/query"
+            },
+            "disposition": "constant",
+            "inputKey": null,
+            "shapeKey": "143c5d9f4e200b6e36ebf16e7573698e68c79b1ab0bf5b9300ffa696f253e1d1"
+          }
+        ],
+        "findings": [],
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "code-on-path",
+      "inputSha256": "ac7622c223e12d273e95689812af30e5c54ea7ba212f197677dd9fdccfa0fcb9",
+      "result": {
+        "taskId": "validation-code-on-path",
+        "attemptId": "validation-attempt",
+        "workflowVersionId": "workflow-code-on-path",
+        "inputSha256": "ac7622c223e12d273e95689812af30e5c54ea7ba212f197677dd9fdccfa0fcb9",
+        "contractVersion": "1.0.0",
+        "engineVersion": "0.1.2",
+        "rulesVersion": "0.1.0",
+        "adapterVersion": "n8n@2.48.7/workflow-json@1",
+        "status": "unsupported",
+        "coverage": [
+          {
+            "sink": {
+              "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+              "pointer": "/nodes/2/parameters/query"
+            },
+            "disposition": "unknown",
+            "inputKey": null,
+            "shapeKey": null
+          }
+        ],
+        "findings": [],
+        "affectedNodeKeys": [
+          "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+          "8200b58551906acc7c59623923bc31413678146a0fb9fa42946b2bdeb4d8762b"
+        ],
+        "diagnostics": [
+          {
+            "code": "unsupported_node",
+            "location": "/nodes/1/type",
+            "affected": [0, 1]
+          }
+        ]
+      }
+    },
+    {
+      "id": "subworkflow-missing",
+      "inputSha256": "99e87e16fb79e8184efd3d3c0556ad717626ab68bb7099b2485512631b8f4756",
+      "result": {
+        "taskId": "validation-subworkflow-missing",
+        "attemptId": "validation-attempt",
+        "workflowVersionId": "workflow-subworkflow-missing",
+        "inputSha256": "99e87e16fb79e8184efd3d3c0556ad717626ab68bb7099b2485512631b8f4756",
+        "contractVersion": "1.0.0",
+        "engineVersion": "0.1.2",
+        "rulesVersion": "0.1.0",
+        "adapterVersion": "n8n@2.48.7/workflow-json@1",
+        "status": "unsupported",
+        "coverage": [
+          {
+            "sink": {
+              "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+              "pointer": "/nodes/2/parameters/query"
+            },
+            "disposition": "unknown",
+            "inputKey": null,
+            "shapeKey": null
+          }
+        ],
+        "findings": [],
+        "affectedNodeKeys": [
+          "326cd22f907055bfb9501f30bd2af01ec485db2de0bd82138dd62230957e1330",
+          "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31"
+        ],
+        "diagnostics": [
+          {
+            "code": "subworkflow_missing",
+            "location": "/nodes/1/parameters",
+            "affected": [0, 1]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-version",
+      "inputSha256": "caf448882d10f2ef03fd8d6120db504ee9868dd877f75ff340c3c548ca478ec3",
+      "result": {
+        "taskId": "validation-unsupported-version",
+        "attemptId": "validation-attempt",
+        "workflowVersionId": "workflow-unsupported-version",
+        "inputSha256": "caf448882d10f2ef03fd8d6120db504ee9868dd877f75ff340c3c548ca478ec3",
+        "contractVersion": "1.0.0",
+        "engineVersion": "0.1.2",
+        "rulesVersion": "0.1.0",
+        "adapterVersion": "n8n@2.48.7/workflow-json@1",
+        "status": "unsupported",
+        "coverage": [
+          {
+            "sink": {
+              "nodeKey": "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31",
+              "pointer": "/nodes/1/parameters/query"
+            },
+            "disposition": "unknown",
+            "inputKey": null,
+            "shapeKey": null
+          }
+        ],
+        "findings": [],
+        "affectedNodeKeys": [
+          "3dbc6f68c6ec53e5a9f0912c8fae7c420f426b9edf4e3cc097692f78b9ef1f31"
+        ],
+        "diagnostics": [
+          {
+            "code": "unsupported_version",
+            "location": "/nodes/1/typeVersion",
+            "affected": [0]
+          }
+        ]
+      }
+    },
+    {
+      "id": "removed-sink",
+      "inputSha256": "6c14b586eb74b378a45529f37020b6c4574f2ce4df09b3bf2b3f7d81ce6c1456",
+      "result": {
+        "taskId": "validation-removed-sink",
+        "attemptId": "validation-attempt",
+        "workflowVersionId": "workflow-removed-sink",
+        "inputSha256": "6c14b586eb74b378a45529f37020b6c4574f2ce4df09b3bf2b3f7d81ce6c1456",
+        "contractVersion": "1.0.0",
+        "engineVersion": "0.1.2",
+        "rulesVersion": "0.1.0",
+        "adapterVersion": "n8n@2.48.7/workflow-json@1",
+        "status": "unsupported",
+        "coverage": [],
+        "findings": [],
+        "affectedNodeKeys": [],
+        "diagnostics": [
+          {
+            "code": "no_supported_sink",
+            "location": "/nodes",
+            "affected": []
+          }
+        ]
+      }
+    }
+  ],
+  "verificationScriptSha256": "72aac63657de86d565d0884c26973f3d50df8de1f16545dc12ec37468803df3a"
+}

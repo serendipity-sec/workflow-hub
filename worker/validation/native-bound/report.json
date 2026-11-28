@@ -1,0 +1,64 @@
+{
+  "outcome": "error",
+  "probes": [
+    {
+      "exit": 2,
+      "stdout": "",
+      "stderr": "ECONNREFUSED"
+    },
+    {
+      "exit": 2,
+      "stdout": "",
+      "stderr": "ECONNREFUSED"
+    },
+    {
+      "exit": 2,
+      "stdout": "",
+      "stderr": "ECONNREFUSED"
+    },
+    {
+      "exit": 1,
+      "stdout": "{\"status\":503,\"body\":\"{\\\"status\\\":\\\"error\\\"}\"}",
+      "stderr": ""
+    },
+    {
+      "exit": 1,
+      "stdout": "{\"status\":503,\"body\":\"{\\\"status\\\":\\\"error\\\"}\"}",
+      "stderr": ""
+    },
+    {
+      "exit": 0,
+      "stdout": "{\"status\":200,\"body\":\"{\\\"status\\\":\\\"ok\\\"}\"}",
+      "stderr": ""
+    }
+  ],
+  "responses": [
+    {
+      "id": 7,
+      "status": 404,
+      "contentType": "application/json; charset=utf-8",
+      "body": "{\"code\":404,\"message\":\"The requested webhook \\\"POST synthetic-lookup\\\" is not registered.\",\"hint\":\"The workflow must be active for a production URL to run successfully. You can activate the workflow using the toggle in the top-right of the editor. Note that unlike test URL calls, production URL calls aren't shown on the canvas (only in the executions list)\"}"
+    },
+    {
+      "id": 9,
+      "status": 404,
+      "contentType": "application/json; charset=utf-8",
+      "body": "{\"code\":404,\"message\":\"The requested webhook \\\"POST synthetic-lookup\\\" is not registered.\",\"hint\":\"The workflow must be active for a production URL to run successfully. You can activate the workflow using the toggle in the top-right of the editor. Note that unlike test URL calls, production URL calls aren't shown on the canvas (only in the executions list)\"}"
+    },
+    {
+      "id": 13,
+      "status": 404,
+      "contentType": "application/json; charset=utf-8",
+      "body": "{\"code\":404,\"message\":\"The requested webhook \\\"POST synthetic-lookup\\\" is not registered.\",\"hint\":\"The workflow must be active for a production URL to run successfully. You can activate the workflow using the toggle in the top-right of the editor. Note that unlike test URL calls, production URL calls aren't shown on the canvas (only in the executions list)\"}"
+    }
+  ],
+  "before": "ce1f5ab123910deaff3a9ea80cf1cb9845481493fde507fd5ad9952a75f9445c",
+  "after": "ce1f5ab123910deaff3a9ea80cf1cb9845481493fde507fd5ad9952a75f9445c",
+  "error": "Expected values to be strictly equal:\n\n404 !== 200\n",
+  "container": {
+    "status": "running",
+    "exit": 0,
+    "oomKilled": false,
+    "error": ""
+  }
+}

@@ -1,0 +1,239 @@
+{
+  "schemaVersion": "1.0.0",
+  "engineVersion": "0.8.0",
+  "validatedOn": "2026-11-23",
+  "outcome": "checks_passed_required_cli_review_pending",
+  "baselineCommit": "cf2f5beb941e05cb2fbdac5874be4d06ee9f7f40",
+  "workflowExecution": "public_and_uploaded_workflows_not_run",
+  "actualTeamApiIntegration": "not_run",
+  "koreanPiiModelScope": "unchanged",
+  "image": "sha256:28b673341d36a975960e85b9c4fe9c51ed1643b740e3a44c2607eab9532f7d3c",
+  "sources": {
+    "src/advanced-risks.ts": "62d17f030257656a4b2d21eb99d4d722e65bea4513f736ce97f1e08571fcf807",
+    "src/ai-flow.ts": "9469a2ba78b6c0d4d2c5f7a6184e090965d0af3db00a82a1b6ef9d100fed6d95",
+    "src/analysis.ts": "5b4b7679af83ef8522aa39aa53f3e114162f53963d0d5c8a927ca7823fad331a",
+    "src/analyzer.ts": "913dc6ec510895df73104277ed62c52e4601e1027f8e8bfdcfe4b01e7b15e40a",
+    "src/api-client.ts": "758705f5e03b7d2d7fdf02f3887d0eb83be3cbc7de5cc2a73705d9bdf673c718",
+    "src/assessment-change.ts": "6c19b63ecfcd12fa0e4a8f362a4f4aa1f644f46b52175f67e6a9f655854e87ef",
+    "src/assessment-compare.ts": "c122baf69dd243f0a8566d3185bfa421de7d009ab1ccd923639981c76c4b95d9",
+    "src/assessment-contract.ts": "0c69a3b32da841e443da8fa8ee93106cd75192079e33e734469491db6944b3f0",
+    "src/assessment-engine.ts": "0e0866b6dd88f040cc1d9a36ad28dca68a9938d5537c2e0d38109e3324958c02",
+    "src/assessment-entry.ts": "7afe34bc3938688b289d5cadac7934d2a256b7bfa73d10634e770fcf88b9db70",
+    "src/assessment-environment.ts": "fa4efd076be01fcc951eb55a528d1826bb1b7f4e1919e377404d13abbeb0a5b1",
+    "src/assessment-evidence.ts": "bec35a99ef6714070aa553254452ae27737f959975933aac552e8eea8ac912b8",
+    "src/assessment-policy.ts": "2baf7f89968c5b03f73fe31d4569b9b4a1b51116f82e366db10f02e86db0d612",
+    "src/assessment-runner.ts": "72ab2fc6e638c449fe89c3ffe2f4edf6cf57c9b683f4b238ab48dc21b0c32d5e",
+    "src/assessment-subworkflows.ts": "e2a0d961a94dc4890f9660005f6a16f65aedbaca017834f9749e7d3c5bc18e70",
+    "src/assessment-summary.ts": "ba9a46063eeaefad9601a4d554e7b98a1007e3be081efb014c3317505b1b4c83",
+    "src/bounded-code.ts": "608363fcff0baaada10634e3a8eaff28acb4540266a248a7a2751da677cc1948",
+    "src/cli.ts": "e4e201052875f3e020f91ad16f6701ca0f339b05c50b7d2d7ba46854a36c800c",
+    "src/compare.ts": "8ad9c98bb033ad3ebc2ebe368e99239de1590c3f76f37c13d579514f4b429e0b",
+    "src/contract.ts": "858c9260a69a08b5e1826f02d7d26bb51bf9d3dd7480f793afb06fe3618e3d98",
+    "src/coverage-causes.ts": "2352235fb1b26ccf89563d9e8aeffe591fd9d4e708600e9b8be84f42394d2a8f",
+    "src/definition-risks.ts": "f1c2696b2cf264c7e9e8d16a7fac4083dc9c1b6852b4fe5ded30303a9edd392e",
+    "src/extended-sinks.ts": "d50b32d7fc1ab8a572174df416aebdf62c8294649c3a83088366c6c0ac035d98",
+    "src/gitleaks.ts": "706b17d774df0bc25dcfc3ca21a2baaf855359ad5ca7a4f8767e43a613ecaede",
+    "src/inspection.ts": "7945ee65d4c30c8df5f35616d41470187e78b5f107b5e2d08558e8d8b40e7e05",
+    "src/llm-review.ts": "a0c7a14cc618e482ecf61828e8f4250dcc69290e3d57f0c6dcf4ca422cc187db",
+    "src/n8n.ts": "a434fa55a775411a0da86cf75265581cd5819437a0743d98fafaaee0dc30807d",
+    "src/native-inspection.ts": "7de3f269b17c37ad0d6aab9a46cc21b65c26e0db60020638dbbe9533a16c315c",
+    "src/runner.ts": "0b230a41f8db490a819574ee24e2d758262b04f2836077d6f220ba6413f0d1ee",
+    "src/service-report.ts": "5d8701e442fa6ce3a91dd42337c592efaf4b3941ddf2c7c548677c83a0facf46",
+    "src/static-analyzer.ts": "3bf95583bbdffbcdee8be5817496d426f723c37aa6778a823da91a09f880355b",
+    "src/static-compare.ts": "2102d27fb2a73d745635a1780393e728273c95ee1753bd26a58ef832e745a179",
+    "src/static-content.ts": "5d697582822c664f2c4d55a9732c48bdb02a4f84a293ca17a8ee545e4bb99ee5",
+    "src/static-context.ts": "43a510a5c33a610f0d39f1a44f193aedbc9918adad3137e615a64197ee810cb2",
+    "src/static-contract.ts": "4394a441e8b543183ce30a2f2e89f290390200b9e3f2acc68cabc402e4ec39b1",
+    "src/static-engine.ts": "f23cf90a52bfacfc78d89e00955b55d28d46ef3ddc11ed125298684860eb593c",
+    "src/static-flow.ts": "8b49bed66bddf45d756a5cf7c14aab00790edaf57268ec522b21f5463afd776b",
+    "src/static-runner.ts": "f69dbad5b9ba0ae1747a760fe68fbf577a1afd63369d3d4f61ed997a60e6267a",
+    "src/static-settings.ts": "5fe86ee52cbf5b8ea24280521390de67a5653ddd8d99d8cadaa51c0d80f10a5c",
+    "src/subprocess.ts": "bdea0b752abb871d9bd33f552f1232382bafff35fd324c4b56f5d965084a0289",
+    "src/value-flow.ts": "7e54398c1f019c6ba9fc100a8a8386d5fd3ddb90b4bb9e466f1994b8c3272337",
+    "src/value-shape.ts": "2024e4d4f22cd23652d18f4af7a32aaa02745ba13c5ab43de3f05acaf65550f5",
+    "src/worker-io.ts": "8301288a8ed3d4c40d35d1d5ee90d82e7b7d919bda090480a00f266991ae8b79",
+    "package.json": "debe7690b33a85ee38d6805238f95eb1f73bad7f2dce195c863e7c009ca67d7b",
+    "package-lock.json": "b28c4918948a6aae9c93d17da737f0f0d70d54afa038b6e27ad3f89e82442aa1",
+    "Dockerfile.assessment": "8bfbd144570d3ac58e9bf727532361bcc1a169a4cbe40882386c153a0411ec1a",
+    "validation/compare-coverage-causes.mjs": "3ddf6b5457ca8c71b88e50d8e17d9dabc732332069339ec31f83829ae3dae899",
+    "validation/verify-llm-service.mjs": "2bddac475dc6b92ccf68a8199249484380b8e9591240ebad62ceb3d726bac297"
+  },
+  "checks": {
+    "workerTests": 529,
+    "failed": 0,
+    "skipped": 0,
+    "rootToolingTests": 6,
+    "rootToolingTiming": "earlier_this_task_unchanged_tooling",
+    "format": true,
+    "lint": true,
+    "typecheck": true,
+    "build": true,
+    "rootCheck": true,
+    "independentReview": {
+      "method": "current_session_read_only_Astra_review",
+      "regressionCases": 33,
+      "remainingP1P2": 0,
+      "cliReviewSubstitute": false
+    },
+    "codexCliReview": {
+      "status": "blocked_before_execution",
+      "reason": "automatic_approval_review_requires_specific_private_source_egress_permission",
+      "sourceTransmittedByAttempt": false
+    },
+    "runtime": {
+      "assessmentCases": 8,
+      "analyzedFiles": 9,
+      "isolationChecks": 9,
+      "failureChecks": 4,
+      "cleanup": "no_new_containers"
+    },
+    "publicRegressionAssertions": 54,
+    "staticCorpus": {
+      "cases": 27,
+      "factDenominator": 23,
+      "stateCases": 4,
+      "assertedTP": 13,
+      "assertedTN": 10,
+      "assertedFP": 0,
+      "assertedFN": 0,
+      "analysisErrors": 2,
+      "unsupportedTargetCases": 1,
+      "partialTargetCases": 4,
+      "passed": 27,
+      "assertionFailures": 0
+    },
+    "cliCoverageSmoke": "passed_actual_public_16081_assessment",
+    "serviceRevisionComparisons": 3,
+    "publicWorkflowBehavior": "not_verified",
+    "secretScan": {
+      "tool": "gitleaks@8.30.1",
+      "scope": "temporary_index_only_real_index_unchanged",
+      "result": "passed",
+      "exactDigestAllowlist": {
+        "files": 2,
+        "lines": 33,
+        "proof": "source_hashes_recomputed_and_synthetic_identifiers_matched_to_preserved_evidence"
+      }
+    }
+  },
+  "public": {
+    "samples": 25,
+    "statuses": {
+      "analyzed": 0,
+      "partial": 25,
+      "unsupported": 0,
+      "error": 0
+    },
+    "reportedToolResults": 75,
+    "reportedToolErrors": 0,
+    "offlinePresentations": 25,
+    "before": {
+      "statuses": {
+        "analyzed": 0,
+        "partial": 25,
+        "unsupported": 0,
+        "error": 0
+      },
+      "counts": {
+        "environment_evidence": 437,
+        "definition_input": 68,
+        "analyzer_extension": 1966,
+        "mixed_provenance": 676,
+        "scope_boundary": 150,
+        "unclassified": 0
+      },
+      "affectedSamples": {
+        "environment_evidence": 25,
+        "definition_input": 15,
+        "analyzer_extension": 25,
+        "mixed_provenance": 25,
+        "scope_boundary": 25,
+        "unclassified": 0
+      },
+      "diagnosticOccurrences": 3297,
+      "toolFailures": 0,
+      "fileFailures": 0
+    },
+    "after": {
+      "statuses": {
+        "analyzed": 0,
+        "partial": 25,
+        "unsupported": 0,
+        "error": 0
+      },
+      "counts": {
+        "environment_evidence": 437,
+        "definition_input": 68,
+        "analyzer_extension": 1838,
+        "mixed_provenance": 676,
+        "scope_boundary": 150,
+        "unclassified": 0
+      },
+      "affectedSamples": {
+        "environment_evidence": 25,
+        "definition_input": 15,
+        "analyzer_extension": 25,
+        "mixed_provenance": 25,
+        "scope_boundary": 25,
+        "unclassified": 0
+      },
+      "diagnosticOccurrences": 3169,
+      "toolFailures": 0,
+      "fileFailures": 0
+    },
+    "diagnosticOccurrenceReduction": 128,
+    "meaning": "diagnostic_occurrences_not_independent_vulnerabilities"
+  },
+  "llm": {
+    "provider": "openrouter",
+    "model": "z-ai/glm-5.3-flash",
+    "calls": 3,
+    "samples": [
+      {
+        "id": 18521,
+        "selectedReferences": 8,
+        "selectedDiagnosticActions": 3,
+        "analysisGapResolved": false
+      },
+      {
+        "id": 11007,
+        "selectedReferences": 8,
+        "selectedDiagnosticActions": 3,
+        "analysisGapResolved": false
+      },
+      {
+        "id": 5819,
+        "selectedReferences": 8,
+        "selectedDiagnosticActions": 5,
+        "analysisGapResolved": false
+      }
+    ],
+    "reportedCostUsd": 0.0005385597,
+    "sourceContentSent": false,
+    "authority": "review_priority_only",
+    "staticVerdictsUnchanged": true,
+    "generalSelectionQuality": "not_measured"
+  },
+  "receipts": {
+    "validation/assessment-runtime-0.8.0-results.json": "e12c8914ab0267f48d8c21866a2243ac5ef10670fca398ba54ee3a117f6cc691",
+    "validation/public-assessment-0.8.0-results.json": "d0e526ca733ac48a6c21a83b3d975babaa67cb034be3a7825383b47406a6919f",
+    "validation/public-additional-0.8.0-results.json": "183a501b316ef2f2e4b7809264cf6e79f62396320769c1660255037e66c7ea3a",
+    "validation/inspection-0.8.0-results.json": "0be614e3e87302f4686d0ff6f7c4804b13a117de7bbe51cf120f8c9bcbd4b116",
+    "validation/coverage-causes-0.8.0-results.json": "909fc1925edc53ae57d15f883b5288c839ac51cc4995039faebd1d4e57dd3973",
+    "validation/public-regressions-0.8.0-results.json": "ee29ab8eb6633edb59f3e11e39ecbd677371c452646ad2c59cf65f3362a15ea4",
+    "validation/public-service-path-0.8.0-results.json": "fe2447dd329c91948ea8e16337c2a94ac98d20e8ceb34e29b7c27d992476b7e1",
+    "validation/static-corpus-0.8.0-results.json": "f8d97d0554d01804cad0e7ab98149de8321ff826377bfb92d07026c685934c91",
+    "validation/llm-public-three-0.8.0-results.json": "21c51e99556431dbdb8235d47dbab6857fa6daddcdf1203875783b02b8caa710"
+  },
+  "limitations": [
+    "all_25_still_partial",
+    "environment_and_policy_evidence_missing",
+    "complex_code_connectors_dynamic_sql_and_ai_profiles_remain_limited",
+    "missing_child_definitions_and_binary_content",
+    "mixed_causes_require_upstream_review",
+    "english_pii_profile_unchanged",
+    "no_general_accuracy_claim",
+    "actual_team_api_not_tested",
+    "required_cli_review_pending_specific_approval_or_user_waiver"
+  ]
+}

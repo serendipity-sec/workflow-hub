@@ -97,6 +97,12 @@ S3는 Block Public Access를 활성화하고 개발/운영 리소스를 구분�
 
 SQL 로그가 필요하면 `LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_JDBC_CORE=DEBUG`를 임시로 설정한다. 바인딩 값이 보일 수 있으니 운영에서는 쓰지 않는다.
 
+## 보안 워커 연동
+
+Node.js 24를 사용한다. 저장소 루트에서 `npm --prefix worker ci`와 `npm --prefix worker run verify`를 실행하면 독립 패키지의 포맷·린트·타입·빌드·테스트를 확인한다. 합성 파일 CLI와 모의 서버 실행 절차는 [워커 실행기 문서](../worker/docs/runner.md)에 있다.
+
+실제 팀 환경에서는 작업 배정·리스·결과 수락 API, 검증된 HTTPS API 및 파일 origin, 제한된 워커 서비스 인증이 필요하다. 승인한 분석 실행기가 네트워크 차단, 비특권 실행, 읽기 전용 파일시스템과 자원 제한, 종료 후 자원 회수를 보장해야 한다. 팀 HTTPS 실행은 격리가 검증될 때까지 작업을 받기 전에 `isolation_unverified`로 종료한다. 팀 환경에서의 요청과 격리 검증은 연동 후 기록한다. [팀 API 계약](../worker/docs/contract.md#팀-api-접점) · [로컬 검증 기록](../worker/docs/validation.md)
+
 ## GitHub 최초 설정
 
 - README 초안을 사용자에게 검토받은 뒤 최초 push한다.
