@@ -39,6 +39,9 @@ public class ScanService {
   private static final int DEFAULT_LIMIT = 20;
   private static final int MAX_LIMIT = 100;
   private static final int MAX_IDEMPOTENCY_KEY_LENGTH = 128;
+  private static final String DISPATCH_FAILED_CODE = "scan_dispatch_failed";
+  private static final String DISPATCH_FAILED_MESSAGE =
+      "Security scan task could not be dispatched to the worker queue. Request a new scan.";
 
   private final JdbcClient jdbc;
   private final TransactionTemplate transactions;
@@ -98,22 +101,33 @@ public class ScanService {
     }
 
     ScanTaskMessage message = outcome.message();
-    if (!dispatcher.dispatch(message, "scan_request")) {
-      RollbackOutcome rollback = rollbackUnstartedScan(message);
-      if (rollback == RollbackOutcome.ROLLED_BACK) {
-        throw ScanException.dispatchUnavailable();
-      }
-      if (rollback == RollbackOutcome.CANCELLED) {
-        throw ScanException.versionNotFound();
-      }
-      // 워커가 이미 시작했거나 회수기가 새 시도를 배정·발행한 실행은 지우지 않고 최신 DB 상태를 반환한다.
+    ScanTaskDispatcher.Outcome dispatched = dispatcher.dispatch(message, "scan_request");
+    if (dispatched == ScanTaskDispatcher.Outcome.UNKNOWN) {
+      // 메시지가 이미 큐에 있을 수 있으므로 실행을 보존한다. 발행이 확인되지 않은 시도는 회수기가 같은 attemptId로 다시 보낸다.
       log.warn(
-          "event=analysis.scan.dispatch_failed_preserved workflowId={} versionId={} scanRunId={} taskId={}",
+          "event=analysis.scan.dispatch_unconfirmed workflowId={} versionId={} scanRunId={} taskId={}",
           workflowId,
           versionId,
           message.scanRunId(),
           message.taskId());
-      return readScanRunById(message.scanRunId());
+      return readPreservedRun(message.scanRunId());
+    }
+    if (dispatched == ScanTaskDispatcher.Outcome.REJECTED) {
+      RejectionOutcome rejection = failRejectedFirstDispatch(message);
+      if (rejection == RejectionOutcome.FAILED) {
+        throw ScanException.dispatchUnavailable();
+      }
+      if (rejection == RejectionOutcome.CANCELLED) {
+        throw ScanException.versionNotFound();
+      }
+      // 워커가 이미 시작했거나 회수기가 발행을 넘겨받은 실행은 그대로 두고 최신 DB 상태를 반환한다.
+      log.warn(
+          "event=analysis.scan.dispatch_rejected_preserved workflowId={} versionId={} scanRunId={} taskId={}",
+          workflowId,
+          versionId,
+          message.scanRunId(),
+          message.taskId());
+      return readPreservedRun(message.scanRunId());
     }
 
     log.info(
@@ -458,8 +472,8 @@ public class ScanService {
     jdbc.sql(
             """
             INSERT INTO workflow_hub.analysis_job_attempts (
-                id, job_id, attempt_number, status, created_at)
-            VALUES (:attemptId, :taskId, 1, 'queued', :now)
+                id, job_id, attempt_number, status, created_at, dispatch_attempted_at)
+            VALUES (:attemptId, :taskId, 1, 'queued', :now, :now)
             """)
         .param("attemptId", attemptId)
         .param("taskId", taskId)
@@ -541,8 +555,8 @@ public class ScanService {
   }
 
   /**
-   * 최초 요청의 첫 발행이 아직 확인되지 않은 실행은 발행 실패 시 지워질 수 있으므로, 같은 키 재전송에 202를 주지 않고 재시도 가능한 503을 준다. 발행이 확인됐거나
-   * 워커가 시작했거나 회수기가 새 시도를 배정한 실행은 지우지 않으므로 기존 ID를 그대로 돌려준다.
+   * 최초 요청이 아직 첫 발행 결과를 기다리는 실행(시도 1이 queued이고 발행이 확인되지 않았으며 회수기가 넘겨받지 않음)은 곧 failed로 마감될 수 있으므로, 같은
+   * 키 재전송에 202 대신 재시도 가능한 503을 준다. 실행은 지우지 않으므로 다시 요청하면 결과가 정해진 뒤의 상태를 받는다.
    */
   private void rejectIfFirstDispatchPending(UUID scanRunId) {
     boolean pending =
@@ -557,7 +571,8 @@ public class ScanService {
                           AND j.status = 'queued'
                           AND j.attempt_number = 1
                           AND a.status = 'queued'
-                          AND a.dispatched_at IS NULL)
+                          AND a.dispatched_at IS NULL
+                          AND a.dispatch_attempted_at = a.created_at)
                     """)
                 .param("scanRunId", scanRunId)
                 .query(Boolean.class)
@@ -566,6 +581,15 @@ public class ScanService {
       log.warn("event=analysis.scan.replay_dispatch_pending scanRunId={}", scanRunId);
       throw ScanException.dispatchUnavailable();
     }
+  }
+
+  /** 발행 실패 뒤 보존한 실행을 돌려준다. 그사이 버전·워크플로 삭제로 취소됐으면 다른 삭제 경합과 같게 404로 답한다. */
+  private ScanRunView readPreservedRun(UUID scanRunId) {
+    ScanRunView view = readScanRunById(scanRunId);
+    if ("cancelled".equals(view.executionStatus())) {
+      throw ScanException.versionNotFound();
+    }
+    return view;
   }
 
   private ScanRunView readScanRunById(UUID scanRunId) {
@@ -582,28 +606,28 @@ public class ScanService {
   }
 
   /**
-   * 최초 발행이 실패하면 아직 워커가 시작하지 않은 queued 기록을 정리해 동일 키 재시도를 허용한다. 작업이 여전히 이 요청이 만든 시도를 가리키고 그 시도의 발행이
-   * 확인되지 않았을 때만 지운다. 회수기가 그사이 새 시도를 배정했거나 같은 시도를 발행했다면 실행을 보존한다.
+   * SQS가 최초 발행을 명확히 거부하면 실행을 지우지 않고 failed(scan_dispatch_failed)로 마감한다. 이미 조회한 화면도 404 대신 실패 상태를
+   * 보고, 같은 버전에 새 검사를 바로 요청할 수 있다. 멱등성 키는 해제해 같은 키로 다시 요청하면 새 검사를 만든다.
+   *
+   * <p>작업이 여전히 이 요청이 만든 시도를 가리키고, 그 시도가 queued이며, 발행이 확인되지 않았고, 회수기가 발행을 넘겨받지 않았을 때만 마감한다
+   * (dispatch_attempted_at이 created_at과 같다). 그 밖에는 워커나 회수기가 처리 중이므로 그대로 둔다.
    */
-  private RollbackOutcome rollbackUnstartedScan(ScanTaskMessage message) {
+  private RejectionOutcome failRejectedFirstDispatch(ScanTaskMessage message) {
     UUID taskId = message.taskId();
     UUID scanRunId = message.scanRunId();
     return transactions.execute(
         status -> {
           // 잠금을 얻은 뒤 별도 문장으로 읽어야 READ COMMITTED에서 잠금 대기 중 커밋된 시도 상태를 본다.
-          var locked =
-              jdbc.sql("SELECT id FROM workflow_hub.analysis_jobs WHERE id = :taskId FOR UPDATE")
-                  .param("taskId", taskId)
-                  .query(UUID.class)
-                  .optional();
-          if (locked.isEmpty()) {
-            return RollbackOutcome.ROLLED_BACK;
-          }
+          jdbc.sql("SELECT id FROM workflow_hub.analysis_jobs WHERE id = :taskId FOR UPDATE")
+              .param("taskId", taskId)
+              .query(UUID.class)
+              .single();
           JobDispatchState state =
               jdbc.sql(
                       """
                       SELECT j.status, j.current_attempt_id, a.status AS attempt_status,
-                             a.dispatched_at IS NOT NULL AS dispatched
+                             a.dispatched_at IS NOT NULL AS dispatched,
+                             a.dispatch_attempted_at > a.created_at AS taken_over
                       FROM workflow_hub.analysis_jobs j
                       JOIN workflow_hub.analysis_job_attempts a ON a.id = j.current_attempt_id
                       WHERE j.id = :taskId
@@ -615,42 +639,76 @@ public class ScanService {
                               rs.getString("status"),
                               rs.getObject("current_attempt_id", UUID.class),
                               rs.getString("attempt_status"),
-                              rs.getBoolean("dispatched")))
+                              rs.getBoolean("dispatched"),
+                              rs.getBoolean("taken_over")))
                   .single();
           if ("cancelled".equals(state.jobStatus())) {
-            return RollbackOutcome.CANCELLED;
+            return RejectionOutcome.CANCELLED;
           }
           if (!"queued".equals(state.jobStatus())
               || !message.attemptId().equals(state.currentAttemptId())
               || !"queued".equals(state.attemptStatus())
-              || state.dispatched()) {
-            return RollbackOutcome.PRESERVED;
+              || state.dispatched()
+              || state.takenOver()) {
+            return RejectionOutcome.PRESERVED;
           }
+          OffsetDateTime now = databaseNow();
+          jdbc.sql(
+                  """
+                  UPDATE workflow_hub.analysis_job_attempts
+                  SET status = 'expired', finished_at = :now
+                  WHERE id = :attemptId
+                  """)
+              .param("now", now)
+              .param("attemptId", message.attemptId())
+              .update();
+          jdbc.sql(
+                  """
+                  UPDATE workflow_hub.analysis_jobs
+                  SET status = 'failed', lease_expires_at = NULL, updated_at = :now
+                  WHERE id = :taskId
+                  """)
+              .param("now", now)
+              .param("taskId", taskId)
+              .update();
+          jdbc.sql(
+                  """
+                  UPDATE workflow_hub.scan_runs
+                  SET execution_status = 'failed',
+                      analysis_coverage = 'unknown',
+                      error_code = :code,
+                      error_message = :message,
+                      error_retryable = false,
+                      finished_at = :now
+                  WHERE id = :scanRunId
+                  """)
+              .param("code", DISPATCH_FAILED_CODE)
+              .param("message", DISPATCH_FAILED_MESSAGE)
+              .param("now", now)
+              .param("scanRunId", scanRunId)
+              .update();
           jdbc.sql(
                   "DELETE FROM workflow_hub.scan_request_idempotency_keys WHERE scan_run_id = :scanRunId")
               .param("scanRunId", scanRunId)
               .update();
-          jdbc.sql("DELETE FROM workflow_hub.analysis_job_attempts WHERE job_id = :taskId")
-              .param("taskId", taskId)
-              .update();
-          jdbc.sql("DELETE FROM workflow_hub.analysis_jobs WHERE id = :taskId")
-              .param("taskId", taskId)
-              .update();
-          jdbc.sql("DELETE FROM workflow_hub.scan_runs WHERE id = :scanRunId")
-              .param("scanRunId", scanRunId)
-              .update();
-          return RollbackOutcome.ROLLED_BACK;
+          log.warn(
+              "event=analysis.scan.dispatch_rejected scanRunId={} taskId={}", scanRunId, taskId);
+          return RejectionOutcome.FAILED;
         });
   }
 
-  private enum RollbackOutcome {
-    ROLLED_BACK,
+  private enum RejectionOutcome {
+    FAILED,
     CANCELLED,
     PRESERVED
   }
 
   private record JobDispatchState(
-      String jobStatus, UUID currentAttemptId, String attemptStatus, boolean dispatched) {}
+      String jobStatus,
+      UUID currentAttemptId,
+      String attemptStatus,
+      boolean dispatched,
+      boolean takenOver) {}
 
   private OffsetDateTime databaseNow() {
     return jdbc.sql("SELECT clock_timestamp()")

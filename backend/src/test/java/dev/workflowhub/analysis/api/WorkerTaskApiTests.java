@@ -445,6 +445,10 @@ class WorkerTaskApiTests {
             "UPDATE workflow_hub.analysis_jobs SET updated_at = clock_timestamp() - interval '10 minutes' WHERE id = :id")
         .param("id", staleQueued.taskId())
         .update();
+    jdbc.sql(
+            "UPDATE workflow_hub.analysis_job_attempts SET dispatched_at = clock_timestamp() - interval '10 minutes' WHERE id = :id")
+        .param("id", staleQueued.attemptId())
+        .update();
     leaseRecovery.recoverExpired();
     assertThat(queue.lastMessage().taskId()).isEqualTo(staleQueued.taskId());
     assertThat(queue.lastMessage().attemptNumber()).isEqualTo(2);

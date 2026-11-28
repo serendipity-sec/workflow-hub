@@ -62,11 +62,12 @@ public class ScanController {
   @Operation(
       summary = "워크플로 버전 보안 검사 요청",
       description =
-          "소유한 워크플로 버전의 비동기 보안 검사를 요청하고 SQS 작업을 발행한다. 같은 버전에 이미 진행 중인 검사가 있거나 해시가 없으면 409, 파일이 검사 파일 크기 한도(SCAN_MAX_FILE_BYTES, 기본 262144바이트 = 256 KiB)를 초과하면 422로 거절한다. 같은 Idempotency-Key 재전송은 최초 요청의 첫 발행이 확인된 뒤에만 같은 scanRunId로 202를 돌려주고, 확인 전에는 503 SCAN_DISPATCH_UNAVAILABLE을 돌려준다.")
+          "소유한 워크플로 버전의 비동기 보안 검사를 요청하고 SQS 작업을 발행한다. 같은 버전에 이미 진행 중인 검사가 있거나 해시가 없으면 409, 파일이 검사 파일 크기 한도(SCAN_MAX_FILE_BYTES, 기본 262144바이트 = 256 KiB)를 초과하면 422로 거절한다. 202는 서버가 실행을 저장해 보존하고 처리한다는 뜻이며 SQS 발행 완료를 보장하지 않는다. 발행 결과를 알 수 없는 실패(시간 초과 등)이면 실행을 queued로 두고 202를 돌려주며, 회수기가 같은 attemptId로 다시 발행한다(오래 시작되지 않으면 timed_out). SQS가 발행을 명확히 거부하면 실행을 failed(scan_dispatch_failed)로 마감하고 503을 돌려준다. 같은 Idempotency-Key 재전송은 보존된 실행을 같은 scanRunId로 돌려주되, 최초 요청이 아직 첫 발행 결과를 기다리는 동안에는 503을 돌려준다(잠시 뒤 같은 키로 재시도).")
   @ApiResponses({
     @ApiResponse(
         responseCode = "202",
-        description = "보안 검사 작업을 수락해 큐에 발행했다(또는 동일 Idempotency-Key 재시도)",
+        description =
+            "검사 실행을 저장해 보존했다. 발행 결과를 알 수 없으면 회수기가 다시 발행한다. 첫 발행 결과가 정해진 뒤의 동일 Idempotency-Key 재전송도 같은 scanRunId로 이 응답을 받는다",
         content =
             @Content(
                 schema = @Schema(implementation = ScanRunResponse.class),
@@ -123,7 +124,7 @@ public class ScanController {
     @ApiResponse(
         responseCode = "503",
         description =
-            "작업 큐(SQS) 발행에 일시적으로 실패했거나, 같은 Idempotency-Key의 최초 요청이 아직 발행을 확인하지 못했다(SCAN_DISPATCH_UNAVAILABLE). 같은 키로 다시 시도한다",
+            "작업 큐(SQS)가 첫 시도에서 발행을 명확히 거부했거나(SCAN_DISPATCH_UNAVAILABLE), 같은 Idempotency-Key의 최초 요청이 아직 첫 발행 결과를 기다린다. 거부된 실행은 failed(error.code=scan_dispatch_failed, retryable=false: 서버가 이 실행을 다시 시도하지 않음)로 남고 멱등성 키는 해제되므로, 잠시 뒤 같은 키나 새 키로 다시 요청하면 새 검사가 만들어진다",
         content = @Content(schema = @Schema(implementation = ApiError.class)))
   })
   public ResponseEntity<ScanRunResponse> requestScan(

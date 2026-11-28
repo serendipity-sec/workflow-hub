@@ -31,13 +31,24 @@ public class ScanLeaseRecovery {
   private static final String QUEUE_TIMEOUT_MESSAGE =
       "Security scan timed out waiting for a worker";
 
+  // queued 시도의 미수신 만료 규칙:
+  // - 발행이 확인된 시도는 실제 발행 시각(dispatched_at)부터 미수신 제한 시간을 센다. 늦게 재발행에 성공한 시도도 워커가 받을 시간을 갖는다.
+  // - 발행이 확인되지 않은 시도는 회수기가 같은 attemptId로 한 번 이상 다시 보낸 뒤(dispatch_attempted_at > created_at), 마지막
+  // 재발행에서
+  //   재발행 간격이 더 지나야 만료한다. 결과를 알 수 없던 재발행 메시지가 워커에 닿을 시간을 준다.
+  //   회수 주기 때문에 재발행 구간을 건너뛰어도 짧은 SQS 장애가 재발행 없이 시도 횟수를 소모하지 않고, 장애가 길면 만료로 끝난다.
   private static final String EXPIRED_CONDITION =
       """
       ((j.status = 'running'
         AND j.lease_expires_at IS NOT NULL
         AND j.lease_expires_at <= statement_timestamp())
        OR (j.status = 'queued'
-        AND j.updated_at <= statement_timestamp() - make_interval(secs => :queuedTimeoutSeconds)))
+        AND j.updated_at <= statement_timestamp() - make_interval(secs => :queuedTimeoutSeconds)
+        AND ((a.dispatched_at IS NOT NULL
+              AND a.dispatched_at <= statement_timestamp() - make_interval(secs => :queuedTimeoutSeconds))
+             OR (a.dispatched_at IS NULL
+                 AND a.dispatch_attempted_at > a.created_at
+                 AND a.dispatch_attempted_at <= statement_timestamp() - make_interval(secs => :dispatchRetrySeconds)))))
       """;
   private static final String UNDISPATCHED_CONDITION =
       """
@@ -94,7 +105,8 @@ public class ScanLeaseRecovery {
         }
         ScanTaskMessage message = action.get().dispatchMessage();
         // SQS 장애 중에는 한 건만 시도하고 멈춰, 호출 제한 시간만큼 스케줄러를 붙잡지 않는다.
-        if (message != null && !dispatcher.dispatch(message, "lease_recovery")) {
+        if (message != null
+            && dispatcher.dispatch(message, "lease_recovery") != ScanTaskDispatcher.Outcome.SENT) {
           return;
         }
       } catch (RuntimeException e) {
@@ -193,9 +205,11 @@ public class ScanLeaseRecovery {
       int nextAttemptNumber = job.attemptNumber() + 1;
       jdbc.sql(
               """
-              INSERT INTO workflow_hub.analysis_job_attempts (id, job_id, attempt_number, status)
-              VALUES (:attemptId, :jobId, :attemptNumber, 'queued')
+              INSERT INTO workflow_hub.analysis_job_attempts (
+                  id, job_id, attempt_number, status, created_at, dispatch_attempted_at)
+              VALUES (:attemptId, :jobId, :attemptNumber, 'queued', :now, :now)
               """)
+          .param("now", now)
           .param("attemptId", nextAttemptId)
           .param("jobId", job.taskId())
           .param("attemptNumber", nextAttemptNumber)

@@ -1,5 +1,6 @@
 package dev.workflowhub.analysis.service;
 
+import dev.workflowhub.analysis.queue.ScanDispatchRejectedException;
 import dev.workflowhub.analysis.queue.ScanTaskMessage;
 import dev.workflowhub.analysis.queue.ScanTaskQueue;
 import org.slf4j.Logger;
@@ -26,27 +27,37 @@ public class ScanTaskDispatcher {
     this.jdbc = jdbc;
   }
 
-  /** 발행에 성공하면 true, 실패하면 false다. 호출하는 쪽의 트랜잭션 밖에서 호출한다. */
-  public boolean dispatch(ScanTaskMessage message, String source) {
+  /** 발행 결과. REJECTED는 메시지가 들어가지 않았음이 확실한 거부, UNKNOWN은 메시지가 이미 큐에 있을 수 있는 실패다. */
+  public enum Outcome {
+    SENT,
+    REJECTED,
+    UNKNOWN
+  }
+
+  /** 호출하는 쪽의 트랜잭션 밖에서 호출한다. */
+  public Outcome dispatch(ScanTaskMessage message, String source) {
     try {
       queue.enqueue(message);
     } catch (RuntimeException e) {
+      Outcome outcome =
+          e instanceof ScanDispatchRejectedException ? Outcome.REJECTED : Outcome.UNKNOWN;
       log.error(
-          "event=analysis.dispatch.failed source={} taskId={} scanRunId={} attemptId={} attemptNumber={}",
+          "event=analysis.dispatch.failed source={} outcome={} taskId={} scanRunId={} attemptId={} attemptNumber={}",
           source,
+          outcome,
           message.taskId(),
           message.scanRunId(),
           message.attemptId(),
           message.attemptNumber(),
           e);
-      return false;
+      return outcome;
     }
-    // 발행은 성공했다. 기록이 남지 않으면 같은 키 재전송이 503을 받고 같은 시도가 한 번 더 발행될 수 있어(워커의 두 번째 다운로드는 409)
+    // 발행은 성공했다. 기록이 남지 않으면 회수기가 같은 시도를 한 번 더 발행할 수 있어(워커의 두 번째 다운로드는 409)
     // 일시적인 DB 오류에 대비해 한 번 더 기록한다.
     for (int attempt = 1; attempt <= CONFIRM_ATTEMPTS; attempt++) {
       try {
         confirm(message);
-        return true;
+        return Outcome.SENT;
       } catch (RuntimeException e) {
         log.error(
             "event=analysis.dispatch.confirm_failed source={} taskId={} attemptId={} confirmAttempt={}",
@@ -57,7 +68,7 @@ public class ScanTaskDispatcher {
             e);
       }
     }
-    return true;
+    return Outcome.SENT;
   }
 
   private void confirm(ScanTaskMessage message) {

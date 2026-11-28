@@ -154,6 +154,7 @@ CREATE TABLE workflow_hub.analysis_job_attempts (
     accepted_execution_status text,
     accepted_analysis_coverage text,
     -- 마지막 SQS 발행 시도 시각과 발행 성공 확인 시각. 미확인 queued 시도는 회수기가 같은 attemptId로 다시 발행한다.
+    -- 시도를 만들 때 created_at과 같은 값으로 기록하므로, 더 크면 회수기가 다시 발행을 시도한 것이다.
     dispatch_attempted_at timestamptz NOT NULL DEFAULT clock_timestamp(),
     dispatched_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT clock_timestamp(),

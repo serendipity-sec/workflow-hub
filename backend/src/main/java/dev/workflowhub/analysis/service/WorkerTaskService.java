@@ -521,8 +521,8 @@ public class WorkerTaskService {
                 jdbc.sql(
                         """
                         INSERT INTO workflow_hub.analysis_job_attempts (
-                            id, job_id, attempt_number, status, created_at)
-                        VALUES (:nextAttemptId, :taskId, :nextAttemptNumber, 'queued', :now)
+                            id, job_id, attempt_number, status, created_at, dispatch_attempted_at)
+                        VALUES (:nextAttemptId, :taskId, :nextAttemptNumber, 'queued', :now, :now)
                         """)
                     .param("nextAttemptId", nextAttemptId)
                     .param("taskId", taskId)

@@ -197,15 +197,22 @@ class ScanApiTests {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data").value(nullValue()));
 
-    // SQS 발행 실패 시 503을 반환하고 미발행 queued 행을 정리하므로 같은 키로 재시도 가능
-    queue.failEnqueue = true;
+    // SQS가 발행을 명확히 거부하면 503을 반환하고 실행은 지우지 않고 failed로 마감한다. 멱등성 키는 해제된다.
+    queue.rejectEnqueue = true;
     mvc.perform(post(base).with(user(OWNER)).header("Idempotency-Key", "req-001"))
         .andExpect(status().isServiceUnavailable())
         .andExpect(jsonPath("$.code").value("SCAN_DISPATCH_UNAVAILABLE"));
-    assertThat(jdbc.sql("SELECT count(*) FROM workflow_hub.scan_runs").query(Long.class).single())
-        .isZero();
+    String rejectedId =
+        jdbc.sql("SELECT id::text FROM workflow_hub.scan_runs").query(String.class).single();
+    mvc.perform(get(base + "/" + rejectedId).with(user(OWNER)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.executionStatus").value("failed"))
+        .andExpect(jsonPath("$.data.analysisCoverage").value("unknown"))
+        .andExpect(jsonPath("$.data.error.code").value("scan_dispatch_failed"))
+        .andExpect(jsonPath("$.data.error.retryable").value(false));
 
-    queue.failEnqueue = false;
+    // 같은 키로 다시 요청하면 새 검사가 만들어진다.
+    queue.rejectEnqueue = false;
     MvcResult created =
         mvc.perform(post(base).with(user(OWNER)).header("Idempotency-Key", "req-001"))
             .andExpect(status().isAccepted())
@@ -218,6 +225,7 @@ class ScanApiTests {
             .andReturn();
     String scanRunId =
         JsonPath.read(created.getResponse().getContentAsString(), "$.data.scanRunId");
+    assertThat(scanRunId).isNotEqualTo(rejectedId);
     assertThat(queue.messages()).hasSize(1);
 
     // 같은 Idempotency-Key 재전송은 202와 동일 scanRunId를 돌려주고 SQS에 중복 발행하지 않는다.
@@ -422,92 +430,154 @@ class ScanApiTests {
   }
 
   @Test
-  void replayReturnsRetryableErrorUntilTheFirstDispatchIsConfirmed() throws Exception {
-    UploadedVersion target = uploadWorkflow(OWNER, "k-replay-pending");
+  void unknownFirstDispatchFailureKeepsTheRunAndRecoveryResendsTheSameAttempt() throws Exception {
+    UploadedVersion target = uploadWorkflow(OWNER, "k-dispatch-unknown");
     String base = scansUrl(target);
+
+    // 시간 초과처럼 결과를 알 수 없는 실패는 메시지가 이미 큐에 있을 수 있으므로 실행을 보존하고 202를 준다.
+    queue.failEnqueue = true;
     MvcResult created =
-        mvc.perform(post(base).with(user(OWNER)).header("Idempotency-Key", "req-pending"))
+        mvc.perform(post(base).with(user(OWNER)).header("Idempotency-Key", "req-unknown"))
             .andExpect(status().isAccepted())
+            .andExpect(jsonPath("$.data.executionStatus").value("queued"))
             .andReturn();
     String scanRunId =
         JsonPath.read(created.getResponse().getContentAsString(), "$.data.scanRunId");
-    ScanTaskMessage task = queue.lastMessage();
-    assertThat(dispatched(task.attemptId())).isTrue();
+    UUID attempt1 = currentAttempt(scanRunId);
+    assertThat(dispatched(attempt1)).isFalse();
 
-    // 최초 요청이 아직 SQS 응답을 기다리는 상태다. 이 실행은 발행 실패 시 지워질 수 있으므로 202를 주지 않는다.
-    jdbc.sql("UPDATE workflow_hub.analysis_job_attempts SET dispatched_at = NULL WHERE id = :id")
-        .param("id", task.attemptId())
-        .update();
-    mvc.perform(post(base).with(user(OWNER)).header("Idempotency-Key", "req-pending"))
+    // 목록·최신은 보존된 같은 실행을 보여 준다. 첫 발행 결과가 정해지기 전 같은 키 재전송은 재시도 가능한 503이다.
+    mvc.perform(get(base + "/latest").with(user(OWNER)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.scanRunId").value(scanRunId));
+    queue.failEnqueue = false;
+    mvc.perform(post(base).with(user(OWNER)).header("Idempotency-Key", "req-unknown"))
         .andExpect(status().isServiceUnavailable())
         .andExpect(jsonPath("$.code").value("SCAN_DISPATCH_UNAVAILABLE"));
+    assertThat(queue.messages()).isEmpty();
 
-    // 발행이 확인되면 같은 키 재전송은 같은 scanRunId로 202를 받고 다시 발행하지 않는다.
-    jdbc.sql(
-            "UPDATE workflow_hub.analysis_job_attempts SET dispatched_at = clock_timestamp() WHERE id = :id")
-        .param("id", task.attemptId())
-        .update();
-    mvc.perform(post(base).with(user(OWNER)).header("Idempotency-Key", "req-pending"))
+    // 재발행 간격이 지나면 회수기가 같은 attemptId로 다시 보내고, 이후 재전송은 같은 scanRunId로 202를 받는다.
+    backdateDispatchAttempt(attempt1);
+    leaseRecovery.recoverExpired();
+    assertThat(queue.messages()).hasSize(1);
+    assertThat(queue.lastMessage().attemptId()).isEqualTo(attempt1);
+    assertThat(queue.lastMessage().attemptNumber()).isEqualTo(1);
+    assertThat(dispatched(attempt1)).isTrue();
+    mvc.perform(post(base).with(user(OWNER)).header("Idempotency-Key", "req-unknown"))
         .andExpect(status().isAccepted())
         .andExpect(jsonPath("$.data.scanRunId").value(scanRunId));
     assertThat(queue.messages()).hasSize(1);
   }
 
   @Test
-  void failedFirstDispatchKeepsTheRunWhenRecoveryAlreadyAssignedANewAttempt() throws Exception {
-    UploadedVersion target = uploadWorkflow(OWNER, "k-rollback-race");
-    String base = scansUrl(target);
-
-    // 최초 SQS 호출이 응답을 기다리는 사이 미수신 제한 시간이 지나 회수기가 시도 2를 배정한다(회수기의 발행도 실패).
+  void unknownFirstDispatchFailureAfterConcurrentDeletionAnswersNotFound() throws Exception {
+    UploadedVersion target = uploadWorkflow(OWNER, "k-dispatch-deleted");
+    // 첫 발행을 기다리는 사이 버전 삭제가 진행 중 검사를 취소한 상태를 만든다.
     queue.failEnqueue = true;
     queue.beforeEnqueue =
         () -> {
           jdbc.sql(
-                  "UPDATE workflow_hub.analysis_jobs SET updated_at = clock_timestamp() - interval '10 minutes'")
+                  "UPDATE workflow_hub.analysis_job_attempts SET status = 'cancelled', finished_at = clock_timestamp()")
+              .update();
+          jdbc.sql("UPDATE workflow_hub.analysis_jobs SET status = 'cancelled'").update();
+          jdbc.sql(
+                  "UPDATE workflow_hub.scan_runs SET execution_status = 'cancelled', finished_at = clock_timestamp()")
+              .update();
+        };
+    mvc.perform(post(scansUrl(target)).with(user(OWNER)))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value("WORKFLOW_VERSION_NOT_FOUND"));
+  }
+
+  @Test
+  void rejectedFirstDispatchKeepsTheRunWhenRecoveryAlreadyTookOverTheAttempt() throws Exception {
+    UploadedVersion target = uploadWorkflow(OWNER, "k-reject-takeover");
+    String base = scansUrl(target);
+
+    // 최초 SQS 호출이 오래 걸리는 사이 회수기가 같은 시도의 발행을 넘겨받는다(회수기의 발행도 거부됨).
+    queue.rejectEnqueue = true;
+    queue.beforeEnqueue =
+        () -> {
+          jdbc.sql(
+                  "UPDATE workflow_hub.analysis_job_attempts SET dispatch_attempted_at = clock_timestamp() - interval '10 minutes'")
               .update();
           leaseRecovery.recoverExpired();
         };
     MvcResult created =
-        mvc.perform(post(base).with(user(OWNER)).header("Idempotency-Key", "req-race"))
+        mvc.perform(post(base).with(user(OWNER)).header("Idempotency-Key", "req-takeover"))
             .andExpect(status().isAccepted())
             .andExpect(jsonPath("$.data.executionStatus").value("queued"))
             .andReturn();
     String scanRunId =
         JsonPath.read(created.getResponse().getContentAsString(), "$.data.scanRunId");
+    UUID attempt1 = currentAttempt(scanRunId);
 
-    // 최초 발행 실패 정리가 회수기가 만든 시도 2를 지우지 않는다.
-    UUID taskId =
-        jdbc.sql("SELECT id FROM workflow_hub.analysis_jobs WHERE scan_run_id = :id")
-            .param("id", UUID.fromString(scanRunId))
-            .query(UUID.class)
-            .single();
-    assertThat(
-            jdbc.sql("SELECT count(*) FROM workflow_hub.analysis_job_attempts WHERE job_id = :id")
-                .param("id", taskId)
-                .query(Long.class)
-                .single())
-        .isEqualTo(2L);
-    UUID attempt2 =
-        jdbc.sql("SELECT current_attempt_id FROM workflow_hub.analysis_jobs WHERE id = :id")
-            .param("id", taskId)
-            .query(UUID.class)
-            .single();
-
-    // 같은 키 재전송은 보존된 실행을 그대로 돌려준다.
-    queue.failEnqueue = false;
-    mvc.perform(post(base).with(user(OWNER)).header("Idempotency-Key", "req-race"))
+    // 최초 요청의 거부가 회수기가 넘겨받은 시도를 failed로 마감하지 않는다.
+    mvc.perform(get(base + "/" + scanRunId).with(user(OWNER)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.executionStatus").value("queued"));
+    mvc.perform(post(base).with(user(OWNER)).header("Idempotency-Key", "req-takeover"))
         .andExpect(status().isAccepted())
         .andExpect(jsonPath("$.data.scanRunId").value(scanRunId));
 
-    // SQS가 복구되면 회수기가 시도 2를 같은 attemptId로 발행한다.
-    jdbc.sql(
-            "UPDATE workflow_hub.analysis_job_attempts SET dispatch_attempted_at = clock_timestamp() - interval '10 minutes' WHERE id = :id")
-        .param("id", attempt2)
-        .update();
+    // SQS가 복구되면 회수기가 같은 attemptId로 발행한다.
+    queue.rejectEnqueue = false;
+    backdateDispatchAttempt(attempt1);
     leaseRecovery.recoverExpired();
     assertThat(queue.messages()).hasSize(1);
-    assertThat(queue.lastMessage().attemptId()).isEqualTo(attempt2);
+    assertThat(queue.lastMessage().attemptId()).isEqualTo(attempt1);
+  }
+
+  @Test
+  void queuedTimeoutResendsAnUnconfirmedAttemptOnceBeforeConsumingAnAttempt() throws Exception {
+    UploadedVersion target = uploadWorkflow(OWNER, "k-window");
+    String base = scansUrl(target);
+    queue.failEnqueue = true;
+    MvcResult created =
+        mvc.perform(post(base).with(user(OWNER))).andExpect(status().isAccepted()).andReturn();
+    String scanRunId =
+        JsonPath.read(created.getResponse().getContentAsString(), "$.data.scanRunId");
+    UUID attempt1 = currentAttempt(scanRunId);
+
+    // 회수 주기 때문에 재발행 구간을 건너뛰어 미수신 제한 시간까지 지난 상태를 만든다.
+    queue.failEnqueue = false;
+    jdbc.sql(
+            "UPDATE workflow_hub.analysis_jobs SET updated_at = clock_timestamp() - interval '10 minutes'")
+        .update();
+    backdateDispatchAttempt(attempt1);
+
+    // 시도를 만료하지 않고 같은 attemptId를 먼저 다시 보낸다.
+    leaseRecovery.recoverExpired();
+    assertThat(queue.messages()).hasSize(1);
+    assertThat(queue.lastMessage().attemptId()).isEqualTo(attempt1);
+    assertThat(queue.lastMessage().attemptNumber()).isEqualTo(1);
+    assertThat(currentAttempt(scanRunId)).isEqualTo(attempt1);
+
+    // 재발행 직후에는 만료하지 않는다. 발행 시각부터 미수신 제한 시간이 지나도 워커가 시작하지 않으면 그때 다음 시도로 넘긴다.
+    leaseRecovery.recoverExpired();
+    assertThat(queue.messages()).hasSize(1);
+    jdbc.sql(
+            "UPDATE workflow_hub.analysis_job_attempts SET dispatched_at = clock_timestamp() - interval '10 minutes' WHERE id = :id")
+        .param("id", attempt1)
+        .update();
+    leaseRecovery.recoverExpired();
+    assertThat(queue.messages()).hasSize(2);
     assertThat(queue.lastMessage().attemptNumber()).isEqualTo(2);
+  }
+
+  private UUID currentAttempt(String scanRunId) {
+    return jdbc.sql(
+            "SELECT current_attempt_id FROM workflow_hub.analysis_jobs WHERE scan_run_id = :id")
+        .param("id", UUID.fromString(scanRunId))
+        .query(UUID.class)
+        .single();
+  }
+
+  private void backdateDispatchAttempt(UUID attemptId) {
+    jdbc.sql(
+            "UPDATE workflow_hub.analysis_job_attempts SET dispatch_attempted_at = clock_timestamp() - interval '10 minutes' WHERE id = :id")
+        .param("id", attemptId)
+        .update();
   }
 
   @Test

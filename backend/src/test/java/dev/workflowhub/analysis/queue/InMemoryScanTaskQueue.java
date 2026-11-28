@@ -6,7 +6,12 @@ import java.util.concurrent.CopyOnWriteArrayList;
 /** 테스트용 SQS 작업 큐 대역. 실제 AWS SQS 동작은 검증하지 못한다. */
 public class InMemoryScanTaskQueue implements ScanTaskQueue {
   private final List<ScanTaskMessage> messages = new CopyOnWriteArrayList<>();
+
+  /** 결과를 알 수 없는 발행 실패(시간 초과 등)를 흉내 낸다. */
   public volatile boolean failEnqueue;
+
+  /** 큐가 요청을 명확히 거부한 발행 실패를 흉내 낸다. */
+  public volatile boolean rejectEnqueue;
 
   /** 다음 enqueue 시작 시 한 번만 실행한다. 발행 응답을 기다리는 사이 다른 작업이 끼어드는 상황을 만든다. */
   public volatile Runnable beforeEnqueue;
@@ -17,6 +22,10 @@ public class InMemoryScanTaskQueue implements ScanTaskQueue {
     beforeEnqueue = null;
     if (hook != null) {
       hook.run();
+    }
+    if (rejectEnqueue) {
+      throw new ScanDispatchRejectedException(
+          "simulated SQS rejection", new IllegalStateException("rejected"));
     }
     if (failEnqueue) {
       throw new IllegalStateException("simulated SQS dispatch failure");
@@ -35,6 +44,7 @@ public class InMemoryScanTaskQueue implements ScanTaskQueue {
   public void reset() {
     messages.clear();
     failEnqueue = false;
+    rejectEnqueue = false;
     beforeEnqueue = null;
   }
 }
