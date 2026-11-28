@@ -153,9 +153,17 @@ CREATE TABLE workflow_hub.analysis_job_attempts (
             CHECK (result_idempotency_key IS NULL OR result_idempotency_key ~ '^[0-9a-f]{64}$'),
     accepted_execution_status text,
     accepted_analysis_coverage text,
+    -- 마지막 SQS 발행 시도 시각과 발행 성공 확인 시각. 미확인 queued 시도는 회수기가 같은 attemptId로 다시 발행한다.
+    dispatch_attempted_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    dispatched_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
     CONSTRAINT analysis_job_attempts_job_number_unique UNIQUE (job_id, attempt_number)
 );
+
+-- 발행이 확인되지 않은 queued 시도를 재발행할 때 쓴다.
+CREATE INDEX analysis_job_attempts_undispatched_idx
+    ON workflow_hub.analysis_job_attempts (dispatch_attempted_at, id)
+    WHERE status = 'queued' AND dispatched_at IS NULL;
 
 CREATE TABLE workflow_hub.scan_request_idempotency_keys (
     owner_id text NOT NULL,

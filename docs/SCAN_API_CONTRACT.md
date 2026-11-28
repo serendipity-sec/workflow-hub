@@ -39,13 +39,13 @@ sequenceDiagram
     SQS->>WK: 이벤트 트리거 (attemptId, inputSha256 등)
     WK->>BE: GET /internal/worker/v1/tasks/{taskId}/attempts/{attemptId}/file
     BE->>S3: 원본 바이트 읽기
-    BE->>BE: queued -> running 전환, leaseExpiresAt(60초) 발급
+    BE->>BE: queued -> running 전환, leaseExpiresAt(기본 60초) 발급
     BE-->>WK: 200 OK (원본 JSON 바이트 + X-Lease-Expires-At)
 
     WK->>WK: SHA-256 대조 후 정적 분석 (최대 180초)
-    opt 분석이 25초를 넘을 때
+    loop 분석이 끝날 때까지 25초마다
         WK->>BE: POST /internal/worker/v1/tasks/{taskId}/attempts/{attemptId}/heartbeat
-        BE-->>WK: 200 OK (leaseExpiresAt +60초 연장)
+        BE-->>WK: 200 OK (leaseExpiresAt을 서버 시각 + 임대 길이로 연장)
     end
 
     WK->>BE: PUT /internal/worker/v1/tasks/{taskId}/attempts/{attemptId}/result
@@ -71,10 +71,10 @@ sequenceDiagram
 
 ### 2.2 인증 및 권한 분리
 
-| 대상 경로                                | 인증 수단                                                        | 인가·차단 규칙                                                                                                                                                                                                                           |
-| :--------------------------------------- | :--------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 사용자 API (`/api/workflows/**`)         | Supabase 사용자 Access Token (`Authorization: Bearer <jwt>`)     | 백엔드가 비대칭 JWKS·issuer·audience·만료 검증 후 `sub`로 소유권 확인. 미인증은 `401`, 타인 소유·없는 ID·잘못된 UUID·삭제된 워크플로/버전은 모두 동일한 `404` 반환                                                                       |
-| 워커 내부 API (`/internal/worker/v1/**`) | 서비스 전용 Bearer 토큰 (`Authorization: Bearer <worker-token>`) | 사용자 Supabase JWT와 완전히 분리된 자격 증명. 키 회전을 위해 복수 활성 토큰을 허용한다. 토큰 누락·형식 오류·미일치는 `401`, 권한 없는 주체는 `403`. 외부 인터넷에서는 Security Group·리버스 프록시/WAF로 `/internal/**` 접근을 차단한다 |
+| 대상 경로                                | 인증 수단                                                        | 인가·차단 규칙                                                                                                                                                                                                                                                                                                                                                                   |
+| :--------------------------------------- | :--------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 사용자 API (`/api/workflows/**`)         | Supabase 사용자 Access Token (`Authorization: Bearer <jwt>`)     | 백엔드가 비대칭 JWKS·issuer·audience·만료 검증 후 `sub`로 소유권 확인. 미인증은 `401`, 타인 소유·없는 ID·잘못된 UUID·삭제된 워크플로/버전은 모두 동일한 `404` 반환                                                                                                                                                                                                               |
+| 워커 내부 API (`/internal/worker/v1/**`) | 서비스 전용 Bearer 토큰 (`Authorization: Bearer <worker-token>`) | 사용자 Supabase JWT와 완전히 분리된 자격 증명. 키 회전을 위해 복수 활성 토큰을 허용한다. 인증 스킴(`Bearer`)은 대소문자를 구분하지 않고 스킴 뒤 공백은 하나 이상 허용한다. 토큰에 공백·제어 문자가 있는 설정은 기동 시 거부한다. 토큰 누락·형식 오류·미일치는 `401`, 권한 없는 주체는 `403`. 외부 인터넷에서는 Security Group·리버스 프록시/WAF로 `/internal/**` 접근을 차단한다 |
 
 ### 2.3 공통 오류 응답 형식
 
@@ -105,7 +105,7 @@ sequenceDiagram
 
 ### 3.2 결과 계약 · 엔진 · 규칙 버전 연결
 
-모든 검사 실행과 결과는 아래 버전 정보를 함께 기록·반환한다.
+워커가 결과를 제출하면 검사 실행에 아래 버전 정보를 기록하고 조회 응답의 `versions`로 반환한다. 결과 제출 전(`queued`, `running`, 결과 없이 끝난 `cancelled`·`timed_out` 등)에는 `versions`가 `null`이므로 클라이언트는 `versions`가 있는지 먼저 확인한다.
 
 ```json
 {
@@ -124,17 +124,18 @@ sequenceDiagram
    - 검사 요청(`POST .../scans`) 시 백엔드는 작업을 생성하지 않고 `409 VERSION_HASH_UNAVAILABLE`로 즉시 거절한다. 해시가 확인되지 않은 버전에는 검사 결과를 연결하지 않는다.
 2. **워커 다운로드 시 해시 불일치**
    - 워커는 `GET /file`로 수신한 바이트의 SHA-256을 계산해 SQS 메시지의 `inputSha256`과 대조한다.
-   - 불일치하면 분석기를 실행하지 않고 즉시 `PUT /result`에 `outcome: "failed"`, `errorCode: "hash_mismatch"`를 제출한다. `hash_mismatch`는 재시도하지 않는다.
+   - 불일치하면 분석기를 실행하지 않고 즉시 `PUT /result`에 `outcome: "failed"`, `error: { "code": "hash_mismatch", "retryable": false }`를 제출한다. `hash_mismatch`는 재시도하지 않는다.
 3. **결과 제출 시 식별자·해시 불일치**
-   - 백엔드는 `PUT /result` 본문의 `scanRunId`, `workflowVersionId`, `inputSha256`과 `inspection.inputSha256`, `inspection.assessment.inputSha256`, `inspection.serviceReport.inputSha256`, `inspection.llm.inputSha256`이 모두 DB의 작업 기록과 일치하는지 검증한다.
+   - 백엔드는 모든 결과(`completed`·`failed`·`timed_out`)에서 `PUT /result` 본문의 공통 필드 `scanRunId`, `workflowVersionId`, `inputSha256`이 DB의 작업 기록과 일치하는지 검증한다.
+   - `outcome: "completed"` 결과에서만 `inspection.inputSha256`, `inspection.assessment.inputSha256`, `inspection.serviceReport.inputSha256`, `inspection.llm.inputSha256`도 함께 검증한다. 실패·시간 초과 결과에는 `inspection`이 없다.
    - 하나라도 다르면 `409 RESULT_IDENTITY_MISMATCH`로 거절하고 결과를 저장하지 않는다.
 
 ### 3.4 입력 한도 차이 처리
 
 현재 백엔드 업로드 한도(`5 MiB` / 깊이 64 / 노드 300 / 연결 1,500)와 워커 정적 분석 한도(`256 KiB` / 깊이 32 / 노드 128 / 연결 128)는 다르다.
 
-- **파일 크기 초과 (`size_bytes > 262144`)**: 검사 요청(`POST .../scans`) 시 백엔드가 `422 SCAN_FILE_TOO_LARGE`로 즉시 거절하고 `ScanRun`을 생성하지 않는다.
-- **워커 구조 한도 초과 (깊이 > 32, 노드 > 128, 연결 > 128)**: 워커가 분석 단계에서 감지하고 `outcome: "failed"`, `errorCode: "depth_limit"` 또는 `"graph_limit"`으로 제출한다(재시도 안 함).
+- **파일 크기 초과 (`size_bytes > SCAN_MAX_FILE_BYTES`, 기본 `262144`)**: 검사 요청(`POST .../scans`) 시 백엔드가 `422 SCAN_FILE_TOO_LARGE`로 즉시 거절하고 `ScanRun`을 생성하지 않는다.
+- **워커 구조 한도 초과 (깊이 > 32, 노드 > 128, 연결 > 128)**: 워커가 분석 단계에서 감지하고 `outcome: "failed"`, `error: { "code": "depth_limit" | "graph_limit", "retryable": false }`로 제출한다(재시도 안 함).
 
 ---
 
@@ -203,15 +204,15 @@ stateDiagram-v2
   - `Idempotency-Key: <string>` (선택, 최대 128자 — 네트워크 재시도 시 동일 `scanRunId` 반환용)
 - **요청 본문**: 없음(또는 빈 객체 `{}`)
 - **응답**:
-  - `202 Accepted`: 새 `ScanRun` 생성 및 SQS 발행 완료 (또는 동일 `Idempotency-Key` 재시도)
+  - `202 Accepted`: 새 `ScanRun` 생성 및 SQS 발행 완료 (또는 첫 발행이 확인된 동일 `Idempotency-Key` 재시도)
   - `400 INVALID_IDEMPOTENCY_KEY`: `Idempotency-Key` 형식 오류(공백·128자 초과 등)
   - `401 UNAUTHORIZED`: 토큰 없음·유효하지 않음
   - `404 WORKFLOW_VERSION_NOT_FOUND`: 타인 소유·존재하지 않는 워크플로/버전·삭제된 항목·잘못된 UUID
   - `409 VERSION_HASH_UNAVAILABLE`: 대상 버전의 `content_sha256`이 기록되지 않음(`null`)
   - `409 SCAN_ALREADY_IN_PROGRESS`: 같은 버전에 이미 `queued` 또는 `running` 상태인 검사가 있음. 오류 응답의 `details`에 진행 중인 `scanRunId`와 `executionStatus`를 함께 반환한다.
   - `409 IDEMPOTENCY_KEY_CONFLICT`: 같은 `Idempotency-Key`를 다른 버전에 재사용함
-  - `422 SCAN_FILE_TOO_LARGE`: 원본 파일 크기가 워커 한도(256 KiB)를 초과함
-  - `503 SCAN_DISPATCH_UNAVAILABLE`: SQS 작업 발행 실패 등 일시 장애
+  - `422 SCAN_FILE_TOO_LARGE`: 원본 파일 크기가 검사 파일 크기 한도(`SCAN_MAX_FILE_BYTES`, 기본 256 KiB)를 초과함
+  - `503 SCAN_DISPATCH_UNAVAILABLE`: SQS 작업 발행 실패 등 일시 장애. 최초 발행이 실패하면 아직 시작하지 않은 실행과 멱등성 키를 정리하므로 같은 키로 다시 요청할 수 있다. 같은 키의 최초 요청이 아직 첫 발행을 확인하지 못한 동안의 재전송도 이 코드로 거절해, 나중에 정리될 수 있는 `scanRunId`를 `202`로 노출하지 않는다
 
 ### 5.2 버전별 검사 이력 목록 조회
 
@@ -280,7 +281,7 @@ stateDiagram-v2
 - **헤더**: `Authorization: Bearer <worker-service-token>` (필수)
 - **동작**:
   1. 백엔드가 `taskId`/`attemptId` 유효성, 워크플로·버전 삭제 여부, 현재 상태를 확인한다.
-  2. `queued` 상태이면 한 트랜잭션에서 `running`으로 전환하고 `started_at = now()`, `lease_expires_at = now() + 60s`를 기록한다.
+  2. `queued` 상태이면 한 트랜잭션에서 `running`으로 전환하고 `started_at = now()`, `lease_expires_at = now() + 임대 길이`(`SCAN_LEASE_DURATION`, 기본 60초)를 기록한다. 임대 길이는 설정에 따라 다르므로 워커는 `X-Lease-Expires-At`을 기준으로 판단한다.
   3. S3에서 원본 바이트를 읽어 `application/json` 본문으로 그대로 반환한다.
 - **응답 헤더**:
   - `X-Input-Sha256`: 기대 SHA-256 (64자 hex)
@@ -292,12 +293,13 @@ stateDiagram-v2
   - `409 TASK_CANCELLED` / `TASK_NOT_RUNNABLE`: 워크플로·버전 삭제 등으로 취소되었거나 이미 실행 불가능한 상태의 작업
   - `410 ATTEMPT_EXPIRED`: 이미 만료되었거나 새 시도로 대체된 `attemptId`
   - `503 STORAGE_UNAVAILABLE`: S3 읽기 일시 실패
+- **HEAD**: 상태를 바꾸는 요청이므로 `HEAD /file`은 시도를 시작하지 않고 `405 METHOD_NOT_ALLOWED`(`Allow: GET`)로 거절한다.
 
 ### 6.3 임대 연장 (`POST /heartbeat`)
 
 - `POST /internal/worker/v1/tasks/{taskId}/attempts/{attemptId}/heartbeat`
 - **헤더**: `Authorization: Bearer <worker-service-token>` (필수)
-- **호출 주기**: 워커는 `GET /file` 이후 분석이 계속되는 동안 **25초 간격**으로 호출한다. `409` 또는 `410`을 받으면 진행 중인 분석을 `AbortSignal`로 즉시 중단한다.
+- **호출 주기**: 워커는 `GET /file` 이후 분석이 계속되는 동안 **25초 간격**으로 호출한다(기본 임대 60초 기준). 서버는 매번 서버 시각 + 임대 길이로 연장하고 응답의 `leaseExpiresAt`을 기준으로 삼는다. 임대 유효성은 작업 잠금을 얻은 뒤의 DB 시각으로 판정하므로, 잠금을 기다리는 사이 만료된 임대는 연장하지 않고 `410`으로 거절한다. `409` 또는 `410`을 받으면 진행 중인 분석을 `AbortSignal`로 즉시 중단한다.
 - **응답**:
   - `200 OK`: `{ "data": { "taskId": "...", "attemptId": "...", "leaseExpiresAt": "2026-11-29T00:11:26Z" } }`
   - `401` / `403`: 워커 인증 실패
@@ -309,7 +311,7 @@ stateDiagram-v2
 - `PUT /internal/worker/v1/tasks/{taskId}/attempts/{attemptId}/result`
 - **헤더**:
   - `Authorization: Bearer <worker-service-token>` (필수)
-  - `Content-Type: application/json` (공백 없는 직렬화 권장, 최대 `6 MiB`)
+  - `Content-Type: application/json` (공백 없는 직렬화 권장, 최대 `SCAN_MAX_RESULT_BYTES`, 기본 `6 MiB`)
   - `Idempotency-Key: <sha256-of-raw-request-body>` (필수, 소문자 hex 64자)
 - **요청 본문 공통 필드**:
   - `contractVersion`, `taskId`, `attemptId`, `scanRunId`, `workflowVersionId`, `inputSha256`, `versions`
@@ -324,23 +326,25 @@ stateDiagram-v2
   - `404 TASK_ATTEMPT_NOT_FOUND`: 존재하지 않는 작업/시도
   - `409 RESULT_IDENTITY_MISMATCH` / `IDEMPOTENCY_KEY_CONFLICT` / `TASK_CANCELLED` / `ATTEMPT_NOT_ACTIVE`: 해시·버전·실행 ID 불일치, 같은 시도에서 다른 본문 재제출, 작업이 취소/삭제됨, 또는 실행 중이 아닌 시도
   - `410 ATTEMPT_EXPIRED`: 서버/DB 시각 기준 `leaseExpiresAt` 만료 또는 이미 새 시도로 대체된 지연 결과
-  - `413 PAYLOAD_TOO_LARGE`: 결과 본문이 최대 크기(`6 MiB`)를 초과함
+  - `413 PAYLOAD_TOO_LARGE`: 결과 본문이 최대 크기(`SCAN_MAX_RESULT_BYTES`, 기본 `6 MiB`)를 초과함
+  - `415 UNSUPPORTED_MEDIA_TYPE`: `Content-Type`이 `application/json`이 아님
   - `429` / `502` / `503` / `504`: 일시적 서버 오류 (워커가 lease 이내에 같은 바이트·같은 `Idempotency-Key`로 재전송 가능)
 
 ---
 
 ## 7. 임대 · 재시도 · 중복 · 지연 · 삭제 처리 기준
 
-| 항목                           | 확정 규칙                                                                                                                                                                                                                                                                                                                                              |
-| :----------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **임대(Lease)**                | `GET /file` 시 `60초` 부여, `POST /heartbeat`(25초 간격)로 매회 `now() + 60초` 연장. 모든 만료 판정은 서버/DB 시각 기준                                                                                                                                                                                                                                |
-| **최대 시도 횟수**             | 총 `3회` (최초 `1` + 재시도 `2`)                                                                                                                                                                                                                                                                                                                       |
-| **재시도 대상 오류**           | 임대 만료(워커 무응답/강제 종료), `sandbox_unavailable`, `sandbox_failed`, `file_access`, 일시적 네트워크/스토리지 오류 (`retryable: true`)                                                                                                                                                                                                            |
-| **비재시도 오류 (즉시 종료)**  | `hash_mismatch`, `file_too_large`, `invalid_utf8`, `invalid_json`, `duplicate_key`, `depth_limit`, `graph_limit`, `invalid_workflow`, `identity_collision`, `broken_connection`, `assessment_output_limit`, `invalid_configuration`, `cancelled` (`retryable: false`). `assessment_timeout`은 180초 분석 한도 초과이므로 즉시 `timed_out`으로 종료한다 |
-| **만료·지연 결과**             | `leaseExpiresAt` 경과 후 도착한 결과는 재시도 배정 전이라도 `410 ATTEMPT_EXPIRED`로 거절한다. 새 시도가 생성된 뒤 이전 시도의 결과도 `410`으로 거절해 최신 상태를 덮어쓰지 못하게 한다                                                                                                                                                                 |
-| **중복 제출 (멱등성)**         | 이미 수락된 `attemptId`에 동일한 `Idempotency-Key`(본문 SHA-256)로 재전송되면 결과·정책을 다시 적용하지 않고 `200 OK`를 반환한다. 다른 `Idempotency-Key`로 재전송되면 `409 IDEMPOTENCY_KEY_CONFLICT`로 거절한다                                                                                                                                        |
-| **워크플로/버전 삭제 중 실행** | 소유자가 워크플로 또는 버전을 삭제하면 백엔드가 같은 트랜잭션에서 진행 중(`queued`/`running`) 작업을 `cancelled`로 표시한다. 이후 워커의 `GET /file`, `POST /heartbeat`, `PUT /result`는 `409 TASK_CANCELLED`로 거절한다                                                                                                                               |
-| **백엔드 만료 회수**           | 백엔드 스케줄러가 `running` 상태에서 `lease_expires_at < now()`인 작업을 감지해 `attemptNumber < maxAttempts`이면 새 `attemptId`로 `queued` 재발행하고, 소진 시 `timed_out`으로 마감한다. SQS DLQ에 도달한 메시지도 동일 규칙으로 회수한다                                                                                                             |
+| 항목                           | 확정 규칙                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| :----------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **임대(Lease)**                | `GET /file` 시 임대 길이(`SCAN_LEASE_DURATION`, 기본 `60초`) 부여, `POST /heartbeat`(25초 간격)로 매회 `now() + 임대 길이` 연장. 모든 만료 판정은 작업 잠금을 얻은 뒤의 서버/DB 시각 기준이며, 워커는 응답의 만료 시각을 기준으로 삼는다                                                                                                                                                                                            |
+| **최대 시도 횟수**             | 총 `3회` (최초 `1` + 재시도 `2`)                                                                                                                                                                                                                                                                                                                                                                                                    |
+| **재시도 대상 오류**           | 임대 만료(워커 무응답/강제 종료), `sandbox_unavailable`, `sandbox_failed`, `file_access`, 일시적 네트워크/스토리지 오류 (`retryable: true`)                                                                                                                                                                                                                                                                                         |
+| **비재시도 오류 (즉시 종료)**  | `hash_mismatch`, `file_too_large`, `invalid_utf8`, `invalid_json`, `duplicate_key`, `depth_limit`, `graph_limit`, `invalid_workflow`, `identity_collision`, `broken_connection`, `assessment_output_limit`, `invalid_configuration`, `cancelled` (`retryable: false`). `assessment_timeout`은 180초 분석 한도 초과이므로 즉시 `timed_out`으로 종료한다                                                                              |
+| **만료·지연 결과**             | `leaseExpiresAt` 경과 후 도착한 결과는 재시도 배정 전이라도 `410 ATTEMPT_EXPIRED`로 거절한다. 새 시도가 생성된 뒤 이전 시도의 결과도 `410`으로 거절해 최신 상태를 덮어쓰지 못하게 한다                                                                                                                                                                                                                                              |
+| **중복 제출 (멱등성)**         | 이미 수락된 `attemptId`에 동일한 `Idempotency-Key`(본문 SHA-256)로 재전송되면 결과·정책을 다시 적용하지 않고 최초 수락 응답과 같은 `200 OK`를 반환한다. 동시에 들어온 같은 제출도 작업 잠금을 얻은 뒤 시도 상태를 다시 읽어 같은 응답을 받는다. 재시도 발행이 실패해도 수락 응답은 바꾸지 않는다. 다른 `Idempotency-Key`로 재전송되면 `409 IDEMPOTENCY_KEY_CONFLICT`로 거절한다                                                     |
+| **워크플로/버전 삭제 중 실행** | 소유자가 워크플로 또는 버전을 삭제하면 백엔드가 같은 트랜잭션에서 진행 중(`queued`/`running`) 작업을 `cancelled`로 표시한다. 이후 워커의 `GET /file`, `POST /heartbeat`, `PUT /result`는 `409 TASK_CANCELLED`로 거절한다                                                                                                                                                                                                            |
+| **백엔드 만료 회수**           | 백엔드 스케줄러가 `running` 상태에서 `lease_expires_at < now()`인 작업과 `SCAN_QUEUED_TIMEOUT`(기본 5분) 동안 시작되지 않은 `queued` 작업을 감지해 `attemptNumber < maxAttempts`이면 새 `attemptId`로 `queued` 재발행하고, 소진 시 `timed_out`으로 마감한다. SQS DLQ에 도달한 메시지도 동일 규칙으로 회수한다                                                                                                                       |
+| **발행 실패 재발행**           | SQS 발행이 일시적으로 실패해도 검사를 `failed`로 끝내지 않는다. 발행이 확인되지 않은 `queued` 시도는 `SCAN_DISPATCH_RETRY_DELAY`(기본 1분, `SQS_CALL_TIMEOUT`보다 길고 `SCAN_QUEUED_TIMEOUT`보다 짧아야 함) 뒤 같은 `attemptId`로 다시 발행한다. 장애가 길어지면 미수신 제한 시간이 시도 횟수를 소모해 결국 `timed_out`(`queue_timeout`)으로 마감한다. 같은 시도가 두 번 전달되면 두 번째 `GET /file`은 `409 TASK_NOT_RUNNABLE`이다 |
 
 ---
 

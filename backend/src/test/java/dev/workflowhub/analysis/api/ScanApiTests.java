@@ -16,6 +16,7 @@ import com.jayway.jsonpath.JsonPath;
 import dev.workflowhub.PostgresTestConfiguration;
 import dev.workflowhub.analysis.queue.InMemoryScanTaskQueue;
 import dev.workflowhub.analysis.queue.ScanTaskMessage;
+import dev.workflowhub.analysis.service.ScanLeaseRecovery;
 import dev.workflowhub.workflow.service.WorkflowObjectCleanup;
 import dev.workflowhub.workflow.service.WorkflowVersionPurge;
 import dev.workflowhub.workflow.storage.InMemoryWorkflowObjectStore;
@@ -80,6 +81,7 @@ class ScanApiTests {
   @Autowired InMemoryScanTaskQueue queue;
   @Autowired WorkflowVersionPurge purge;
   @Autowired WorkflowObjectCleanup cleanup;
+  @Autowired ScanLeaseRecovery leaseRecovery;
 
   @BeforeEach
   void reset() {
@@ -417,6 +419,221 @@ class ScanApiTests {
             .query(Long.class)
             .single();
     assertThat(remainingKeys).isZero();
+  }
+
+  @Test
+  void replayReturnsRetryableErrorUntilTheFirstDispatchIsConfirmed() throws Exception {
+    UploadedVersion target = uploadWorkflow(OWNER, "k-replay-pending");
+    String base = scansUrl(target);
+    MvcResult created =
+        mvc.perform(post(base).with(user(OWNER)).header("Idempotency-Key", "req-pending"))
+            .andExpect(status().isAccepted())
+            .andReturn();
+    String scanRunId =
+        JsonPath.read(created.getResponse().getContentAsString(), "$.data.scanRunId");
+    ScanTaskMessage task = queue.lastMessage();
+    assertThat(dispatched(task.attemptId())).isTrue();
+
+    // 최초 요청이 아직 SQS 응답을 기다리는 상태다. 이 실행은 발행 실패 시 지워질 수 있으므로 202를 주지 않는다.
+    jdbc.sql("UPDATE workflow_hub.analysis_job_attempts SET dispatched_at = NULL WHERE id = :id")
+        .param("id", task.attemptId())
+        .update();
+    mvc.perform(post(base).with(user(OWNER)).header("Idempotency-Key", "req-pending"))
+        .andExpect(status().isServiceUnavailable())
+        .andExpect(jsonPath("$.code").value("SCAN_DISPATCH_UNAVAILABLE"));
+
+    // 발행이 확인되면 같은 키 재전송은 같은 scanRunId로 202를 받고 다시 발행하지 않는다.
+    jdbc.sql(
+            "UPDATE workflow_hub.analysis_job_attempts SET dispatched_at = clock_timestamp() WHERE id = :id")
+        .param("id", task.attemptId())
+        .update();
+    mvc.perform(post(base).with(user(OWNER)).header("Idempotency-Key", "req-pending"))
+        .andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.data.scanRunId").value(scanRunId));
+    assertThat(queue.messages()).hasSize(1);
+  }
+
+  @Test
+  void failedFirstDispatchKeepsTheRunWhenRecoveryAlreadyAssignedANewAttempt() throws Exception {
+    UploadedVersion target = uploadWorkflow(OWNER, "k-rollback-race");
+    String base = scansUrl(target);
+
+    // 최초 SQS 호출이 응답을 기다리는 사이 미수신 제한 시간이 지나 회수기가 시도 2를 배정한다(회수기의 발행도 실패).
+    queue.failEnqueue = true;
+    queue.beforeEnqueue =
+        () -> {
+          jdbc.sql(
+                  "UPDATE workflow_hub.analysis_jobs SET updated_at = clock_timestamp() - interval '10 minutes'")
+              .update();
+          leaseRecovery.recoverExpired();
+        };
+    MvcResult created =
+        mvc.perform(post(base).with(user(OWNER)).header("Idempotency-Key", "req-race"))
+            .andExpect(status().isAccepted())
+            .andExpect(jsonPath("$.data.executionStatus").value("queued"))
+            .andReturn();
+    String scanRunId =
+        JsonPath.read(created.getResponse().getContentAsString(), "$.data.scanRunId");
+
+    // 최초 발행 실패 정리가 회수기가 만든 시도 2를 지우지 않는다.
+    UUID taskId =
+        jdbc.sql("SELECT id FROM workflow_hub.analysis_jobs WHERE scan_run_id = :id")
+            .param("id", UUID.fromString(scanRunId))
+            .query(UUID.class)
+            .single();
+    assertThat(
+            jdbc.sql("SELECT count(*) FROM workflow_hub.analysis_job_attempts WHERE job_id = :id")
+                .param("id", taskId)
+                .query(Long.class)
+                .single())
+        .isEqualTo(2L);
+    UUID attempt2 =
+        jdbc.sql("SELECT current_attempt_id FROM workflow_hub.analysis_jobs WHERE id = :id")
+            .param("id", taskId)
+            .query(UUID.class)
+            .single();
+
+    // 같은 키 재전송은 보존된 실행을 그대로 돌려준다.
+    queue.failEnqueue = false;
+    mvc.perform(post(base).with(user(OWNER)).header("Idempotency-Key", "req-race"))
+        .andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.data.scanRunId").value(scanRunId));
+
+    // SQS가 복구되면 회수기가 시도 2를 같은 attemptId로 발행한다.
+    jdbc.sql(
+            "UPDATE workflow_hub.analysis_job_attempts SET dispatch_attempted_at = clock_timestamp() - interval '10 minutes' WHERE id = :id")
+        .param("id", attempt2)
+        .update();
+    leaseRecovery.recoverExpired();
+    assertThat(queue.messages()).hasSize(1);
+    assertThat(queue.lastMessage().attemptId()).isEqualTo(attempt2);
+    assertThat(queue.lastMessage().attemptNumber()).isEqualTo(2);
+  }
+
+  @Test
+  void purgeDoesNotLetOneFailingVersionBlockOtherDueVersions() throws Exception {
+    UploadedVersion stuck = uploadWorkflow(OWNER, "k-purge-stuck");
+    UploadedVersion later = uploadWorkflow(OWNER, "k-purge-later");
+    mvc.perform(post(scansUrl(stuck)).with(user(OWNER))).andExpect(status().isAccepted());
+    completeScan(queue.lastMessage(), "analyzed", "completed", "complete", "allow", 0, 0, false);
+    String stuckReportKey =
+        jdbc.sql(
+                "SELECT service_report_s3_key FROM workflow_hub.scan_runs WHERE workflow_version_id = :id")
+            .param("id", UUID.fromString(stuck.versionId()))
+            .query(String.class)
+            .single();
+    store.failDeleteKeys.add(stuckReportKey);
+
+    for (UploadedVersion v : new UploadedVersion[] {stuck, later}) {
+      mvc.perform(delete("/api/workflows/{workflowId}", v.workflowId()).with(user(OWNER)))
+          .andExpect(status().isOk());
+    }
+    expireVersion(stuck, "2 minutes");
+    expireVersion(later, "1 minute");
+
+    // 기한이 먼저인 버전의 결과 객체 삭제가 실패하면 이번 실행은 멈춘다.
+    purge.purgeDue();
+    assertThat(purged(stuck)).isFalse();
+    assertThat(purged(later)).isFalse();
+
+    // 재시도 간격이 실행 간격보다 짧아 실패한 버전이 바로 다시 대상이 되어도, 처음 정리하는 버전을 먼저 처리한다.
+    jdbc.sql(
+            "UPDATE workflow_hub.workflow_versions SET delete_started_at = clock_timestamp() - interval '1 hour' WHERE id = :id")
+        .param("id", UUID.fromString(stuck.versionId()))
+        .update();
+    purge.purgeDue();
+    assertThat(purged(later)).isTrue();
+    assertThat(purged(stuck)).isFalse();
+
+    // 원인이 사라지면 재시도에서 마저 정리한다.
+    store.failDeleteKeys.clear();
+    jdbc.sql(
+            "UPDATE workflow_hub.workflow_versions SET delete_started_at = clock_timestamp() - interval '1 hour' WHERE id = :id")
+        .param("id", UUID.fromString(stuck.versionId()))
+        .update();
+    purge.purgeDue();
+    assertThat(purged(stuck)).isTrue();
+    assertThat(store.objects()).isEmpty();
+  }
+
+  @Test
+  void purgeLimitsDeleteCallsPerRunAndResumesFromRecordedProgress() throws Exception {
+    UploadedVersion target = uploadWorkflow(OWNER, "k-purge-budget");
+    UUID versionId = UUID.fromString(target.versionId());
+    // 결과 객체 두 개씩을 가진 완료 검사 150건(객체 300개)을 만든다.
+    jdbc.sql(
+            """
+            INSERT INTO workflow_hub.scan_runs (
+                workflow_id, workflow_version_id, input_sha256, size_bytes,
+                execution_status, analysis_coverage, service_report_s3_key, assessment_s3_key)
+            SELECT :workflowId, :versionId, repeat('a', 64), 10, 'completed', 'checked',
+                   'scan-results/budget/' || g || '/service-report.json',
+                   'scan-results/budget/' || g || '/assessment.json'
+            FROM generate_series(1, 150) AS g
+            """)
+        .param("workflowId", UUID.fromString(target.workflowId()))
+        .param("versionId", versionId)
+        .update();
+    for (int i = 1; i <= 150; i++) {
+      store.objects().put("scan-results/budget/" + i + "/service-report.json", new byte[] {1});
+      store.objects().put("scan-results/budget/" + i + "/assessment.json", new byte[] {1});
+    }
+    mvc.perform(delete("/api/workflows/{workflowId}", target.workflowId()).with(user(OWNER)))
+        .andExpect(status().isOk());
+    expireVersion(target, "1 minute");
+    store.deleteCalls.set(0);
+
+    // 한 실행의 삭제 호출은 200회를 넘지 않고, 지운 검사 행의 키를 비워 진행 상태를 남긴다.
+    purge.purgeDue();
+    assertThat(store.deleteCalls.get()).isEqualTo(200);
+    assertThat(purged(target)).isFalse();
+    assertThat(remainingScanKeys(versionId)).isEqualTo(50L);
+    assertThat(
+            jdbc.sql(
+                    "SELECT delete_started_at IS NOT NULL FROM workflow_hub.workflow_versions WHERE id = :id")
+                .param("id", versionId)
+                .query(Boolean.class)
+                .single())
+        .isTrue();
+
+    // 다음 실행은 남은 객체와 원본을 지운 뒤에만 정리 완료로 표시한다.
+    purge.purgeDue();
+    assertThat(store.deleteCalls.get()).isEqualTo(301);
+    assertThat(purged(target)).isTrue();
+    assertThat(remainingScanKeys(versionId)).isZero();
+    assertThat(store.objects()).isEmpty();
+  }
+
+  private boolean dispatched(UUID attemptId) {
+    return jdbc.sql(
+            "SELECT dispatched_at IS NOT NULL FROM workflow_hub.analysis_job_attempts WHERE id = :id")
+        .param("id", attemptId)
+        .query(Boolean.class)
+        .single();
+  }
+
+  private void expireVersion(UploadedVersion v, String ago) {
+    jdbc.sql(
+            "UPDATE workflow_hub.workflow_versions SET delete_after = clock_timestamp() - CAST(:ago AS interval) WHERE id = :id")
+        .param("ago", ago)
+        .param("id", UUID.fromString(v.versionId()))
+        .update();
+  }
+
+  private boolean purged(UploadedVersion v) {
+    return jdbc.sql(
+            "SELECT purged_at IS NOT NULL FROM workflow_hub.workflow_versions WHERE id = :id")
+        .param("id", UUID.fromString(v.versionId()))
+        .query(Boolean.class)
+        .single();
+  }
+
+  private Long remainingScanKeys(UUID versionId) {
+    return jdbc.sql(
+            "SELECT count(*) FROM workflow_hub.scan_runs WHERE workflow_version_id = :id AND service_report_s3_key IS NOT NULL")
+        .param("id", versionId)
+        .query(Long.class)
+        .single();
   }
 
   private void completeScan(

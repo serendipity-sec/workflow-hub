@@ -8,8 +8,16 @@ public class InMemoryScanTaskQueue implements ScanTaskQueue {
   private final List<ScanTaskMessage> messages = new CopyOnWriteArrayList<>();
   public volatile boolean failEnqueue;
 
+  /** 다음 enqueue 시작 시 한 번만 실행한다. 발행 응답을 기다리는 사이 다른 작업이 끼어드는 상황을 만든다. */
+  public volatile Runnable beforeEnqueue;
+
   @Override
   public void enqueue(ScanTaskMessage message) {
+    Runnable hook = beforeEnqueue;
+    beforeEnqueue = null;
+    if (hook != null) {
+      hook.run();
+    }
     if (failEnqueue) {
       throw new IllegalStateException("simulated SQS dispatch failure");
     }
@@ -27,5 +35,6 @@ public class InMemoryScanTaskQueue implements ScanTaskQueue {
   public void reset() {
     messages.clear();
     failEnqueue = false;
+    beforeEnqueue = null;
   }
 }

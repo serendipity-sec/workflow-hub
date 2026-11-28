@@ -75,7 +75,7 @@ pgvector는 지원 가능한 확장 지점이다. 초기 검색 구현을 의무
 
 이 표는 실제 클라우드 자원 확인이나 새 테스트 실행 결과를 대신하지 않는다. 구현·연동 완료 여부는 코드, 검사 결과, 배포 기록에 따라 갱신한다. 워커는 [지원·계약 #14](https://github.com/serendipity-sec/workflow-hub/issues/14), [실행기 #15](https://github.com/serendipity-sec/workflow-hub/issues/15), [정규화 #16](https://github.com/serendipity-sec/workflow-hub/issues/16), [분석·재검사 #17](https://github.com/serendipity-sec/workflow-hub/issues/17), [검증 #18](https://github.com/serendipity-sec/workflow-hub/issues/18)에서 추적한다. [워커 검증 기록](../worker/docs/validation.md)
 
-현재 앱은 단일 datasource로 시작 시 마이그레이션도 실행한다. 업로드와 버전 등록은 S3의 별도 객체 키에 파일을 저장하고 서비스에서 소유권을 확인한다. 버전별 원본 파일 SHA-256·크기는 서버가 저장하는 바이트로 계산해 기록한다(V6, 이전 버전은 NULL). 검사·공개 상태와 파생 관계는 후속 구현이다.
+현재 앱은 단일 datasource로 시작 시 마이그레이션도 실행한다. 업로드와 버전 등록은 S3의 별도 객체 키에 파일을 저장하고 서비스에서 소유권을 확인한다. 버전별 원본 파일 SHA-256·크기는 서버가 저장하는 바이트로 계산해 기록한다(V6, 이전 버전은 NULL). 보안 검사 실행 상태(4축 상태·요약·오류)는 백엔드 검사 API와 DB(V9)에 구현되어 있다(#57). 검사 결과의 공개·제출 흐름(`publicationStatus`는 현재 항상 `private`), 정책 평가, 버전 간 파생 관계는 후속 구현이다.
 
 ## 5. 단계별 구현 순서 제안
 

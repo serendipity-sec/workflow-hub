@@ -62,7 +62,7 @@ public class ScanController {
   @Operation(
       summary = "워크플로 버전 보안 검사 요청",
       description =
-          "소유한 워크플로 버전의 비동기 보안 검사를 요청하고 SQS 작업을 발행한다. 같은 버전에 이미 진행 중인 검사가 있거나 해시가 없으면 409, 파일이 256 KiB를 초과하면 422로 거절한다.")
+          "소유한 워크플로 버전의 비동기 보안 검사를 요청하고 SQS 작업을 발행한다. 같은 버전에 이미 진행 중인 검사가 있거나 해시가 없으면 409, 파일이 검사 파일 크기 한도(SCAN_MAX_FILE_BYTES, 기본 262144바이트 = 256 KiB)를 초과하면 422로 거절한다. 같은 Idempotency-Key 재전송은 최초 요청의 첫 발행이 확인된 뒤에만 같은 scanRunId로 202를 돌려주고, 확인 전에는 503 SCAN_DISPATCH_UNAVAILABLE을 돌려준다.")
   @ApiResponses({
     @ApiResponse(
         responseCode = "202",
@@ -113,7 +113,8 @@ public class ScanController {
         content = @Content(schema = @Schema(implementation = ApiError.class))),
     @ApiResponse(
         responseCode = "422",
-        description = "원본 파일 크기가 워커 분석 한도(256 KiB)를 초과한다(SCAN_FILE_TOO_LARGE)",
+        description =
+            "원본 파일 크기가 검사 파일 크기 한도(SCAN_MAX_FILE_BYTES, 기본 262144바이트 = 256 KiB)를 초과한다(SCAN_FILE_TOO_LARGE)",
         content = @Content(schema = @Schema(implementation = ApiError.class))),
     @ApiResponse(
         responseCode = "500",
@@ -121,7 +122,8 @@ public class ScanController {
         content = @Content(schema = @Schema(implementation = ApiError.class))),
     @ApiResponse(
         responseCode = "503",
-        description = "작업 큐(SQS) 발행에 일시적으로 실패했다(SCAN_DISPATCH_UNAVAILABLE)",
+        description =
+            "작업 큐(SQS) 발행에 일시적으로 실패했거나, 같은 Idempotency-Key의 최초 요청이 아직 발행을 확인하지 못했다(SCAN_DISPATCH_UNAVAILABLE). 같은 키로 다시 시도한다",
         content = @Content(schema = @Schema(implementation = ApiError.class)))
   })
   public ResponseEntity<ScanRunResponse> requestScan(
@@ -432,7 +434,12 @@ public class ScanController {
       @Schema(example = VERSION_ID) UUID workflowVersionId,
       @Schema(example = "v1") String versionLabel,
       @Schema(example = SHA256) String inputSha256,
-      @JsonInclude(JsonInclude.Include.ALWAYS) ScanVersions versions,
+      @JsonInclude(JsonInclude.Include.ALWAYS)
+          @Schema(
+              description = "결과 계약·엔진·규칙 버전. 워커가 결과를 제출하기 전(queued·running·cancelled 등)에는 null",
+              types = {"object", "null"},
+              schemaResolution = Schema.SchemaResolution.INLINE)
+          ScanVersions versions,
       @Schema(
               description = "검사 실행 상태",
               allowableValues = {
@@ -457,13 +464,33 @@ public class ScanController {
               example = "private")
           String publicationStatus,
       ScanLlm llm,
-      @JsonInclude(JsonInclude.Include.ALWAYS) ScanSummary summary,
+      @JsonInclude(JsonInclude.Include.ALWAYS)
+          @Schema(
+              description = "화면 기본 구성용 요약. completed가 아니면 null",
+              types = {"object", "null"},
+              schemaResolution = Schema.SchemaResolution.INLINE)
+          ScanSummary summary,
       @Schema(description = "true이면 GET .../scans/{scanRunId}/report로 상세 serviceReport를 조회할 수 있다")
           boolean reportAvailable,
-      @JsonInclude(JsonInclude.Include.ALWAYS) ScanError error,
+      @JsonInclude(JsonInclude.Include.ALWAYS)
+          @Schema(
+              description = "failed·timed_out 오류 정보. 그 밖의 상태에서는 null",
+              types = {"object", "null"},
+              schemaResolution = Schema.SchemaResolution.INLINE)
+          ScanError error,
       @Schema(example = TIMESTAMP) Instant createdAt,
-      @JsonInclude(JsonInclude.Include.ALWAYS) Instant startedAt,
-      @JsonInclude(JsonInclude.Include.ALWAYS) Instant finishedAt) {
+      @JsonInclude(JsonInclude.Include.ALWAYS)
+          @Schema(
+              description = "워커가 처음 파일을 받은 시각. 시작 전에는 null",
+              types = {"string", "null"},
+              format = "date-time")
+          Instant startedAt,
+      @JsonInclude(JsonInclude.Include.ALWAYS)
+          @Schema(
+              description = "종료 상태가 된 시각. 종료 전에는 null",
+              types = {"string", "null"},
+              format = "date-time")
+          Instant finishedAt) {
     private static ScanRunData from(ScanRunView view) {
       return new ScanRunData(
           view.scanRunId(),

@@ -2,7 +2,9 @@ package dev.workflowhub.workflow.storage;
 
 import java.util.Map;
 import java.util.OptionalLong;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /** 테스트용 S3 대역. 실제 S3의 동작은 검증하지 못한다. */
 public class InMemoryWorkflowObjectStore implements WorkflowObjectStore {
@@ -10,6 +12,12 @@ public class InMemoryWorkflowObjectStore implements WorkflowObjectStore {
   public volatile boolean failPuts;
   public volatile boolean failDeletes;
   public volatile boolean failSizes;
+
+  /** 이 키의 삭제만 실패시킨다. */
+  public final Set<String> failDeleteKeys = ConcurrentHashMap.newKeySet();
+
+  /** delete 호출 횟수(실패 포함). */
+  public final AtomicInteger deleteCalls = new AtomicInteger();
 
   /** size가 끝난 직후 한 번만 실행한다. 복구가 S3를 확인하는 사이 다른 요청이 끼어드는 상황을 만든다. */
   public volatile Runnable afterSize;
@@ -57,7 +65,8 @@ public class InMemoryWorkflowObjectStore implements WorkflowObjectStore {
 
   @Override
   public void delete(String key) {
-    if (failDeletes) {
+    deleteCalls.incrementAndGet();
+    if (failDeletes || failDeleteKeys.contains(key)) {
       throw new IllegalStateException("simulated delete failure");
     }
     objects.remove(key);
@@ -72,6 +81,8 @@ public class InMemoryWorkflowObjectStore implements WorkflowObjectStore {
     failPuts = false;
     failDeletes = false;
     failSizes = false;
+    failDeleteKeys.clear();
+    deleteCalls.set(0);
     afterSize = null;
     afterPut = null;
   }

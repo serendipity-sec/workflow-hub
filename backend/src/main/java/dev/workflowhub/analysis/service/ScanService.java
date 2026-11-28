@@ -1,7 +1,6 @@
 package dev.workflowhub.analysis.service;
 
 import dev.workflowhub.analysis.queue.ScanTaskMessage;
-import dev.workflowhub.analysis.queue.ScanTaskQueue;
 import dev.workflowhub.analysis.service.ScanModels.ScanError;
 import dev.workflowhub.analysis.service.ScanModels.ScanLlm;
 import dev.workflowhub.analysis.service.ScanModels.ScanPage;
@@ -23,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.core.simple.JdbcClient.StatementSpec;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.JsonNode;
@@ -42,7 +42,7 @@ public class ScanService {
 
   private final JdbcClient jdbc;
   private final TransactionTemplate transactions;
-  private final ScanTaskQueue queue;
+  private final ScanTaskDispatcher dispatcher;
   private final WorkflowObjectStore store;
   private final JsonMapper mapper;
   private final long maxFileBytes;
@@ -51,7 +51,7 @@ public class ScanService {
   public ScanService(
       JdbcClient jdbc,
       TransactionTemplate transactions,
-      ScanTaskQueue queue,
+      ScanTaskDispatcher dispatcher,
       WorkflowObjectStore store,
       JsonMapper mapper,
       @Value("${app.analysis.max-file-bytes}") long maxFileBytes,
@@ -62,7 +62,7 @@ public class ScanService {
     }
     this.jdbc = jdbc;
     this.transactions = transactions;
-    this.queue = queue;
+    this.dispatcher = dispatcher;
     this.store = store;
     this.mapper = mapper;
     this.maxFileBytes = maxFileBytes;
@@ -98,24 +98,21 @@ public class ScanService {
     }
 
     ScanTaskMessage message = outcome.message();
-    try {
-      queue.enqueue(message);
-    } catch (RuntimeException e) {
-      log.error(
-          "event=analysis.scan.dispatch_failed workflowId={} versionId={} scanRunId={} taskId={}",
-          workflowId,
-          versionId,
-          message.scanRunId(),
-          message.taskId(),
-          e);
-      RollbackOutcome rollback = rollbackUnstartedScan(message.taskId(), message.scanRunId());
+    if (!dispatcher.dispatch(message, "scan_request")) {
+      RollbackOutcome rollback = rollbackUnstartedScan(message);
       if (rollback == RollbackOutcome.ROLLED_BACK) {
         throw ScanException.dispatchUnavailable();
       }
       if (rollback == RollbackOutcome.CANCELLED) {
         throw ScanException.versionNotFound();
       }
-      // SQS 응답만 유실되고 워커가 이미 실행을 시작한 경우 최신 DB 상태를 반환한다.
+      // 워커가 이미 시작했거나 회수기가 새 시도를 배정·발행한 실행은 지우지 않고 최신 DB 상태를 반환한다.
+      log.warn(
+          "event=analysis.scan.dispatch_failed_preserved workflowId={} versionId={} scanRunId={} taskId={}",
+          workflowId,
+          versionId,
+          message.scanRunId(),
+          message.taskId());
       return readScanRunById(message.scanRunId());
     }
 
@@ -136,25 +133,12 @@ public class ScanService {
     UUID workflowId = parseId(workflowIdRaw, ScanException::versionNotFound);
     UUID versionId = parseId(versionIdRaw, ScanException::versionNotFound);
 
-    requireAliveOwnedVersion(owner, workflowId, versionId, ScanException::versionNotFound);
-
     String cursorClause =
         decoded == null
             ? ""
             : "AND (s.created_at < :cursorCreatedAt OR (s.created_at = :cursorCreatedAt AND s.id < :cursorId))";
     var query =
-        jdbc.sql(
-                """
-                SELECT s.*, v.version AS version_label
-                FROM workflow_hub.scan_runs s
-                JOIN workflow_hub.workflow_versions v ON v.id = s.workflow_version_id
-                WHERE s.workflow_version_id = :versionId
-                  %s
-                ORDER BY s.created_at DESC, s.id DESC
-                LIMIT :limitPlusOne
-                """
-                    .formatted(cursorClause))
-            .param("versionId", versionId)
+        aliveVersionScans(owner, workflowId, versionId, cursorClause, "LIMIT :limitPlusOne")
             .param("limitPlusOne", limit + 1);
     if (decoded != null) {
       query =
@@ -165,7 +149,11 @@ public class ScanService {
               .param("cursorId", decoded.id());
     }
 
-    List<ScanRunView> rows = query.query(ScanService::mapScanRun).list();
+    List<Optional<ScanRunView>> versionRows = query.query(ScanService::mapAliveVersionScan).list();
+    if (versionRows.isEmpty()) {
+      throw ScanException.versionNotFound();
+    }
+    List<ScanRunView> rows = versionRows.stream().flatMap(Optional::stream).toList();
     boolean hasMore = rows.size() > limit;
     List<ScanRunView> items = hasMore ? rows.subList(0, limit) : rows;
     String nextCursor =
@@ -179,20 +167,37 @@ public class ScanService {
       String owner, String workflowIdRaw, String versionIdRaw) {
     UUID workflowId = parseId(workflowIdRaw, ScanException::versionNotFound);
     UUID versionId = parseId(versionIdRaw, ScanException::versionNotFound);
-    requireAliveOwnedVersion(owner, workflowId, versionId, ScanException::versionNotFound);
 
+    return aliveVersionScans(owner, workflowId, versionId, "", "LIMIT 1")
+        .query(ScanService::mapAliveVersionScan)
+        .optional()
+        .orElseThrow(ScanException::versionNotFound);
+  }
+
+  /**
+   * 살아 있는 소유 버전과 그 검사 이력을 한 SQL 문(같은 스냅샷)에서 읽는다. 버전이 없거나 삭제됐으면 행이 없고, 버전은 있지만 검사 이력이 없으면 검사 열이 모두
+   * NULL인 행 하나가 나온다. 확인과 조회 사이에 삭제가 커밋돼 삭제된 버전의 이력을 돌려주는 일을 막는다.
+   */
+  private StatementSpec aliveVersionScans(
+      String owner, UUID workflowId, UUID versionId, String cursorClause, String limitClause) {
     return jdbc.sql(
             """
             SELECT s.*, v.version AS version_label
-            FROM workflow_hub.scan_runs s
-            JOIN workflow_hub.workflow_versions v ON v.id = s.workflow_version_id
-            WHERE s.workflow_version_id = :versionId
+            FROM workflow_hub.workflow_versions v
+            JOIN workflow_hub.workflows w ON w.id = v.workflow_id
+            LEFT JOIN workflow_hub.scan_runs s ON s.workflow_version_id = v.id %s
+            WHERE w.id = :workflowId
+              AND w.owner_id = :owner
+              AND w.deleted_at IS NULL
+              AND v.id = :versionId
+              AND v.deleted_at IS NULL
             ORDER BY s.created_at DESC, s.id DESC
-            LIMIT 1
-            """)
-        .param("versionId", versionId)
-        .query(ScanService::mapScanRun)
-        .optional();
+            %s
+            """
+                .formatted(cursorClause, limitClause))
+        .param("workflowId", workflowId)
+        .param("owner", owner)
+        .param("versionId", versionId);
   }
 
   public ScanRunView getScan(
@@ -363,6 +368,7 @@ public class ScanService {
         if (!existing.get().workflowVersionId().equals(versionId)) {
           throw ScanException.idempotencyConflict();
         }
+        rejectIfFirstDispatchPending(existing.get().scanRunId());
         ScanRunView existingRun =
             jdbc.sql(
                     """
@@ -530,7 +536,36 @@ public class ScanService {
     if (existing.isEmpty() || !existing.get().workflowVersionId().equals(versionId)) {
       throw ScanException.idempotencyConflict();
     }
+    rejectIfFirstDispatchPending(existing.get().scanRunId());
     return new CreationOutcome(readScanRunById(existing.get().scanRunId()), null);
+  }
+
+  /**
+   * 최초 요청의 첫 발행이 아직 확인되지 않은 실행은 발행 실패 시 지워질 수 있으므로, 같은 키 재전송에 202를 주지 않고 재시도 가능한 503을 준다. 발행이 확인됐거나
+   * 워커가 시작했거나 회수기가 새 시도를 배정한 실행은 지우지 않으므로 기존 ID를 그대로 돌려준다.
+   */
+  private void rejectIfFirstDispatchPending(UUID scanRunId) {
+    boolean pending =
+        Boolean.TRUE.equals(
+            jdbc.sql(
+                    """
+                    SELECT EXISTS (
+                        SELECT 1
+                        FROM workflow_hub.analysis_jobs j
+                        JOIN workflow_hub.analysis_job_attempts a ON a.id = j.current_attempt_id
+                        WHERE j.scan_run_id = :scanRunId
+                          AND j.status = 'queued'
+                          AND j.attempt_number = 1
+                          AND a.status = 'queued'
+                          AND a.dispatched_at IS NULL)
+                    """)
+                .param("scanRunId", scanRunId)
+                .query(Boolean.class)
+                .single());
+    if (pending) {
+      log.warn("event=analysis.scan.replay_dispatch_pending scanRunId={}", scanRunId);
+      throw ScanException.dispatchUnavailable();
+    }
   }
 
   private ScanRunView readScanRunById(UUID scanRunId) {
@@ -546,24 +581,50 @@ public class ScanService {
         .single();
   }
 
-  /** SQS 발행 실패 시 아직 워커가 시작하지 않은 queued 기록을 정리해 동일 키 재시도를 허용한다. */
-  private RollbackOutcome rollbackUnstartedScan(UUID taskId, UUID scanRunId) {
+  /**
+   * 최초 발행이 실패하면 아직 워커가 시작하지 않은 queued 기록을 정리해 동일 키 재시도를 허용한다. 작업이 여전히 이 요청이 만든 시도를 가리키고 그 시도의 발행이
+   * 확인되지 않았을 때만 지운다. 회수기가 그사이 새 시도를 배정했거나 같은 시도를 발행했다면 실행을 보존한다.
+   */
+  private RollbackOutcome rollbackUnstartedScan(ScanTaskMessage message) {
+    UUID taskId = message.taskId();
+    UUID scanRunId = message.scanRunId();
     return transactions.execute(
         status -> {
-          var currentStatus =
-              jdbc.sql(
-                      "SELECT status FROM workflow_hub.analysis_jobs WHERE id = :taskId FOR UPDATE")
+          // 잠금을 얻은 뒤 별도 문장으로 읽어야 READ COMMITTED에서 잠금 대기 중 커밋된 시도 상태를 본다.
+          var locked =
+              jdbc.sql("SELECT id FROM workflow_hub.analysis_jobs WHERE id = :taskId FOR UPDATE")
                   .param("taskId", taskId)
-                  .query(String.class)
+                  .query(UUID.class)
                   .optional();
-          if (currentStatus.isEmpty()) {
+          if (locked.isEmpty()) {
             return RollbackOutcome.ROLLED_BACK;
           }
-          if ("cancelled".equals(currentStatus.get())) {
+          JobDispatchState state =
+              jdbc.sql(
+                      """
+                      SELECT j.status, j.current_attempt_id, a.status AS attempt_status,
+                             a.dispatched_at IS NOT NULL AS dispatched
+                      FROM workflow_hub.analysis_jobs j
+                      JOIN workflow_hub.analysis_job_attempts a ON a.id = j.current_attempt_id
+                      WHERE j.id = :taskId
+                      """)
+                  .param("taskId", taskId)
+                  .query(
+                      (rs, index) ->
+                          new JobDispatchState(
+                              rs.getString("status"),
+                              rs.getObject("current_attempt_id", UUID.class),
+                              rs.getString("attempt_status"),
+                              rs.getBoolean("dispatched")))
+                  .single();
+          if ("cancelled".equals(state.jobStatus())) {
             return RollbackOutcome.CANCELLED;
           }
-          if (!"queued".equals(currentStatus.get())) {
-            return RollbackOutcome.ALREADY_STARTED;
+          if (!"queued".equals(state.jobStatus())
+              || !message.attemptId().equals(state.currentAttemptId())
+              || !"queued".equals(state.attemptStatus())
+              || state.dispatched()) {
+            return RollbackOutcome.PRESERVED;
           }
           jdbc.sql(
                   "DELETE FROM workflow_hub.scan_request_idempotency_keys WHERE scan_run_id = :scanRunId")
@@ -585,29 +646,11 @@ public class ScanService {
   private enum RollbackOutcome {
     ROLLED_BACK,
     CANCELLED,
-    ALREADY_STARTED
+    PRESERVED
   }
 
-  private void requireAliveOwnedVersion(
-      String owner, UUID workflowId, UUID versionId, Supplier<ScanException> notFound) {
-    jdbc.sql(
-            """
-            SELECT v.id
-            FROM workflow_hub.workflow_versions v
-            JOIN workflow_hub.workflows w ON w.id = v.workflow_id
-            WHERE w.id = :workflowId
-              AND w.owner_id = :owner
-              AND w.deleted_at IS NULL
-              AND v.id = :versionId
-              AND v.deleted_at IS NULL
-            """)
-        .param("workflowId", workflowId)
-        .param("owner", owner)
-        .param("versionId", versionId)
-        .query(UUID.class)
-        .optional()
-        .orElseThrow(notFound);
-  }
+  private record JobDispatchState(
+      String jobStatus, UUID currentAttemptId, String attemptStatus, boolean dispatched) {}
 
   private OffsetDateTime databaseNow() {
     return jdbc.sql("SELECT clock_timestamp()")
@@ -645,6 +688,15 @@ public class ScanService {
     } catch (IllegalArgumentException e) {
       throw notFound.get();
     }
+  }
+
+  /** 검사 이력이 없는 살아 있는 버전 행(LEFT JOIN의 NULL 검사 열)은 빈 값으로 매핑한다. */
+  private static Optional<ScanRunView> mapAliveVersionScan(ResultSet rs, int index)
+      throws SQLException {
+    if (rs.getObject("id") == null) {
+      return Optional.empty();
+    }
+    return Optional.of(mapScanRun(rs, index));
   }
 
   private static ScanRunView mapScanRun(ResultSet rs, int index) throws SQLException {

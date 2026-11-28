@@ -57,3 +57,4 @@ app:
     queued-timeout: ${SCAN_QUEUED_TIMEOUT:5m}
     max-attempts: ${SCAN_MAX_ATTEMPTS:3}
     lease-recovery-interval: ${SCAN_LEASE_RECOVERY_INTERVAL:15s}
+    dispatch-retry-delay: ${SCAN_DISPATCH_RETRY_DELAY:1m}

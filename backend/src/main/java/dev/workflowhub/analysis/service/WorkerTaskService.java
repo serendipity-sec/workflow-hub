@@ -1,13 +1,12 @@
 package dev.workflowhub.analysis.service;
 
 import dev.workflowhub.analysis.queue.ScanTaskMessage;
-import dev.workflowhub.analysis.queue.ScanTaskQueue;
 import dev.workflowhub.analysis.service.ScanModels.HeartbeatResult;
 import dev.workflowhub.analysis.service.ScanModels.ResultSubmission;
 import dev.workflowhub.analysis.service.ScanModels.ScanSummary;
 import dev.workflowhub.analysis.service.ScanModels.ScanVersions;
 import dev.workflowhub.analysis.service.ScanModels.WorkerFileDownload;
-import dev.workflowhub.workflow.service.WorkflowObjectCleanup;
+import dev.workflowhub.common.storage.PendingObjectRegistry;
 import dev.workflowhub.workflow.storage.WorkflowObjectStore;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -91,8 +90,8 @@ public class WorkerTaskService {
   private final JdbcClient jdbc;
   private final TransactionTemplate transactions;
   private final WorkflowObjectStore store;
-  private final WorkflowObjectCleanup cleanup;
-  private final ScanTaskQueue queue;
+  private final PendingObjectRegistry cleanup;
+  private final ScanTaskDispatcher dispatcher;
   private final JsonMapper mapper;
   private final Duration leaseDuration;
   private final long maxResultBytes;
@@ -101,8 +100,8 @@ public class WorkerTaskService {
       JdbcClient jdbc,
       TransactionTemplate transactions,
       WorkflowObjectStore store,
-      WorkflowObjectCleanup cleanup,
-      ScanTaskQueue queue,
+      PendingObjectRegistry cleanup,
+      ScanTaskDispatcher dispatcher,
       JsonMapper mapper,
       @Value("${app.analysis.lease-duration}") Duration leaseDuration,
       @Value("${app.analysis.max-result-bytes}") long maxResultBytes) {
@@ -116,7 +115,7 @@ public class WorkerTaskService {
     this.transactions = transactions;
     this.store = store;
     this.cleanup = cleanup;
-    this.queue = queue;
+    this.dispatcher = dispatcher;
     this.mapper = mapper;
     this.leaseDuration = leaseDuration;
     this.maxResultBytes = maxResultBytes;
@@ -657,27 +656,15 @@ public class WorkerTaskService {
 
     if (transition.retryMessage() != null) {
       ScanTaskMessage retryMessage = transition.retryMessage();
-      try {
-        queue.enqueue(retryMessage);
-        log.warn(
-            "event=analysis.worker.result_requeued taskId={} scanRunId={} nextAttemptId={} attemptNumber={} errorCode={}",
-            taskId,
-            retryMessage.scanRunId(),
-            retryMessage.attemptId(),
-            retryMessage.attemptNumber(),
-            payload.errorCode());
-      } catch (RuntimeException e) {
-        log.error(
-            "event=analysis.worker.retry_dispatch_failed taskId={} scanRunId={} nextAttemptId={}",
-            taskId,
-            retryMessage.scanRunId(),
-            retryMessage.attemptId(),
-            e);
-        if (markRetryDispatchFailed(
-            taskId, retryMessage.scanRunId(), attemptId, retryMessage.attemptId())) {
-          return new ResultSubmission(true, retryMessage.scanRunId(), "failed", "unknown");
-        }
-      }
+      log.warn(
+          "event=analysis.worker.result_requeued taskId={} scanRunId={} nextAttemptId={} attemptNumber={} errorCode={}",
+          taskId,
+          retryMessage.scanRunId(),
+          retryMessage.attemptId(),
+          retryMessage.attemptNumber(),
+          payload.errorCode());
+      // 발행이 실패해도 수락한 응답(queued)은 바꾸지 않는다. 발행이 확인되지 않은 시도는 회수기가 같은 attemptId로 다시 보낸다.
+      dispatcher.dispatch(retryMessage, "worker_retry");
     } else if (transition.submission().created()) {
       log.warn(
           "event=analysis.worker.result_failed taskId={} attemptId={} scanRunId={} status={} errorCode={}",
@@ -688,61 +675,6 @@ public class WorkerTaskService {
           payload.errorCode());
     }
     return transition.submission();
-  }
-
-  private boolean markRetryDispatchFailed(
-      UUID taskId, UUID scanRunId, UUID previousAttemptId, UUID nextAttemptId) {
-    return Boolean.TRUE.equals(
-        transactions.execute(
-            status -> {
-              OffsetDateTime now = databaseNow();
-              int updated =
-                  jdbc.sql(
-                          """
-                          UPDATE workflow_hub.analysis_jobs
-                          SET status = 'failed', lease_expires_at = NULL, updated_at = :now
-                          WHERE id = :taskId AND current_attempt_id = :attemptId AND status = 'queued'
-                          """)
-                      .param("now", now)
-                      .param("taskId", taskId)
-                      .param("attemptId", nextAttemptId)
-                      .update();
-              if (updated == 0) {
-                return false;
-              }
-              jdbc.sql(
-                      """
-                      UPDATE workflow_hub.analysis_job_attempts
-                      SET status = 'expired', finished_at = :now
-                      WHERE id = :attemptId AND status = 'queued'
-                      """)
-                  .param("now", now)
-                  .param("attemptId", nextAttemptId)
-                  .update();
-              jdbc.sql(
-                      """
-                      UPDATE workflow_hub.analysis_job_attempts
-                      SET accepted_execution_status = 'failed'
-                      WHERE id = :previousAttemptId
-                      """)
-                  .param("previousAttemptId", previousAttemptId)
-                  .update();
-              jdbc.sql(
-                      """
-                      UPDATE workflow_hub.scan_runs
-                      SET execution_status = 'failed',
-                          analysis_coverage = 'unknown',
-                          error_code = 'scan_dispatch_failed',
-                          error_message = 'Security scan retry could not be dispatched to the worker queue',
-                          error_retryable = false,
-                          finished_at = :now
-                      WHERE id = :scanRunId AND execution_status = 'queued'
-                      """)
-                  .param("now", now)
-                  .param("scanRunId", scanRunId)
-                  .update();
-              return true;
-            }));
   }
 
   private static ResultSubmission checkAcceptedReplay(TaskAttemptRow row, String idempotencyKey) {
@@ -995,16 +927,26 @@ public class WorkerTaskService {
   }
 
   private java.util.Optional<TaskAttemptRow> readTaskAttempt(UUID taskId, UUID attemptId) {
-    return queryTaskAttempt(taskId, attemptId, false);
+    return queryTaskAttempt(taskId, attemptId);
   }
 
+  /**
+   * 트랜잭션 안에서 작업 행을 먼저 잠근 뒤 별도 문장으로 시도 상태와 임대 유효성을 읽는다. READ COMMITTED에서 잠금과 조회를 한 문장으로 하면 잠금 대기 중
+   * 커밋된 시도 행의 변경을 놓치고, 임대 유효성도 잠금을 얻기 전 시각으로 계산된다.
+   */
   private java.util.Optional<TaskAttemptRow> lockTaskAttempt(UUID taskId, UUID attemptId) {
-    return queryTaskAttempt(taskId, attemptId, true);
+    var locked =
+        jdbc.sql("SELECT id FROM workflow_hub.analysis_jobs WHERE id = :taskId FOR UPDATE")
+            .param("taskId", taskId)
+            .query(UUID.class)
+            .optional();
+    if (locked.isEmpty()) {
+      return java.util.Optional.empty();
+    }
+    return queryTaskAttempt(taskId, attemptId);
   }
 
-  private java.util.Optional<TaskAttemptRow> queryTaskAttempt(
-      UUID taskId, UUID attemptId, boolean forUpdate) {
-    String lockClause = forUpdate ? "FOR UPDATE OF j" : "";
+  private java.util.Optional<TaskAttemptRow> queryTaskAttempt(UUID taskId, UUID attemptId) {
     return jdbc.sql(
             """
             SELECT j.id AS task_id,
@@ -1031,9 +973,7 @@ public class WorkerTaskService {
             JOIN workflow_hub.workflow_versions v ON v.id = j.workflow_version_id
             JOIN workflow_hub.workflows w ON w.id = v.workflow_id
             WHERE j.id = :taskId AND a.id = :attemptId
-            %s
-            """
-                .formatted(lockClause))
+            """)
         .param("taskId", taskId)
         .param("attemptId", attemptId)
         .query(

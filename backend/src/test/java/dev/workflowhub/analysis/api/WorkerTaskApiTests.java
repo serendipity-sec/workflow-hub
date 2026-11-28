@@ -1,9 +1,11 @@
 package dev.workflowhub.analysis.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -22,6 +24,11 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HexFormat;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +40,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /** 워커 내부 API 인증 분리, 파일 다운로드·임대·하트비트·결과 제출·멱등성·만료 회수 테스트(#57). */
 @SpringBootTest
@@ -59,6 +67,7 @@ class WorkerTaskApiTests {
   @Autowired InMemoryWorkflowObjectStore store;
   @Autowired InMemoryScanTaskQueue queue;
   @Autowired ScanLeaseRecovery leaseRecovery;
+  @Autowired TransactionTemplate transactions;
 
   @BeforeEach
   void reset() {
@@ -439,6 +448,286 @@ class WorkerTaskApiTests {
     leaseRecovery.recoverExpired();
     assertThat(queue.lastMessage().taskId()).isEqualTo(staleQueued.taskId());
     assertThat(queue.lastMessage().attemptNumber()).isEqualTo(2);
+  }
+
+  @Test
+  void rejectsHeadAndNonJsonResultsWithoutChangingStateAndAcceptsAnyBearerCase() throws Exception {
+    ScanTaskMessage task = enqueueNewScan("k-worker-head");
+    String base = workerBase(task);
+
+    // HEAD는 GET 매핑을 타지 않고 405로 거절되며 시도를 시작하지 않는다.
+    mvc.perform(head(base + "/file").header("Authorization", "Bearer " + PRIMARY_TOKEN))
+        .andExpect(status().isMethodNotAllowed())
+        .andExpect(header().string("Allow", containsString("GET")));
+    assertThat(attemptStatus(task.attemptId())).isEqualTo("queued");
+
+    // 인증 스킴은 대소문자를 구분하지 않고 구분 공백이 여러 개여도 된다.
+    mvc.perform(get(base + "/file").header("Authorization", "bearer   " + PRIMARY_TOKEN))
+        .andExpect(status().isOk())
+        .andExpect(content().bytes(WORKFLOW_BYTES));
+    assertThat(attemptStatus(task.attemptId())).isEqualTo("running");
+
+    // application/json이 아닌 결과 제출은 본문을 읽기 전에 415로 거절한다.
+    byte[] body =
+        completedBody(task, task.inputSha256(), "analyzed", "completed", "complete", "allow");
+    mvc.perform(
+            put(base + "/result")
+                .header("Authorization", "Bearer " + PRIMARY_TOKEN)
+                .header("Idempotency-Key", sha256(body))
+                .contentType(MediaType.TEXT_PLAIN)
+                .content(body))
+        .andExpect(status().isUnsupportedMediaType())
+        .andExpect(jsonPath("$.code").value("UNSUPPORTED_MEDIA_TYPE"));
+    assertThat(attemptStatus(task.attemptId())).isEqualTo("running");
+  }
+
+  @Test
+  void keepsTheScanQueuedWhenRecoveryDispatchFailsAndResendsTheSameAttemptLater() throws Exception {
+    ScanTaskMessage attempt1 = enqueueNewScan("k-recovery-dispatch");
+    mvc.perform(
+            get(workerBase(attempt1) + "/file").header("Authorization", "Bearer " + PRIMARY_TOKEN))
+        .andExpect(status().isOk());
+    expireLease(attempt1.taskId(), attempt1.attemptId());
+
+    // 시도 2를 커밋한 뒤 SQS가 일시적으로 실패해도 검사를 종료하지 않는다.
+    queue.failEnqueue = true;
+    leaseRecovery.recoverExpired();
+    assertThat(queue.messages()).hasSize(1);
+    assertThat(scanStatus(attempt1.scanRunId())).isEqualTo("queued");
+    UUID attempt2Id = currentAttemptId(attempt1.taskId());
+    assertThat(attempt2Id).isNotEqualTo(attempt1.attemptId());
+    assertThat(dispatched(attempt2Id)).isFalse();
+
+    // 재발행 간격 전에는 다시 보내지 않는다.
+    queue.failEnqueue = false;
+    leaseRecovery.recoverExpired();
+    assertThat(queue.messages()).hasSize(1);
+
+    // 간격이 지나면 같은 attemptId로 다시 발행하고 발행 확인을 기록한다.
+    backdateDispatchAttempt(attempt2Id);
+    leaseRecovery.recoverExpired();
+    assertThat(queue.messages()).hasSize(2);
+    assertThat(queue.lastMessage().attemptId()).isEqualTo(attempt2Id);
+    assertThat(queue.lastMessage().attemptNumber()).isEqualTo(2);
+    assertThat(dispatched(attempt2Id)).isTrue();
+    assertThat(currentAttemptId(attempt1.taskId())).isEqualTo(attempt2Id);
+
+    leaseRecovery.recoverExpired();
+    assertThat(queue.messages()).hasSize(2);
+    mvc.perform(
+            get(workerBase(queue.lastMessage()) + "/file")
+                .header("Authorization", "Bearer " + PRIMARY_TOKEN))
+        .andExpect(status().isOk());
+  }
+
+  @Test
+  void keepsTheAcceptedRetryResponseWhenTheRetryDispatchFails() throws Exception {
+    ScanTaskMessage task = enqueueNewScan("k-retry-dispatch");
+    mvc.perform(get(workerBase(task) + "/file").header("Authorization", "Bearer " + PRIMARY_TOKEN))
+        .andExpect(status().isOk());
+    byte[] transientBody = failureBody(task, "failed", "sandbox_unavailable", true);
+    String key = sha256(transientBody);
+
+    queue.failEnqueue = true;
+    mvc.perform(
+            put(workerBase(task) + "/result")
+                .header("Authorization", "Bearer " + PRIMARY_TOKEN)
+                .header("Idempotency-Key", key)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(transientBody))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.data.executionStatus").value("queued"));
+
+    // 발행 실패 뒤의 재전송도 최초 수락 응답과 같다.
+    mvc.perform(
+            put(workerBase(task) + "/result")
+                .header("Authorization", "Bearer " + PRIMARY_TOKEN)
+                .header("Idempotency-Key", key)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(transientBody))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.executionStatus").value("queued"))
+        .andExpect(jsonPath("$.data.analysisCoverage").value("unknown"));
+    assertThat(scanStatus(task.scanRunId())).isEqualTo("queued");
+
+    // SQS가 복구되면 회수기가 같은 다음 시도를 발행한다.
+    queue.failEnqueue = false;
+    UUID nextAttemptId = currentAttemptId(task.taskId());
+    backdateDispatchAttempt(nextAttemptId);
+    leaseRecovery.recoverExpired();
+    assertThat(queue.lastMessage().attemptId()).isEqualTo(nextAttemptId);
+    assertThat(queue.lastMessage().attemptNumber()).isEqualTo(2);
+  }
+
+  @Test
+  void concurrentDuplicateSubmissionWaitingOnTheJobLockGetsTheAcceptedReplay() throws Exception {
+    ScanTaskMessage task = enqueueNewScan("k-concurrent-replay");
+    mvc.perform(get(workerBase(task) + "/file").header("Authorization", "Bearer " + PRIMARY_TOKEN))
+        .andExpect(status().isOk());
+    byte[] body =
+        completedBody(task, task.inputSha256(), "analyzed", "completed", "complete", "allow");
+    String key = sha256(body);
+
+    MvcResult result =
+        whileJobLocked(
+            task.taskId(),
+            () -> {
+              // 먼저 도착한 같은 제출이 작업을 completed, 시도를 accepted로 커밋한 상태를 만든다.
+              jdbc.sql(
+                      "UPDATE workflow_hub.analysis_jobs SET status = 'completed', lease_expires_at = NULL WHERE id = :id")
+                  .param("id", task.taskId())
+                  .update();
+              jdbc.sql(
+                      """
+                      UPDATE workflow_hub.analysis_job_attempts
+                      SET status = 'accepted', lease_expires_at = NULL, finished_at = clock_timestamp(),
+                          result_idempotency_key = :key, accepted_execution_status = 'completed',
+                          accepted_analysis_coverage = 'checked'
+                      WHERE id = :id
+                      """)
+                  .param("key", key)
+                  .param("id", task.attemptId())
+                  .update();
+            },
+            () ->
+                mvc.perform(
+                        put(workerBase(task) + "/result")
+                            .header("Authorization", "Bearer " + PRIMARY_TOKEN)
+                            .header("Idempotency-Key", key)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andReturn());
+
+    assertThat(result.getResponse().getStatus()).isEqualTo(200);
+    String json = result.getResponse().getContentAsString();
+    assertThat(JsonPath.<String>read(json, "$.data.executionStatus")).isEqualTo("completed");
+    assertThat(JsonPath.<String>read(json, "$.data.analysisCoverage")).isEqualTo("checked");
+  }
+
+  @Test
+  void heartbeatThatWaitsOnTheJobLockPastLeaseExpiryIsRejected() throws Exception {
+    ScanTaskMessage task = enqueueNewScan("k-heartbeat-lock");
+    mvc.perform(get(workerBase(task) + "/file").header("Authorization", "Bearer " + PRIMARY_TOKEN))
+        .andExpect(status().isOk());
+    jdbc.sql(
+            "UPDATE workflow_hub.analysis_job_attempts SET lease_expires_at = clock_timestamp() + interval '1 second' WHERE id = :id")
+        .param("id", task.attemptId())
+        .update();
+
+    // 잠금을 쥔 트랜잭션은 행을 바꾸지 않고 끝나므로 PostgreSQL이 잠긴 행을 다시 평가하지 않는다.
+    MvcResult result =
+        whileJobLocked(
+            task.taskId(),
+            () -> {
+              try {
+                Thread.sleep(1_500);
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException(e);
+              }
+            },
+            () ->
+                mvc.perform(
+                        post(workerBase(task) + "/heartbeat")
+                            .header("Authorization", "Bearer " + PRIMARY_TOKEN))
+                    .andReturn());
+
+    assertThat(result.getResponse().getStatus()).isEqualTo(410);
+    assertThat(JsonPath.<String>read(result.getResponse().getContentAsString(), "$.code"))
+        .isEqualTo("ATTEMPT_EXPIRED");
+  }
+
+  /** 다른 트랜잭션이 작업 행을 잠근 동안 요청을 보내고, 요청이 잠금을 기다리기 시작하면 {@code whileLocked}를 실행한 뒤 커밋한다. */
+  private MvcResult whileJobLocked(
+      UUID taskId, Runnable whileLocked, java.util.concurrent.Callable<MvcResult> request)
+      throws Exception {
+    CountDownLatch locked = new CountDownLatch(1);
+    CountDownLatch release = new CountDownLatch(1);
+    ExecutorService pool = Executors.newFixedThreadPool(2);
+    try {
+      Future<?> holder =
+          pool.submit(
+              () ->
+                  transactions.executeWithoutResult(
+                      status -> {
+                        jdbc.sql(
+                                "SELECT id FROM workflow_hub.analysis_jobs WHERE id = :id FOR UPDATE")
+                            .param("id", taskId)
+                            .query(UUID.class)
+                            .single();
+                        locked.countDown();
+                        try {
+                          if (!release.await(30, TimeUnit.SECONDS)) {
+                            throw new IllegalStateException("lock holder was not released");
+                          }
+                        } catch (InterruptedException e) {
+                          Thread.currentThread().interrupt();
+                          throw new IllegalStateException(e);
+                        }
+                        whileLocked.run();
+                      }));
+      assertThat(locked.await(10, TimeUnit.SECONDS)).isTrue();
+      Future<MvcResult> response = pool.submit(request);
+      awaitLockWaiter();
+      release.countDown();
+      holder.get(30, TimeUnit.SECONDS);
+      return response.get(30, TimeUnit.SECONDS);
+    } finally {
+      release.countDown();
+      pool.shutdownNow();
+    }
+  }
+
+  private void awaitLockWaiter() throws InterruptedException {
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+    while (System.nanoTime() < deadline) {
+      Long waiting =
+          jdbc.sql(
+                  "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'")
+              .query(Long.class)
+              .single();
+      if (waiting > 0) {
+        return;
+      }
+      Thread.sleep(20);
+    }
+    throw new AssertionError("request never waited on the job lock");
+  }
+
+  private String attemptStatus(UUID attemptId) {
+    return jdbc.sql("SELECT status FROM workflow_hub.analysis_job_attempts WHERE id = :id")
+        .param("id", attemptId)
+        .query(String.class)
+        .single();
+  }
+
+  private String scanStatus(UUID scanRunId) {
+    return jdbc.sql("SELECT execution_status FROM workflow_hub.scan_runs WHERE id = :id")
+        .param("id", scanRunId)
+        .query(String.class)
+        .single();
+  }
+
+  private UUID currentAttemptId(UUID taskId) {
+    return jdbc.sql("SELECT current_attempt_id FROM workflow_hub.analysis_jobs WHERE id = :id")
+        .param("id", taskId)
+        .query(UUID.class)
+        .single();
+  }
+
+  private boolean dispatched(UUID attemptId) {
+    return jdbc.sql(
+            "SELECT dispatched_at IS NOT NULL FROM workflow_hub.analysis_job_attempts WHERE id = :id")
+        .param("id", attemptId)
+        .query(Boolean.class)
+        .single();
+  }
+
+  private void backdateDispatchAttempt(UUID attemptId) {
+    jdbc.sql(
+            "UPDATE workflow_hub.analysis_job_attempts SET dispatch_attempted_at = clock_timestamp() - interval '10 minutes' WHERE id = :id")
+        .param("id", attemptId)
+        .update();
   }
 
   private void expireLease(UUID taskId, UUID attemptId) {

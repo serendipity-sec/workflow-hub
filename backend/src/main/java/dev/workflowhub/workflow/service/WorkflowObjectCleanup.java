@@ -1,5 +1,6 @@
 package dev.workflowhub.workflow.service;
 
+import dev.workflowhub.common.storage.PendingObjectRegistry;
 import dev.workflowhub.workflow.storage.WorkflowObjectStore;
 import java.time.Duration;
 import java.util.Optional;
@@ -19,7 +20,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * 재시도해도 안전하다.
  */
 @Service
-public class WorkflowObjectCleanup {
+public class WorkflowObjectCleanup implements PendingObjectRegistry {
   private static final Logger log = LoggerFactory.getLogger(WorkflowObjectCleanup.class);
   private static final int MAX_PER_RUN = 100;
 
@@ -52,12 +53,12 @@ public class WorkflowObjectCleanup {
     this.retryDelay = retryDelay;
   }
 
-  /** S3에 쓰기 전에 호출한다. 요청 트랜잭션과 따로 커밋해야 롤백·재시작 뒤에도 남는다. */
+  @Override
   public void recordPendingObject(String objectKey) {
     record(objectKey);
   }
 
-  /** 결과 저장 트랜잭션 안에서 호출한다. 정리 작업이 이미 삭제를 시작했거나 행이 없으면 false다. */
+  @Override
   public boolean releasePendingObject(String objectKey) {
     int released =
         jdbc.sql(
@@ -71,7 +72,7 @@ public class WorkflowObjectCleanup {
     return true;
   }
 
-  /** 어떤 행도 참조하지 않는 객체를 즉시 삭제한다. 실패하면 pending_objects에 남겨 정리 작업이 이어받는다. */
+  @Override
   public void discardPendingObject(String objectKey) {
     discard(objectKey);
   }

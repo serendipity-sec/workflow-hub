@@ -14,7 +14,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 /** /internal/** 경로에서 사용자 JWT와 분리된 서비스 전용 Bearer 토큰만 인증한다. */
 class WorkerTokenAuthenticationFilter extends OncePerRequestFilter {
-  private static final String BEARER_PREFIX = "Bearer ";
+  private static final String BEARER_SCHEME = "Bearer";
   private final WorkerTokenValidator validator;
 
   WorkerTokenAuthenticationFilter(WorkerTokenValidator validator) {
@@ -25,25 +25,31 @@ class WorkerTokenAuthenticationFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
-    String header = request.getHeader(HttpHeaders.AUTHORIZATION);
-    if (header != null && header.startsWith(BEARER_PREFIX)) {
-      String token = header.substring(BEARER_PREFIX.length());
-      if (!token.isEmpty() && !containsWhitespace(token) && validator.matches(token)) {
-        var authentication =
-            UsernamePasswordAuthenticationToken.authenticated(
-                "worker", null, List.of(new SimpleGrantedAuthority("ROLE_WORKER")));
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-      }
+    String token = bearerToken(request.getHeader(HttpHeaders.AUTHORIZATION));
+    if (token != null && validator.matches(token)) {
+      var authentication =
+          UsernamePasswordAuthenticationToken.authenticated(
+              "worker", null, List.of(new SimpleGrantedAuthority("ROLE_WORKER")));
+      SecurityContextHolder.getContext().setAuthentication(authentication);
     }
     filterChain.doFilter(request, response);
   }
 
-  private static boolean containsWhitespace(String value) {
-    for (int i = 0; i < value.length(); i++) {
-      if (Character.isWhitespace(value.charAt(i))) {
-        return true;
-      }
+  /**
+   * RFC 9110 credentials 형식(auth-scheme 1*SP token)에서 토큰을 꺼낸다. 인증 스킴은 대소문자를 구분하지 않고, 구분 공백은 하나 이상
+   * 허용한다. 토큰 자체는 바꾸지 않으며, 형식 검증은 {@link WorkerTokenValidator#matches}가 한다.
+   */
+  static String bearerToken(String header) {
+    if (header == null
+        || header.length() <= BEARER_SCHEME.length()
+        || !header.regionMatches(true, 0, BEARER_SCHEME, 0, BEARER_SCHEME.length())
+        || header.charAt(BEARER_SCHEME.length()) != ' ') {
+      return null;
     }
-    return false;
+    int start = BEARER_SCHEME.length();
+    while (start < header.length() && header.charAt(start) == ' ') {
+      start++;
+    }
+    return start == header.length() ? null : header.substring(start);
   }
 }
