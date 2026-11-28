@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { ApiError } from '../../shared/api/client';
 import { formatDateTime } from '../../shared/format';
 import {
-  deleteConfirmation,
+  allowsWorkflowDelete,
+  asksAboutWorkflowAgain,
   deletionNotice,
   isDeleted,
   isLastVersionRemaining,
@@ -85,37 +86,53 @@ describe('lastVersionRisk', () => {
   });
 });
 
-describe('deleteConfirmation', () => {
+describe('allowsWorkflowDelete', () => {
   it('lets the workflow go only when the confirmation warned about it', () => {
-    expect(deleteConfirmation('last', false)).toEqual({
-      askAboutWorkflow: false,
-      allowWorkflowDelete: true,
-    });
-    expect(deleteConfirmation('maybe-last', false).allowWorkflowDelete).toBe(
-      true,
-    );
+    expect(allowsWorkflowDelete('last')).toBe(true);
+    expect(allowsWorkflowDelete('maybe-last')).toBe(true);
   });
 
   it('keeps the workflow for a plain version delete', () => {
-    expect(deleteConfirmation('not-last', false)).toEqual({
-      askAboutWorkflow: false,
-      allowWorkflowDelete: false,
-    });
+    expect(allowsWorkflowDelete('not-last')).toBe(false);
+  });
+});
+
+describe('asksAboutWorkflowAgain', () => {
+  const v1 = version('v1');
+
+  it('asks even when the refused version is on a page that is not loaded', () => {
+    // Deleted versions are shown and newer ones fill the first page, so v1 is
+    // not among the loaded rows after the reload.
+    const firstPage = [version('v9', true), version('v8', true)];
+    expect(asksAboutWorkflowAgain(v1, firstPage, true, true)).toBe(true);
   });
 
-  it('asks about the whole workflow after the server refused a version-only delete', () => {
-    expect(deleteConfirmation('last', true)).toEqual({
-      askAboutWorkflow: true,
-      allowWorkflowDelete: true,
-    });
+  it('asks when the reloaded list shows it as the last version', () => {
+    expect(asksAboutWorkflowAgain(v1, [v1], false, false)).toBe(true);
+    expect(
+      asksAboutWorkflowAgain(v1, [version('v2', true), v1], false, true),
+    ).toBe(true);
   });
 
-  it('goes back to a version-only delete once another version is alive again', () => {
-    // e.g. a new version was registered after the refusal.
-    expect(deleteConfirmation('not-last', true)).toEqual({
-      askAboutWorkflow: false,
-      allowWorkflowDelete: false,
-    });
+  it('stops asking once another alive version is loaded', () => {
+    // e.g. a version registered or restored after the refusal.
+    expect(asksAboutWorkflowAgain(v1, [version('v2'), v1], false, false)).toBe(
+      false,
+    );
+    expect(asksAboutWorkflowAgain(v1, [version('v2')], true, true)).toBe(false);
+  });
+
+  it('does not ask about a version that is no longer listed', () => {
+    // Every page is loaded and v1 is not among them, e.g. cleaned up.
+    expect(asksAboutWorkflowAgain(v1, [version('v2', true)], false, true)).toBe(
+      false,
+    );
+  });
+
+  it('does not ask about a version the reloaded list shows as deleted', () => {
+    // e.g. deleted in another tab before the reload.
+    const firstPage = [version('v2', true), version('v1', true)];
+    expect(asksAboutWorkflowAgain(v1, firstPage, true, true)).toBe(false);
   });
 });
 

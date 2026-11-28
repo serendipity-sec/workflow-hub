@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePagedList } from '../../shared/api/usePagedList';
 import { formatDateTime } from '../../shared/format';
 import { Button } from '../../shared/ui/Button';
@@ -18,11 +18,13 @@ import {
   setDownloadAvailability,
 } from './api';
 import {
-  deleteConfirmation,
+  allowsWorkflowDelete,
+  asksAboutWorkflowAgain,
   deletionNotice,
   isDeleted,
   isLastVersionRemaining,
   isStaleError,
+  LAST_VERSION_DROPPED,
   LAST_VERSION_PROMPT,
   lastVersionRisk,
   restoreDeadline,
@@ -81,8 +83,15 @@ export function VersionList({
   const [busy, setBusy] = useState<Busy | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   // The version the server reported as the last one after a version-only delete.
-  const [lastVersionId, setLastVersionId] = useState<string | null>(null);
+  // Kept whole, not by ID, because its row may be on a page that is not loaded.
+  const [lastVersion, setLastVersion] = useState<VersionMetadata | null>(null);
   const [actionError, setActionError] = useState('');
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // Stable so the rows' effect does not rerun on every render.
+  const forgetLastVersion = useCallback(() => {
+    setLastVersion(null);
+    setActionError(LAST_VERSION_DROPPED);
+  }, []);
 
   function updateBusy(next: Busy | null) {
     setBusy(next);
@@ -91,7 +100,7 @@ export function VersionList({
 
   function closeConfirm() {
     setConfirmingId(null);
-    setLastVersionId(null);
+    setLastVersion(null);
   }
 
   function reload() {
@@ -147,10 +156,11 @@ export function VersionList({
         } catch (error) {
           if (!isLastVersionRemaining(error)) throw error;
           // Nothing was deleted: the other versions went away elsewhere. Reload
-          // the list and keep this confirmation open to ask about the workflow.
+          // the list and ask about the workflow above it instead of in the row,
+          // whose page may not be loaded after the reload.
           setReloadKey((key) => key + 1);
-          setConfirmingId(version.versionId);
-          setLastVersionId(version.versionId);
+          setConfirmingId(null);
+          setLastVersion(version);
           setActionError(describeWorkflowError(error));
           await onStale();
           return;
@@ -176,7 +186,9 @@ export function VersionList({
   return (
     <Card aria-labelledby="versions-heading">
       <div className="card-heading">
-        <h2 id="versions-heading">버전 이력</h2>
+        <h2 id="versions-heading" ref={headingRef} tabIndex={-1}>
+          버전 이력
+        </h2>
         <label className="toggle">
           <input
             type="checkbox"
@@ -202,13 +214,20 @@ export function VersionList({
         busy={busy}
         idle={idle}
         confirmingId={confirmingId}
-        lastVersionId={lastVersionId}
+        lastVersion={lastVersion}
         onConfirmToggle={(versionId) => {
-          setLastVersionId(null);
+          setLastVersion(null);
           setConfirmingId((current) =>
             current === versionId ? null : versionId,
           );
         }}
+        onLastVersionCancel={() => {
+          closeConfirm();
+          setActionError('');
+          // The prompt had focus; keep keyboard users near the list.
+          headingRef.current?.focus();
+        }}
+        onLastVersionStale={forgetLastVersion}
         actions={actions}
       />
       {actionError && <p role="alert">{actionError}</p>}
@@ -222,8 +241,10 @@ function VersionRows({
   busy,
   idle,
   confirmingId,
-  lastVersionId,
+  lastVersion,
   onConfirmToggle,
+  onLastVersionCancel,
+  onLastVersionStale,
   actions,
 }: {
   workflowId: string;
@@ -231,8 +252,11 @@ function VersionRows({
   busy: Busy | null;
   idle: boolean;
   confirmingId: string | null;
-  lastVersionId: string | null;
+  lastVersion: VersionMetadata | null;
   onConfirmToggle: (versionId: string) => void;
+  onLastVersionCancel: () => void;
+  /** The list could not be reloaded or no longer supports asking again. */
+  onLastVersionStale: () => void;
   actions: Actions;
 }) {
   const fetchPage = useCallback(
@@ -243,6 +267,26 @@ function VersionRows({
 
   const working = (version: VersionMetadata, action: Action) =>
     busy?.versionId === version.versionId && busy.action === action;
+
+  const askAgain =
+    lastVersion !== null &&
+    state.status === 'ready' &&
+    asksAboutWorkflowAgain(
+      lastVersion,
+      state.items,
+      state.nextCursor !== null,
+      includeDeleted,
+    );
+  // Forget the refusal as soon as the reload settles without supporting the
+  // question, so an old refusal cannot come back on a later reload or retry.
+  // Never while its confirmed delete is running: the outcome decides then.
+  const dropRefusal =
+    lastVersion !== null &&
+    !working(lastVersion, 'delete') &&
+    (state.status === 'error' || (state.status === 'ready' && !askAgain));
+  useEffect(() => {
+    if (dropRefusal) onLastVersionStale();
+  }, [dropRefusal, onLastVersionStale]);
 
   return (
     <>
@@ -261,6 +305,16 @@ function VersionRows({
       )}
       {state.status === 'ready' && state.items.length > 0 && (
         <>
+          {lastVersion !== null && askAgain && (
+            <LastVersionPrompt
+              versionLabel={lastVersion.versionLabel}
+              deleting={working(lastVersion, 'delete')}
+              // Not while more versions load: they could change the answer.
+              disabled={!idle || state.loadingMore}
+              onConfirm={() => actions.remove(lastVersion, true)}
+              onCancel={onLastVersionCancel}
+            />
+          )}
           <ul className="version-list">
             {state.items.map((version) => {
               const deleted = isDeleted(version);
@@ -355,7 +409,6 @@ function VersionRows({
                         state.nextCursor !== null,
                         includeDeleted,
                       )}
-                      serverSaysLast={lastVersionId === version.versionId}
                       deleting={working(version, 'delete')}
                       disabled={!idle}
                       onConfirm={(allowWorkflowDelete) =>
@@ -396,7 +449,6 @@ const RISK_WARNINGS: Record<LastVersionRisk, string> = {
 function DeleteConfirm({
   versionLabel,
   risk,
-  serverSaysLast,
   deleting,
   disabled,
   onConfirm,
@@ -404,18 +456,13 @@ function DeleteConfirm({
 }: {
   versionLabel: string;
   risk: LastVersionRisk;
-  /** The server refused a version-only delete because this became the last version. */
-  serverSaysLast: boolean;
   deleting: boolean;
   disabled: boolean;
   onConfirm: (allowWorkflowDelete: boolean) => void;
   onCancel: () => void;
 }) {
-  const { askAboutWorkflow, allowWorkflowDelete } = deleteConfirmation(
-    risk,
-    serverSaysLast,
-  );
-  const warning = askAboutWorkflow ? LAST_VERSION_PROMPT : RISK_WARNINGS[risk];
+  const allowWorkflowDelete = allowsWorkflowDelete(risk);
+  const warning = RISK_WARNINGS[risk];
   return (
     <div
       className="confirm-box"
@@ -433,11 +480,62 @@ function DeleteConfirm({
           disabled={disabled}
           onClick={() => onConfirm(allowWorkflowDelete)}
         >
-          {deleting
-            ? '삭제하는 중…'
-            : askAboutWorkflow
-              ? '워크플로 전체 삭제'
-              : `${versionLabel} 삭제`}
+          {deleting ? '삭제하는 중…' : `${versionLabel} 삭제`}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={disabled}
+          onClick={onCancel}
+        >
+          취소
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Asked above the list after the server refused a version-only delete because
+ * the version became the last one. Names the version, whose row may not be
+ * loaded, and deletes it with the workflow only on this second confirmation.
+ * Takes focus when it appears, because the row the user acted on was reloaded.
+ */
+function LastVersionPrompt({
+  versionLabel,
+  deleting,
+  disabled,
+  onConfirm,
+  onCancel,
+}: {
+  versionLabel: string;
+  deleting: boolean;
+  disabled: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // The box, not the delete button, so Enter cannot delete by accident.
+    box.current?.focus();
+  }, []);
+  return (
+    <div
+      ref={box}
+      tabIndex={-1}
+      className="confirm-box page-confirm"
+      role="group"
+      aria-label={`${versionLabel} 삭제 다시 확인`}
+    >
+      <p className="confirm-warning">{LAST_VERSION_PROMPT}</p>
+      <p>
+        서버가 {versionLabel}을(를) 남은 마지막 버전으로 확인했습니다. 그사이
+        다른 버전이 생기지 않았다면 워크플로 전체가 삭제되며, 복구 기한 안에는
+        '삭제된 항목 보기'에서 되살릴 수 있습니다.
+      </p>
+      <div className="confirm-actions">
+        <Button size="sm" disabled={disabled} onClick={onConfirm}>
+          {deleting ? '삭제하는 중…' : '워크플로 전체 삭제'}
         </Button>
         <Button
           variant="ghost"

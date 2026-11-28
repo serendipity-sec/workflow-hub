@@ -41,29 +41,47 @@ export function lastVersionRisk(
 }
 
 /**
- * How to confirm a version delete.
- * - `allowWorkflowDelete`: only a confirmation that warned about deleting the
- *   workflow allows it; a plain "delete this version" asks the server to refuse
- *   when the version has become the last one meanwhile.
- * - `askAboutWorkflow`: after such a refusal (`serverSaysLast`), ask again about
- *   the whole workflow, but only while the reloaded list still shows the version
- *   as the last one. A version registered or restored since then makes it a
- *   version-only delete again.
+ * Whether a confirmed version delete may also delete the workflow. Only a
+ * confirmation that warned about it allows it; a plain "delete this version"
+ * asks the server to refuse when the version has become the last one meanwhile.
  */
-export function deleteConfirmation(
-  risk: LastVersionRisk,
-  serverSaysLast: boolean,
-): { askAboutWorkflow: boolean; allowWorkflowDelete: boolean } {
-  const askAboutWorkflow = serverSaysLast && risk !== 'not-last';
-  return {
-    askAboutWorkflow,
-    allowWorkflowDelete: askAboutWorkflow || risk !== 'not-last',
-  };
+export function allowsWorkflowDelete(risk: LastVersionRisk): boolean {
+  return risk !== 'not-last';
+}
+
+/**
+ * Whether to ask again about the whole workflow after the server refused a
+ * version-only delete of `target`, judged from the reloaded list. The question
+ * is shown above the list, so `target` need not be among the loaded rows: with
+ * deleted versions shown it can sit on a page that is not loaded yet. It is not
+ * asked once another alive version is loaded (registered or restored since the
+ * refusal), or when the list shows `target` as deleted or no longer lists it.
+ */
+export function asksAboutWorkflowAgain(
+  target: VersionMetadata,
+  loaded: VersionMetadata[],
+  hasMore: boolean,
+  includeDeleted: boolean,
+): boolean {
+  const row = loaded.find((version) => version.versionId === target.versionId);
+  if (row) {
+    if (isDeleted(row)) return false;
+  } else if (!hasMore) {
+    // Not listed at all although every page is loaded: it is gone.
+    return false;
+  }
+  return (
+    lastVersionRisk(target, loaded, hasMore, includeDeleted) !== 'not-last'
+  );
 }
 
 /** Asked again when the server refused a version-only delete of the last version. */
 export const LAST_VERSION_PROMPT =
   '마지막 버전이 되었습니다. 워크플로 전체를 삭제할까요?';
+
+/** Replaces the refusal message when the reloaded list no longer supports asking again. */
+export const LAST_VERSION_DROPPED =
+  '아무것도 삭제하지 않았습니다. 버전 목록을 확인한 뒤 다시 삭제해 주세요.';
 
 /**
  * True when the server refused a version-only delete because the version became
