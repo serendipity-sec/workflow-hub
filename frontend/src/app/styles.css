@@ -2,7 +2,7 @@
  * Design tokens and the page frame: a white page, near-black text and a
  * single black accent, following the Mobbin look. Latin text uses Inter and
  * Korean falls through to Pretendard. Text colours keep at least 4.5:1
- * contrast on white (body text 17:1, muted text 5:1).
+ * contrast, also on the grey surfaces (body text 17:1, muted text 4.6:1 or more).
  * Component styles live next to their components (shared/ui, features/*).
  */
 :root {
@@ -30,7 +30,7 @@
   /* Text */
   --ink: #141414;
   --ink-2: #424242;
-  --muted: #707070;
+  --muted: #666666;
 
   /* Lines */
   --line: rgba(20, 20, 20, 0.1);
