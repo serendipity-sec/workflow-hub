@@ -46,3 +46,14 @@ app:
   deletion:
     # 삭제를 수락한 뒤 원본을 지우기까지의 복구 기간. 이 기간 안에는 소유자가 복구할 수 있다.
     grace: ${WORKFLOW_DELETE_GRACE:7d}
+  analysis:
+    queue-url: ${SCAN_QUEUE_URL:}
+    worker-tokens: ${WORKER_API_TOKENS:}
+    queue-attempt-timeout: ${SQS_ATTEMPT_TIMEOUT:10s}
+    queue-call-timeout: ${SQS_CALL_TIMEOUT:30s}
+    max-file-bytes: ${SCAN_MAX_FILE_BYTES:262144}
+    max-result-bytes: ${SCAN_MAX_RESULT_BYTES:6291456}
+    lease-duration: ${SCAN_LEASE_DURATION:60s}
+    queued-timeout: ${SCAN_QUEUED_TIMEOUT:5m}
+    max-attempts: ${SCAN_MAX_ATTEMPTS:3}
+    lease-recovery-interval: ${SCAN_LEASE_RECOVERY_INTERVAL:15s}

@@ -34,6 +34,22 @@ class ApiDocsTests {
       "$.paths['/api/workflows/{workflowId}/versions/{versionId}/restore'].post";
   private static final String RESTORE_WORKFLOW =
       "$.paths['/api/workflows/{workflowId}/restore'].post";
+  private static final String SCAN_REQUEST =
+      "$.paths['/api/workflows/{workflowId}/versions/{versionId}/scans'].post";
+  private static final String SCAN_LIST =
+      "$.paths['/api/workflows/{workflowId}/versions/{versionId}/scans'].get";
+  private static final String SCAN_LATEST =
+      "$.paths['/api/workflows/{workflowId}/versions/{versionId}/scans/latest'].get";
+  private static final String SCAN_DETAIL =
+      "$.paths['/api/workflows/{workflowId}/versions/{versionId}/scans/{scanRunId}'].get";
+  private static final String SCAN_REPORT =
+      "$.paths['/api/workflows/{workflowId}/versions/{versionId}/scans/{scanRunId}/report'].get";
+  private static final String WORKER_FILE =
+      "$.paths['/internal/worker/v1/tasks/{taskId}/attempts/{attemptId}/file'].get";
+  private static final String WORKER_HEARTBEAT =
+      "$.paths['/internal/worker/v1/tasks/{taskId}/attempts/{attemptId}/heartbeat'].post";
+  private static final String WORKER_RESULT =
+      "$.paths['/internal/worker/v1/tasks/{taskId}/attempts/{attemptId}/result'].put";
   private static final String SCHEMAS = "$.components.schemas.";
 
   @Nested
@@ -216,6 +232,36 @@ class ApiDocsTests {
           .andExpect(
               jsonPath(DELETE_VERSION + ".responses['409'].description")
                   .value(containsString("LAST_VERSION_REMAINING")));
+    }
+
+    @Test
+    void documentsSecurityScanAndWorkerInternalEndpoints() throws Exception {
+      var docs = mvc.perform(get("/v3/api-docs")).andExpect(status().isOk());
+      docs.andExpect(
+              jsonPath("$.components.securitySchemes.workerBearerAuth.scheme").value("bearer"))
+          .andExpect(jsonPath(SCAN_REQUEST + ".responses['202']").exists())
+          .andExpect(jsonPath(SCAN_REQUEST + ".responses['409']").exists())
+          .andExpect(jsonPath(SCAN_REQUEST + ".responses['422']").exists())
+          .andExpect(jsonPath(SCAN_REQUEST + ".responses['503']").exists())
+          .andExpect(jsonPath(SCAN_LIST + ".responses['200']").exists())
+          .andExpect(jsonPath(SCAN_LATEST + ".responses['200']").exists())
+          .andExpect(jsonPath(SCAN_DETAIL + ".responses['200']").exists())
+          .andExpect(jsonPath(SCAN_REPORT + ".responses['200']").exists())
+          .andExpect(jsonPath(SCAN_REPORT + ".responses['409']").exists())
+          .andExpect(jsonPath(WORKER_FILE + ".responses['200']").exists())
+          .andExpect(jsonPath(WORKER_FILE + ".responses['410']").exists())
+          .andExpect(jsonPath(WORKER_FILE + ".responses['500']").exists())
+          .andExpect(jsonPath(WORKER_FILE + ".security[0].workerBearerAuth").isArray())
+          .andExpect(jsonPath(WORKER_HEARTBEAT + ".responses['200']").exists())
+          .andExpect(jsonPath(WORKER_HEARTBEAT + ".responses['410']").exists())
+          .andExpect(jsonPath(WORKER_HEARTBEAT + ".responses['500']").exists())
+          .andExpect(jsonPath(WORKER_HEARTBEAT + ".security[0].workerBearerAuth").isArray())
+          .andExpect(jsonPath(WORKER_RESULT + ".requestBody.content['application/json']").exists())
+          .andExpect(jsonPath(WORKER_RESULT + ".responses['201']").exists())
+          .andExpect(jsonPath(WORKER_RESULT + ".responses['200']").exists())
+          .andExpect(jsonPath(WORKER_RESULT + ".responses['410']").exists())
+          .andExpect(jsonPath(WORKER_RESULT + ".responses['500']").exists())
+          .andExpect(jsonPath(WORKER_RESULT + ".security[0].workerBearerAuth").isArray());
     }
 
     @Test

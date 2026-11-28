@@ -38,14 +38,14 @@ class WorkflowCreatedAtMigrationTests {
           .update();
 
       var current = flyway(postgres, null);
-      assertThat(current.migrate().migrationsExecuted).isEqualTo(6);
+      assertThat(current.migrate().migrationsExecuted).isEqualTo(7);
       assertThat(
               jdbc.sql("SELECT created_at FROM workflow_hub.workflows WHERE id = :id")
                   .param("id", workflowId)
                   .query(OffsetDateTime.class)
                   .single())
           .isEqualTo(OffsetDateTime.parse("2026-10-20T01:00:00Z"));
-      assertThat(current.info().current().getScript()).isEqualTo("V8__add_soft_delete.sql");
+      assertThat(current.info().current().getScript()).isEqualTo("V9__create_security_scans.sql");
       // 기존 버전의 해시·크기는 알 수 없으므로 미확인(NULL)으로 남고 기존 행은 그대로 유지된다.
       assertThat(
               jdbc.sql(

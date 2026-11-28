@@ -26,13 +26,13 @@ n8n의 템플릿 심사·보안 감사·버전 리뷰, 제3자 공유 경로, �
 | 영역                         | 상태                                                                                                                                                                                                                                                                                                                  |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 프론트·백엔드 기반           | 실행 구조, Google 로그인(Supabase)·JWT 검증, 개발 도구·검사 설정이 있음. 개발 환경에서 실제 Google 로그인과 `/api/me`·토큰 갱신·로그아웃을 확인함([#13](https://github.com/serendipity-sec/workflow-hub/pull/13))                                                                                                     |
-| 구현된 HTTP API              | 상태·사용자 확인, 최초 업로드, 소유자별 조회, 변경점 비교·버전 등록, 원본 다운로드·허용 상태 변경, 버전·워크플로 삭제와 복구. 정확한 계약은 OpenAPI 참조                                                                                                                                                              |
+| 구현된 HTTP API              | 상태·사용자 확인, 최초 업로드, 소유자별 조회, 변경점 비교·버전 등록, 원본 다운로드·허용 상태 변경, 버전·워크플로 삭제와 복구, 보안 검사 요청·이력/최신/상세·리포트 지연 조회 및 워커 내부 API([#57](https://github.com/serendipity-sec/workflow-hub/issues/57)). 정확한 계약은 OpenAPI 참조                           |
 | 프론트엔드 화면              | 로그인, 워크플로 업로드·목록·상세, 버전 이력·원본 다운로드, 수정본 비교와 작은/큰 수정 등록([#40](https://github.com/serendipity-sec/workflow-hub/pull/40)), 버전·워크플로 삭제·복구와 버전별 다운로드 허용·중지([#42](https://github.com/serendipity-sec/workflow-hub/pull/42)). 보안 검사 영역은 "준비 중" 자리표시 |
 | 워크플로·버전 DB 기반        | PostgreSQL 연결·Flyway 및 소유자/버전 메타데이터 스키마·제약 구현                                                                                                                                                                                                                                                     |
 | 워크플로 서비스·S3 저장      | 비공개 원본·비교 파일 저장 및 소유자별 다운로드 구현. 개발용 S3에서 업로드·비교·등록·다운로드를 수동 확인함(#40 작성자 기록). 삭제 후 복구·원본 정리와 덮어쓰기 거부는 실제 S3에서 미검증                                                                                                                             |
 | 저장소 비밀정보 검사         | GitHub Actions에서 Gitleaks로 Git 커밋 이력 검사                                                                                                                                                                                                                                                                      |
 | 보안 워커                    | `worker/`의 n8n 정적 분석·보안 변화 비교, 합성 파일 CLI 및 루프백 계약 테스트                                                                                                                                                                                                                                         |
-| 사용자 파일의 검사·수정·공개 | 작업 API, 실제 파일 저장·접근, 결과·정책 및 화면은 후속 구현                                                                                                                                                                                                                                                          |
+| 사용자 파일의 검사·수정·공개 | 백엔드 검사 API·DB(V9)·SQS 발행·워커 내부 API 구현([#57](https://github.com/serendipity-sec/workflow-hub/issues/57), 로컬 Testcontainers·인메모리 대역 검증). 실제 AWS SQS/S3/Lambda 연동, 프론트 검사 화면, 정책·공개 기능은 후속 구현                                                                               |
 
 제품 범위·우선순위·결정 상태는 [개발 계획](docs/PLAN.md), 검사 방식과 지원 범위는 [보안 설계안](docs/SECURITY_DESIGN.md)에서 관리합니다.
 
@@ -113,7 +113,7 @@ cd backend
 .\gradlew.bat bootRun
 ```
 
-실행 전에 `backend/.env.example`을 참고해 `DATABASE_URL`(JDBC URL), `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `WORKFLOW_BUCKET`(S3 없이 실행할 때는 아무 이름)을 터미널이나 IDE의 프로세스 환경변수로 지정합니다. Supabase JWT issuer, JWKS 등 인증 설정도 환경변수로 전달합니다. Spring Boot는 `.env` 파일을 자동으로 읽지 않습니다.
+실행 전에 `backend/.env.example`을 참고해 `DATABASE_URL`(JDBC URL), `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `WORKFLOW_BUCKET`, `SCAN_QUEUE_URL`, `WORKER_API_TOKENS`(로컬에서 S3·SQS·워커를 호출하지 않을 때는 임의 값)을 터미널이나 IDE의 프로세스 환경변수로 지정합니다. Supabase JWT issuer, JWKS 등 인증 설정도 환경변수로 전달합니다. Spring Boot는 `.env` 파일을 자동으로 읽지 않습니다.
 
 백엔드는 시작 시 Flyway로 `backend/src/main/resources/db/migration/`의 마이그레이션을 적용합니다. 초기 연결 계정은 `workflow_hub` 스키마와 테이블·마이그레이션 이력을 관리할 권한이 필요합니다. Supabase에서는 이 스키마를 Data API의 exposed schemas에 추가하지 않습니다. 현재 하나의 datasource로 마이그레이션도 실행하므로 운영 역할 분리는 별도 보강 대상입니다.
 
@@ -161,6 +161,7 @@ npm run build
 - [개발 목표·범위·완료 조건](docs/PLAN.md)
 - [구조와 인증·데이터 정책](docs/ARCHITECTURE.md)
 - [보안 검사 설계안](docs/SECURITY_DESIGN.md)
+- [보안 검사 입력·출력·상태 API 계약](docs/SCAN_API_CONTRACT.md)
 - [보안 워커의 지원 범위·실행·검증 기록](worker/README.md)
 - [차별화 근거와 검증 계획](docs/DIFFERENTIATION.md)
 - [외부 연동과 배포 준비](docs/SETUP.md)
@@ -179,7 +180,7 @@ npm run build
 
 ## 데이터 처리 원칙
 
-- 소유자별 업로드·조회·버전 등록·다운로드 API는 PostgreSQL 메타데이터와 비공개 S3의 원본 바이트를 사용합니다. 버전별 원본 파일 해시·크기를 서버가 기록하고 버전 조회 응답에 포함합니다(V6 이전 버전은 미확인). 검사 기록은 후속 범위입니다.
+- 소유자별 업로드·조회·버전 등록·다운로드 API는 PostgreSQL 메타데이터와 비공개 S3의 원본 바이트를 사용합니다. 버전별 원본 파일 해시·크기를 서버가 기록하고 버전 조회 응답에 포함합니다(V6 이전 버전은 미확인). 보안 검사 실행 메타데이터·요약은 PostgreSQL(V9)에, 상세 리포트(`serviceReport`)와 원문(`assessment`)은 비공개 S3에 저장하며, 정책 평가·공개 기능과 실제 AWS SQS/S3/Lambda 연동은 후속 범위입니다.
 - 업로드한 워크플로·Code 노드·표현식을 서버에서 실행하지 않습니다.
 - 최초 업로드와 버전 비교는 중첩 깊이 64·노드 300·연결 1,500 한도(환경 변수로 조정)를 넘는 JSON을 `422 WORKFLOW_LIMIT_EXCEEDED`로 거절하며, 거절된 요청은 S3와 DB에 아무것도 남기지 않습니다. 값의 근거와 측정·미검증 항목은 [입력 한도 문서](docs/INPUT_LIMITS.md)에 있습니다.
 - 검사 결과에도 비밀정보가 포함될 수 있으므로, 결과 마스킹과 접근 권한을 함께 설계합니다.

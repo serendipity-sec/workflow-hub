@@ -98,6 +98,9 @@ public class WorkflowVersionPurge {
   private boolean purge(Claim claim) {
     try {
       store.delete(claim.objectKey());
+      for (String scanObjectKey : scanObjectKeysForVersion(claim.versionId())) {
+        store.delete(scanObjectKey);
+      }
     } catch (RuntimeException e) {
       // 삭제 시작 표시가 남아 있으므로 복구는 거절되고, 재시도 간격 뒤 다시 지운다.
       log.error(
@@ -113,6 +116,22 @@ public class WorkflowVersionPurge {
         claim.versionId(),
         claim.objectKey());
     return true;
+  }
+
+  private java.util.List<String> scanObjectKeysForVersion(UUID versionId) {
+    return jdbc.sql(
+            """
+            SELECT service_report_s3_key AS key
+            FROM workflow_hub.scan_runs
+            WHERE workflow_version_id = :versionId AND service_report_s3_key IS NOT NULL
+            UNION
+            SELECT assessment_s3_key AS key
+            FROM workflow_hub.scan_runs
+            WHERE workflow_version_id = :versionId AND assessment_s3_key IS NOT NULL
+            """)
+        .param("versionId", versionId)
+        .query(String.class)
+        .list();
   }
 
   /**
@@ -148,6 +167,15 @@ public class WorkflowVersionPurge {
     if (updated == 0) {
       return;
     }
+    jdbc.sql(
+            """
+            UPDATE workflow_hub.scan_runs
+            SET service_report_s3_key = NULL, assessment_s3_key = NULL
+            WHERE workflow_version_id = :versionId
+              AND (service_report_s3_key IS NOT NULL OR assessment_s3_key IS NOT NULL)
+            """)
+        .param("versionId", versionId)
+        .update();
     jdbc.sql(
             """
             UPDATE workflow_hub.workflows w

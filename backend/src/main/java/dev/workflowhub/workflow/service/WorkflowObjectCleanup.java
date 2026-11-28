@@ -53,6 +53,30 @@ public class WorkflowObjectCleanup {
   }
 
   /** S3에 쓰기 전에 호출한다. 요청 트랜잭션과 따로 커밋해야 롤백·재시작 뒤에도 남는다. */
+  public void recordPendingObject(String objectKey) {
+    record(objectKey);
+  }
+
+  /** 결과 저장 트랜잭션 안에서 호출한다. 정리 작업이 이미 삭제를 시작했거나 행이 없으면 false다. */
+  public boolean releasePendingObject(String objectKey) {
+    int released =
+        jdbc.sql(
+                "DELETE FROM workflow_hub.pending_objects WHERE object_key = :key AND delete_started_at IS NULL")
+            .param("key", objectKey)
+            .update();
+    if (released == 0) {
+      log.error("event=workflow.object_cleanup.commit_refused objectKey={}", objectKey);
+      return false;
+    }
+    return true;
+  }
+
+  /** 어떤 행도 참조하지 않는 객체를 즉시 삭제한다. 실패하면 pending_objects에 남겨 정리 작업이 이어받는다. */
+  public void discardPendingObject(String objectKey) {
+    discard(objectKey);
+  }
+
+  /** S3에 쓰기 전에 호출한다. 요청 트랜잭션과 따로 커밋해야 롤백·재시작 뒤에도 남는다. */
   void record(String objectKey) {
     jdbc.sql(
             """
@@ -216,7 +240,10 @@ public class WorkflowObjectCleanup {
             jdbc.sql(
                     """
                     SELECT EXISTS (
-                        SELECT 1 FROM workflow_hub.workflow_versions WHERE s3_object_key = :key)
+                        SELECT 1 FROM workflow_hub.workflow_versions WHERE s3_object_key = :key
+                        UNION ALL
+                        SELECT 1 FROM workflow_hub.scan_runs
+                        WHERE service_report_s3_key = :key OR assessment_s3_key = :key)
                     """)
                 .param("key", objectKey)
                 .query(Boolean.class)

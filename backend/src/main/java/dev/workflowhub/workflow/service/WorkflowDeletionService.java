@@ -1,5 +1,6 @@
 package dev.workflowhub.workflow.service;
 
+import dev.workflowhub.common.events.WorkflowDeletionEvent;
 import dev.workflowhub.workflow.storage.WorkflowObjectStore;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -15,6 +16,7 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -36,12 +38,14 @@ public class WorkflowDeletionService {
   private final JdbcClient jdbc;
   private final TransactionTemplate transactions;
   private final WorkflowObjectStore store;
+  private final ApplicationEventPublisher events;
   private final Duration grace;
 
   public WorkflowDeletionService(
       JdbcClient jdbc,
       TransactionTemplate transactions,
       WorkflowObjectStore store,
+      ApplicationEventPublisher events,
       @Value("${app.deletion.grace}") Duration grace) {
     if (grace.isZero() || grace.isNegative()) {
       throw new IllegalArgumentException("WORKFLOW_DELETE_GRACE must be positive");
@@ -49,6 +53,7 @@ public class WorkflowDeletionService {
     this.jdbc = jdbc;
     this.transactions = transactions;
     this.store = store;
+    this.events = events;
     this.grace = grace;
   }
 
@@ -80,6 +85,8 @@ public class WorkflowDeletionService {
                     .param("after", after)
                     .param("id", version)
                     .update();
+                events.publishEvent(
+                    new WorkflowDeletionEvent.WorkflowVersionDeleted(workflow, version, now));
                 return new Deletion(workflow, version, false, now.toInstant(), after.toInstant());
               }
               if (!allowWorkflowDelete) {
@@ -300,6 +307,7 @@ public class WorkflowDeletionService {
         .param("after", after)
         .param("id", workflow)
         .update();
+    events.publishEvent(new WorkflowDeletionEvent.WorkflowDeleted(workflow, now));
   }
 
   /**
