@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -14,12 +15,19 @@ import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 public class SecurityConfiguration {
+  @Bean
+  WorkerTokenValidator workerTokenValidator(
+      @Value("${app.analysis.worker-tokens}") String workerTokens) {
+    return new WorkerTokenValidator(workerTokens);
+  }
+
   @Bean
   JwtDecoder jwtDecoder(
       @Value("${app.auth.issuer}") String issuer,
@@ -37,7 +45,41 @@ public class SecurityConfiguration {
     return decoder;
   }
 
+  /** 워커 내부 API는 사용자 Supabase JWT와 완전히 분리된 서비스 전용 Bearer 토큰만 허용한다. */
   @Bean
+  @Order(1)
+  SecurityFilterChain workerSecurityFilterChain(
+      HttpSecurity http, ApiErrorWriter errors, WorkerTokenValidator workerTokens)
+      throws Exception {
+    return http.securityMatcher("/internal/**")
+        .csrf(csrf -> csrf.disable())
+        .sessionManagement(
+            session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .requestCache(cache -> cache.disable())
+        .addFilterBefore(
+            new WorkerTokenAuthenticationFilter(workerTokens), AnonymousAuthenticationFilter.class)
+        .authorizeHttpRequests(auth -> auth.anyRequest().hasRole("WORKER"))
+        .exceptionHandling(
+            handling ->
+                handling
+                    .authenticationEntryPoint(
+                        (request, response, exception) -> {
+                          response.setHeader(HttpHeaders.WWW_AUTHENTICATE, "Bearer");
+                          errors.write(
+                              response,
+                              401,
+                              "WORKER_UNAUTHORIZED",
+                              "Invalid or missing worker service token");
+                        })
+                    .accessDeniedHandler(
+                        (request, response, exception) ->
+                            errors.write(
+                                response, 403, "WORKER_FORBIDDEN", "Worker access denied")))
+        .build();
+  }
+
+  @Bean
+  @Order(2)
   SecurityFilterChain securityFilterChain(
       HttpSecurity http, ApiErrorWriter errors, @Value("${app.docs.enabled}") boolean docsEnabled)
       throws Exception {

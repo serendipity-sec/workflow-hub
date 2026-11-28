@@ -1,6 +1,6 @@
 # 구조와 경계
 
-> 상태: 팀 검토용 보안 확장 제안. #8·#10에서 확정·구현한 워크플로별 버전 메타데이터와 인증 기반을 유지한다. 버전별 원본 파일 해시·크기 기록(#29)은 구현했고, `worker/`의 보안 워커는 합성 파일과 모의 API로 검증했다. 서비스 검사·정책·공개·작업 처리 모델은 미구현이다. 현재 DB 구조와 후속 제안을 4절에서 구분한다.
+> 상태: #8·#10에서 확정·구현한 워크플로별 버전 메타데이터와 인증 기반, #29의 버전별 원본 파일 해시·크기 기록, #57의 보안 검사 API·DB(V9)·워커 내부 API·임대 회수를 구현했다. `worker/`의 보안 워커는 합성 파일과 모의 API로 검증했고, 백엔드 검사 API는 로컬 Testcontainers와 인메모리 S3/SQS 대역으로 검증했다. 실제 AWS SQS/S3/Lambda 연동, 프론트 검사 화면, 정책 평가 엔진·공개 기능은 미구현이다. 현재 DB 구조와 후속 제안을 4절에서 구분한다.
 
 ## 1. 문서와 구성 요소의 책임
 
@@ -90,6 +90,7 @@ Supabase의 RTR과 재사용 탐지 기능을 사용한다. 병렬 갱신을 위
 - 삭제(#37, V8): 버전·워크플로는 행을 지우지 않고 `deleted_at`을 표시한다(soft delete). 버전 행에는 `delete_after`(복구 기한), `delete_started_at`(S3 삭제 시작), `purged_at`(원본 정리 완료)가 있고 기한은 버전마다 독립이다. 상태는 살아 있음(`deleted_at` 없음) → 삭제됨(기한 전, 복구 가능) → 정리 중(`delete_started_at`, 복구 불가) → 정리 완료(`purged_at`; 객체 키·해시·크기를 비우고 번호·삭제 시각만 남김)다. 워크플로 행에도 `deleted_at`이 있고, 모든 버전이 정리되면 제목을 비운다. 번호는 삭제된 행까지 포함해 발급하므로 삭제한 번호를 다시 쓰지 않으며(`UNIQUE (workflow_id, version)`도 이를 막는다), 기준 버전 확인과 기본 표시 버전은 살아 있는 행만 본다.
 - 파일 불변성은 제품 정책이다. 현재 스키마에 부모·검사·정책·공개 필드나 변경 방지 트리거는 없고(파일 해시·크기는 V6에서 추가), 기록된 해시·크기를 DB가 수정하지 못하게 막지는 않는다. 덮어쓰기 방지는 업로드 API(#20)가 서버 생성 키와 S3 조건부 PUT(`If-None-Match: *`)으로 구현했으나 실제 S3에서는 검증하지 않았다.
 - 최초 업로드 API(`POST /api/workflows`, #20), 소유자별 목록·상세·버전 조회 API(#23), 소유자용 원본 JSON 다운로드 API(#25), 버전 비교·등록과 다운로드 허용 상태 변경 API(#27), 버전·워크플로 삭제와 복구 API(#37)가 있다. V5의 `workflow_hub.workflow_comparisons`는 비교 기준 버전과 임시 파일의 만료·삭제 재시도 시각을 기록한다.
+- 보안 검사 실행·작업 저장(#39·#57, V9): `workflow_hub.scan_runs`(4축 상태, 결과 버전, 화면 최소 요약, 비공개 S3 결과 키 `service_report_s3_key`/`assessment_s3_key`, 오류), `workflow_hub.analysis_jobs`, `workflow_hub.analysis_job_attempts`, `workflow_hub.scan_request_idempotency_keys`를 추가했다. 사용자 API(`/api/workflows/{workflowId}/versions/{versionId}/scans/**`, `latest`는 검사 이력이 없으면 `200 { "data": null }`, 상세 리포트는 `/scans/{scanRunId}/report`에서 소유권 확인 후 비공개 S3에서 지연 조회)와 워커 전용 내부 API(`/internal/worker/v1/tasks/{taskId}/attempts/{attemptId}/file|heartbeat|result`, 복수 활성 서비스 Bearer 토큰 회전 지원)를 분리했다. 워크플로·버전 삭제 시 같은 트랜잭션에서 진행 중(`queued`/`running`) 검사를 `cancelled`로 전환하며, `ScanLeaseRecovery`가 임대 만료(`lease_expires_at <= now()`) 작업과 오래 시작되지 않은 `queued` 작업을 최대 3회까지 재발행하거나 `timed_out`으로 마감한다. 최초 검사 요청의 발행을 SQS가 명확히 거부하면 실행을 지우지 않고 `failed`로 마감한다. 결과를 알 수 없는 실패나 재시도 발행 실패는 검사를 끝내지 않고, 발행이 확인되지 않은 시도를 같은 `attemptId`로 다시 발행한다. 버전 purge는 실행당 S3 삭제 호출 수를 제한하고 검사 결과 객체를 행 단위로 지우며 진행 상태를 남긴다. 세부 계약은 [SCAN_API_CONTRACT.md](SCAN_API_CONTRACT.md)와 백엔드 OpenAPI를 따른다. 실제 AWS SQS/S3/Lambda 연동은 후속 검증 대상이다.
 - [V3 마이그레이션](../backend/src/main/resources/db/migration/V3__add_workflow_created_at.sql)은 워크플로 최초 등록 시각을 기존 `v1.created_at`으로 채우며, `v1`이 없는 기존 행은 임의의 시각으로 채우지 않고 이관에 실패한다. 새 행에는 현재 시각을 기본값으로 쓴다. `updated_at`은 추가하지 않는다.
 - 워크플로 목록은 최초 등록 시각·ID 내림차순, 버전 목록과 최신 버전 선택은 버전 등록 시각·ID 내림차순이다. 두 목록 모두 커서 페이지네이션(기본 20개, 1~100개)을 사용한다. 다른 소유자·없는 ID·잘못된 UUID의 상세와 버전 목록은 같은 404다. 정확한 응답·오류 계약은 컨트롤러 OpenAPI를 따른다.
 

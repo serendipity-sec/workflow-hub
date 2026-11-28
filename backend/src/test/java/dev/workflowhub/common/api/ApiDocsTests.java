@@ -1,11 +1,17 @@
 package dev.workflowhub.common.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import dev.workflowhub.PostgresTestConfiguration;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +40,22 @@ class ApiDocsTests {
       "$.paths['/api/workflows/{workflowId}/versions/{versionId}/restore'].post";
   private static final String RESTORE_WORKFLOW =
       "$.paths['/api/workflows/{workflowId}/restore'].post";
+  private static final String SCAN_REQUEST =
+      "$.paths['/api/workflows/{workflowId}/versions/{versionId}/scans'].post";
+  private static final String SCAN_LIST =
+      "$.paths['/api/workflows/{workflowId}/versions/{versionId}/scans'].get";
+  private static final String SCAN_LATEST =
+      "$.paths['/api/workflows/{workflowId}/versions/{versionId}/scans/latest'].get";
+  private static final String SCAN_DETAIL =
+      "$.paths['/api/workflows/{workflowId}/versions/{versionId}/scans/{scanRunId}'].get";
+  private static final String SCAN_REPORT =
+      "$.paths['/api/workflows/{workflowId}/versions/{versionId}/scans/{scanRunId}/report'].get";
+  private static final String WORKER_FILE =
+      "$.paths['/internal/worker/v1/tasks/{taskId}/attempts/{attemptId}/file'].get";
+  private static final String WORKER_HEARTBEAT =
+      "$.paths['/internal/worker/v1/tasks/{taskId}/attempts/{attemptId}/heartbeat'].post";
+  private static final String WORKER_RESULT =
+      "$.paths['/internal/worker/v1/tasks/{taskId}/attempts/{attemptId}/result'].put";
   private static final String SCHEMAS = "$.components.schemas.";
 
   @Nested
@@ -216,6 +238,83 @@ class ApiDocsTests {
           .andExpect(
               jsonPath(DELETE_VERSION + ".responses['409'].description")
                   .value(containsString("LAST_VERSION_REMAINING")));
+    }
+
+    @Test
+    void documentsSecurityScanAndWorkerInternalEndpoints() throws Exception {
+      var docs = mvc.perform(get("/v3/api-docs")).andExpect(status().isOk());
+      docs.andExpect(
+              jsonPath("$.components.securitySchemes.workerBearerAuth.scheme").value("bearer"))
+          .andExpect(jsonPath(SCAN_REQUEST + ".responses['202']").exists())
+          .andExpect(jsonPath(SCAN_REQUEST + ".responses['409']").exists())
+          .andExpect(jsonPath(SCAN_REQUEST + ".responses['422']").exists())
+          .andExpect(jsonPath(SCAN_REQUEST + ".responses['503']").exists())
+          .andExpect(jsonPath(SCAN_LIST + ".responses['200']").exists())
+          .andExpect(jsonPath(SCAN_LATEST + ".responses['200']").exists())
+          .andExpect(jsonPath(SCAN_DETAIL + ".responses['200']").exists())
+          .andExpect(jsonPath(SCAN_REPORT + ".responses['200']").exists())
+          .andExpect(jsonPath(SCAN_REPORT + ".responses['409']").exists())
+          .andExpect(jsonPath(WORKER_FILE + ".responses['200']").exists())
+          .andExpect(jsonPath(WORKER_FILE + ".responses['410']").exists())
+          .andExpect(jsonPath(WORKER_FILE + ".responses['500']").exists())
+          .andExpect(jsonPath(WORKER_HEARTBEAT + ".responses['200']").exists())
+          .andExpect(jsonPath(WORKER_HEARTBEAT + ".responses['410']").exists())
+          .andExpect(jsonPath(WORKER_HEARTBEAT + ".responses['500']").exists())
+          .andExpect(jsonPath(WORKER_RESULT + ".requestBody.content['application/json']").exists())
+          .andExpect(jsonPath(WORKER_RESULT + ".responses['201']").exists())
+          .andExpect(jsonPath(WORKER_RESULT + ".responses['200']").exists())
+          .andExpect(jsonPath(WORKER_RESULT + ".responses['410']").exists())
+          .andExpect(jsonPath(WORKER_RESULT + ".responses['500']").exists())
+          .andExpect(jsonPath(WORKER_RESULT + ".responses['413']").exists())
+          .andExpect(jsonPath(WORKER_RESULT + ".responses['415']").exists())
+          .andExpect(
+              jsonPath(WORKER_RESULT + ".responses['415'].description")
+                  .value(containsString("UNSUPPORTED_MEDIA_TYPE")))
+          .andExpect(
+              jsonPath(WORKER_FILE + ".description").value(containsString("SCAN_LEASE_DURATION")))
+          .andExpect(
+              jsonPath(SCAN_REQUEST + ".responses['422'].description")
+                  .value(containsString("SCAN_MAX_FILE_BYTES")));
+
+      // 워커 작업은 워커 토큰만 허용해야 하므로 security 전체가 정확히 [{"workerBearerAuth": []}]여야 한다.
+      String json = docs.andReturn().getResponse().getContentAsString();
+      for (String operation : new String[] {WORKER_FILE, WORKER_HEARTBEAT, WORKER_RESULT}) {
+        List<Object> security = JsonPath.read(json, operation + ".security");
+        assertThat(security).isEqualTo(List.of(Map.of("workerBearerAuth", List.of())));
+      }
+      // HEAD는 상태를 바꾸지 않도록 별도 매핑으로 거절하며 문서에는 노출하지 않는다.
+      assertThat(JsonPath.<Map<String, Object>>read(json, WORKER_FILE.replace(".get", "")))
+          .doesNotContainKey("head");
+    }
+
+    @Test
+    void documentsTheWorkerResultBodyAndNullableScanFields() throws Exception {
+      String body = WORKER_RESULT + ".requestBody.content['application/json'].schema";
+      mvc.perform(get("/v3/api-docs"))
+          .andExpect(status().isOk())
+          .andExpect(
+              jsonPath(body + ".oneOf[*]['$ref']")
+                  .value(
+                      containsInAnyOrder(
+                          schemaRef("WorkerCompletedResult"), schemaRef("WorkerFailedResult"))))
+          .andExpect(
+              jsonPath(SCHEMAS + "WorkerCompletedResult.required").value(hasItem("inspection")))
+          .andExpect(
+              jsonPath(SCHEMAS + "WorkerCompletedResult.required")
+                  .value(hasItem("contractVersion")))
+          .andExpect(jsonPath(SCHEMAS + "WorkerFailedResult.required").value(hasItem("error")))
+          .andExpect(jsonPath(SCHEMAS + "WorkerResultError.required").value(hasItem("retryable")))
+          .andExpect(
+              jsonPath(SCHEMAS + "WorkerInspection.required").value(hasItem("serviceReport")))
+          .andExpect(
+              jsonPath(SCHEMAS + "ScanRunData.properties.versions.type").value(hasItem("null")))
+          .andExpect(
+              jsonPath(SCHEMAS + "ScanRunData.properties.summary.type").value(hasItem("null")))
+          .andExpect(jsonPath(SCHEMAS + "ScanRunData.properties.error.type").value(hasItem("null")))
+          .andExpect(
+              jsonPath(SCHEMAS + "ScanRunData.properties.startedAt.type").value(hasItem("null")))
+          .andExpect(
+              jsonPath(SCHEMAS + "ScanRunData.properties.finishedAt.type").value(hasItem("null")));
     }
 
     @Test

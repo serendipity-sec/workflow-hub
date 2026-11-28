@@ -1,5 +1,6 @@
 package dev.workflowhub.workflow.service;
 
+import dev.workflowhub.common.storage.PendingObjectRegistry;
 import dev.workflowhub.workflow.storage.WorkflowObjectStore;
 import java.time.Duration;
 import java.util.Optional;
@@ -19,7 +20,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * 재시도해도 안전하다.
  */
 @Service
-public class WorkflowObjectCleanup {
+public class WorkflowObjectCleanup implements PendingObjectRegistry {
   private static final Logger log = LoggerFactory.getLogger(WorkflowObjectCleanup.class);
   private static final int MAX_PER_RUN = 100;
 
@@ -50,6 +51,30 @@ public class WorkflowObjectCleanup {
     this.store = store;
     this.grace = grace;
     this.retryDelay = retryDelay;
+  }
+
+  @Override
+  public void recordPendingObject(String objectKey) {
+    record(objectKey);
+  }
+
+  @Override
+  public boolean releasePendingObject(String objectKey) {
+    int released =
+        jdbc.sql(
+                "DELETE FROM workflow_hub.pending_objects WHERE object_key = :key AND delete_started_at IS NULL")
+            .param("key", objectKey)
+            .update();
+    if (released == 0) {
+      log.error("event=workflow.object_cleanup.commit_refused objectKey={}", objectKey);
+      return false;
+    }
+    return true;
+  }
+
+  @Override
+  public void discardPendingObject(String objectKey) {
+    discard(objectKey);
   }
 
   /** S3에 쓰기 전에 호출한다. 요청 트랜잭션과 따로 커밋해야 롤백·재시작 뒤에도 남는다. */
@@ -216,7 +241,10 @@ public class WorkflowObjectCleanup {
             jdbc.sql(
                     """
                     SELECT EXISTS (
-                        SELECT 1 FROM workflow_hub.workflow_versions WHERE s3_object_key = :key)
+                        SELECT 1 FROM workflow_hub.workflow_versions WHERE s3_object_key = :key
+                        UNION ALL
+                        SELECT 1 FROM workflow_hub.scan_runs
+                        WHERE service_report_s3_key = :key OR assessment_s3_key = :key)
                     """)
                 .param("key", objectKey)
                 .query(Boolean.class)
